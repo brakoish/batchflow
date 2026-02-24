@@ -19,6 +19,7 @@ export async function GET(
             order: 'asc',
           },
           include: {
+            recipeStep: { select: { notes: true } },
             progressLogs: {
               include: {
                 worker: {

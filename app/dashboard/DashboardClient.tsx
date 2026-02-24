@@ -36,6 +36,7 @@ export default function DashboardClient({
         if (aRes.ok) { const d = await aRes.json(); if (d.logs) setActivity(d.logs) }
       } catch {}
     }
+    poll() // immediate fetch on mount/nav
     const id = setInterval(poll, 5000)
     return () => clearInterval(id)
   }, [])

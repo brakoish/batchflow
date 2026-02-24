@@ -28,6 +28,7 @@ export default function BatchListClient({
         }
       } catch {}
     }
+    poll()
     const id = setInterval(poll, 5000)
     return () => clearInterval(id)
   }, [])

@@ -25,6 +25,7 @@ export default async function BatchDetailPage({
           order: 'asc',
         },
         include: {
+          recipeStep: { select: { notes: true } },
           progressLogs: {
             include: {
               worker: {

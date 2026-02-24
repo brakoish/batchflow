@@ -18,6 +18,7 @@ type BatchStep = {
   id: string; name: string; order: number; type: 'CHECK' | 'COUNT'
   unitLabel: string; unitRatio: number
   targetQuantity: number; completedQuantity: number; status: string
+  recipeStep?: { notes: string | null }
   progressLogs: ProgressLog[]
 }
 type Batch = {
@@ -203,6 +204,9 @@ export default function BatchDetailClient({
                       }`}>
                         {step.name}
                       </p>
+                      {step.recipeStep?.notes && !isLocked && (
+                        <p className="text-[10px] text-zinc-600 mt-0.5">{step.recipeStep.notes}</p>
+                      )}
                       {step.type === 'COUNT' && !isLocked && (
                         <p className="text-xs text-zinc-500 tabular-nums mt-0.5">
                           {step.completedQuantity} / {step.targetQuantity} {step.unitLabel}
