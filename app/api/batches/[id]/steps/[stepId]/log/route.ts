@@ -53,21 +53,27 @@ export async function POST(
       (s: { order: number }) => s.order === step.order - 1
     )
 
-    // Calculate ceiling
-    let ceiling = step.batch.targetQuantity
-    if (previousStep) {
-      ceiling = previousStep.completedQuantity
-    }
-
-    // Validate ceiling rule
+    // Calculate ceiling (normalize across different unit ratios)
     const newTotal = step.completedQuantity + quantity
-    if (newTotal > ceiling) {
-      return NextResponse.json(
-        {
-          error: `Cannot exceed ceiling of ${ceiling}. Current: ${step.completedQuantity}, Attempting to add: ${quantity}`,
-        },
-        { status: 400 }
-      )
+    if (previousStep) {
+      // Convert previous step's completed qty to base units, then to this step's units
+      const prevBaseUnits = (previousStep as any).completedQuantity * ((previousStep as any).unitRatio || 1)
+      const ceiling = Math.floor(prevBaseUnits / ((step as any).unitRatio || 1))
+
+      if (newTotal > ceiling) {
+        return NextResponse.json(
+          { error: `Cannot exceed ${ceiling} ${(step as any).unitLabel || 'units'} (limited by ${(previousStep as any).name})` },
+          { status: 400 }
+        )
+      }
+    } else {
+      // First step: ceiling is the step's own target
+      if (newTotal > step.targetQuantity) {
+        return NextResponse.json(
+          { error: `Cannot exceed target of ${step.targetQuantity}` },
+          { status: 400 }
+        )
+      }
     }
 
     // Create progress log

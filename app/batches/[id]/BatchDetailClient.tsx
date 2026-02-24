@@ -16,11 +16,12 @@ type ProgressLog = {
 }
 type BatchStep = {
   id: string; name: string; order: number; type: 'CHECK' | 'COUNT'
+  unitLabel: string; unitRatio: number
   targetQuantity: number; completedQuantity: number; status: string
   progressLogs: ProgressLog[]
 }
 type Batch = {
-  id: string; name: string; targetQuantity: number; status: string
+  id: string; name: string; targetQuantity: number; baseUnit: string; status: string
   recipe: { name: string }; steps: BatchStep[]
 }
 type Session = { id: string; name: string; role: string }
@@ -154,7 +155,7 @@ export default function BatchDetailClient({
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs text-zinc-500">{batch.recipe.name}</span>
             <span className="text-zinc-700">·</span>
-            <span className="text-xs text-zinc-500">{batch.targetQuantity} target</span>
+            <span className="text-xs text-zinc-500">{batch.targetQuantity} {batch.baseUnit}</span>
             <span className="text-zinc-700">·</span>
             <span className="text-xs text-emerald-400 font-medium">{overallPct}%</span>
           </div>
@@ -204,7 +205,7 @@ export default function BatchDetailClient({
                       </p>
                       {step.type === 'COUNT' && !isLocked && (
                         <p className="text-xs text-zinc-500 tabular-nums mt-0.5">
-                          {step.completedQuantity} / {step.targetQuantity}
+                          {step.completedQuantity} / {step.targetQuantity} {step.unitLabel}
                         </p>
                       )}
                     </div>
@@ -262,7 +263,7 @@ export default function BatchDetailClient({
                 <div>
                   <p className="text-sm font-semibold text-zinc-50">{selectedStep.name}</p>
                   <p className="text-xs text-zinc-500 tabular-nums mt-0.5">
-                    {selectedStep.completedQuantity} / {selectedStep.targetQuantity}
+                    {selectedStep.completedQuantity} / {selectedStep.targetQuantity} {selectedStep.unitLabel}
                   </p>
                 </div>
                 <button

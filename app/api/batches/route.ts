@@ -7,29 +7,17 @@ export async function GET() {
     await requireSession()
 
     const batches = await prisma.batch.findMany({
-      where: {
-        status: 'ACTIVE',
-      },
+      where: { status: 'ACTIVE' },
       include: {
         recipe: true,
-        steps: {
-          orderBy: {
-            order: 'asc',
-          },
-        },
+        steps: { orderBy: { order: 'asc' } },
       },
-      orderBy: {
-        startDate: 'desc',
-      },
+      orderBy: { startDate: 'desc' },
     })
 
     return NextResponse.json({ batches })
   } catch (error) {
-    console.error('Get batches error:', error)
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 }
 
@@ -40,28 +28,22 @@ export async function POST(request: NextRequest) {
     const { recipeId, name, targetQuantity, startDate } = await request.json()
 
     if (!recipeId || !name || !targetQuantity) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     const recipe = await prisma.recipe.findUnique({
       where: { id: recipeId },
       include: {
+        units: true,
         steps: {
-          orderBy: {
-            order: 'asc',
-          },
+          orderBy: { order: 'asc' },
+          include: { unit: true },
         },
       },
     })
 
     if (!recipe) {
-      return NextResponse.json(
-        { error: 'Recipe not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Recipe not found' }, { status: 404 })
     }
 
     const batch = await prisma.batch.create({
@@ -69,34 +51,36 @@ export async function POST(request: NextRequest) {
         recipeId,
         name,
         targetQuantity,
+        baseUnit: recipe.baseUnit,
         startDate: startDate ? new Date(startDate) : new Date(),
         steps: {
-          create: recipe.steps.map((step) => ({
-            recipeStepId: step.id,
-            name: step.name,
-            order: step.order,
-            type: step.type,
-            targetQuantity,
-            status: step.order === 1 ? 'IN_PROGRESS' : 'LOCKED',
-          })),
+          create: recipe.steps.map((step) => {
+            const unitRatio = step.unit?.ratio || 1
+            const unitLabel = step.unit?.name || recipe.baseUnit
+            const stepTarget = Math.ceil(targetQuantity / unitRatio)
+
+            return {
+              recipeStepId: step.id,
+              name: step.name,
+              order: step.order,
+              type: step.type,
+              unitLabel,
+              unitRatio,
+              targetQuantity: stepTarget,
+              status: step.order === 1 ? 'IN_PROGRESS' : 'LOCKED',
+            }
+          }),
         },
       },
       include: {
         recipe: true,
-        steps: {
-          orderBy: {
-            order: 'asc',
-          },
-        },
+        steps: { orderBy: { order: 'asc' } },
       },
     })
 
     return NextResponse.json({ batch })
   } catch (error) {
     console.error('Create batch error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

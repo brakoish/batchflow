@@ -42,9 +42,23 @@ model Recipe {
   id          String        @id @default(cuid())
   name        String
   description String?
+  baseUnit    String        @default("units")
   createdAt   DateTime      @default(now())
   steps       RecipeStep[]
   batches     Batch[]
+  units       RecipeUnit[]
+}
+
+model RecipeUnit {
+  id          String        @id @default(cuid())
+  recipeId    String
+  recipe      Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name        String
+  ratio       Int           @default(1)
+  order       Int           @default(0)
+  steps       RecipeStep[]
+
+  @@index([recipeId])
 }
 
 model RecipeStep {
@@ -55,9 +69,12 @@ model RecipeStep {
   order       Int
   notes       String?
   type        StepType      @default(COUNT)
+  unitId      String?
+  unit        RecipeUnit?   @relation(fields: [unitId], references: [id])
   batchSteps  BatchStep[]
 
   @@index([recipeId])
+  @@index([unitId])
 }
 
 model Batch {
@@ -66,6 +83,7 @@ model Batch {
   recipe          Recipe        @relation(fields: [recipeId], references: [id])
   name            String
   targetQuantity  Int
+  baseUnit        String        @default("units")
   status          BatchStatus   @default(ACTIVE)
   startDate       DateTime      @default(now())
   completedDate   DateTime?
@@ -85,6 +103,8 @@ model BatchStep {
   name              String
   order             Int
   type              StepType      @default(COUNT)
+  unitLabel         String        @default("units")
+  unitRatio         Int           @default(1)
   targetQuantity    Int
   completedQuantity Int           @default(0)
   status            StepStatus    @default(LOCKED)
