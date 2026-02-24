@@ -36,6 +36,7 @@ model Worker {
   role        Role
   createdAt   DateTime      @default(now())
   progressLogs ProgressLog[]
+  assignments BatchAssignment[]
 }
 
 model Recipe {
@@ -89,9 +90,23 @@ model Batch {
   completedDate   DateTime?
   createdAt       DateTime      @default(now())
   steps           BatchStep[]
+  assignments     BatchAssignment[]
 
   @@index([recipeId])
   @@index([status])
+}
+
+model BatchAssignment {
+  id        String   @id @default(cuid())
+  batchId   String
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  workerId  String
+  worker    Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([batchId, workerId])
+  @@index([batchId])
+  @@index([workerId])
 }
 
 model BatchStep {

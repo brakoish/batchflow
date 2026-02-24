@@ -10,10 +10,17 @@ export default async function NewBatchPage() {
   if (!session) redirect('/')
   if (session.role !== 'OWNER') redirect('/batches')
 
-  const recipes = await prisma.recipe.findMany({
-    include: { steps: { orderBy: { order: 'asc' } } },
-    orderBy: { name: 'asc' },
-  })
+  const [recipes, workers] = await Promise.all([
+    prisma.recipe.findMany({
+      include: { steps: { orderBy: { order: 'asc' } } },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.worker.findMany({
+      where: { role: 'WORKER' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ])
 
   return (
     <AppShell session={session}>
@@ -32,7 +39,7 @@ export default async function NewBatchPage() {
             </Link>
           </div>
         ) : (
-          <BatchCreator recipes={JSON.parse(JSON.stringify(recipes))} />
+          <BatchCreator recipes={JSON.parse(JSON.stringify(recipes))} workers={JSON.parse(JSON.stringify(workers))} />
         )}
       </main>
     </AppShell>

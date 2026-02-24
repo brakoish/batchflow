@@ -4,13 +4,28 @@ import { requireSession, requireOwner } from '@/lib/session'
 
 export async function GET() {
   try {
-    await requireSession()
+    const session = await requireSession()
+
+    // Build where clause based on role
+    let where: any = { status: 'ACTIVE' }
+    
+    if (session.role === 'WORKER') {
+      // Workers see: batches with no assignments OR batches they're assigned to
+      where = {
+        status: 'ACTIVE',
+        OR: [
+          { assignments: { none: {} } },
+          { assignments: { some: { workerId: session.id } } },
+        ],
+      }
+    }
 
     const batches = await prisma.batch.findMany({
-      where: { status: 'ACTIVE' },
+      where,
       include: {
         recipe: true,
         steps: { orderBy: { order: 'asc' } },
+        assignments: session.role === 'OWNER' ? { include: { worker: { select: { id: true, name: true } } } } : false,
       },
       orderBy: { startDate: 'desc' },
     })
@@ -25,7 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     await requireOwner()
 
-    const { recipeId, name, targetQuantity, startDate } = await request.json()
+    const { recipeId, name, targetQuantity, startDate, workerIds } = await request.json()
 
     if (!recipeId || !name || !targetQuantity) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -53,6 +68,9 @@ export async function POST(request: NextRequest) {
         targetQuantity,
         baseUnit: recipe.baseUnit,
         startDate: startDate ? new Date(startDate) : new Date(),
+        assignments: workerIds?.length
+          ? { create: workerIds.map((id: string) => ({ workerId: id })) }
+          : undefined,
         steps: {
           create: recipe.steps.map((step) => {
             const unitRatio = step.unit?.ratio || 1

@@ -8,16 +8,25 @@ type Recipe = {
   steps: { id: string; name: string; order: number; notes: string | null }[]
 }
 
-export default function BatchCreator({ recipes }: { recipes: Recipe[] }) {
+type Worker = { id: string; name: string }
+
+export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; workers: Worker[] }) {
   const [selectedId, setSelectedId] = useState('')
   const [name, setName] = useState('')
   const [targetQuantity, setTargetQuantity] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedWorkers, setSelectedWorkers] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
 
   const selected = recipes.find((r) => r.id === selectedId)
+
+  const toggleWorker = (id: string) => {
+    setSelectedWorkers(prev =>
+      prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]
+    )
+  }
 
   const handleSubmit = async () => {
     if (!selectedId || !name.trim() || !targetQuantity) { setError('All fields required'); return }
@@ -29,7 +38,13 @@ export default function BatchCreator({ recipes }: { recipes: Recipe[] }) {
       const res = await fetch('/api/batches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipeId: selectedId, name, targetQuantity: qty, startDate }),
+        body: JSON.stringify({
+          recipeId: selectedId,
+          name,
+          targetQuantity: qty,
+          startDate,
+          workerIds: selectedWorkers.length > 0 ? selectedWorkers : undefined,
+        }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
       router.push('/dashboard')
@@ -97,6 +112,31 @@ export default function BatchCreator({ recipes }: { recipes: Recipe[] }) {
         className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-4"
         disabled={loading}
       />
+
+      {/* Worker Assignment */}
+      {workers.length > 0 && (
+        <div className="mb-4">
+          <label className="text-xs font-medium text-zinc-400 mb-2.5 block">
+            Assign Workers <span className="text-zinc-600">(optional — leave empty for all)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {workers.map((w) => (
+              <button
+                key={w.id}
+                onClick={() => toggleWorker(w.id)}
+                disabled={loading}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  selectedWorkers.includes(w.id)
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600'
+                }`}
+              >
+                {w.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-red-400 text-xs text-center mb-3">{error}</p>}
 
