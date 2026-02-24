@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid'
+import EmptyState from '@/app/components/EmptyState'
 
 type Step = { id: string; name: string; order: number; type: string; unitLabel: string; targetQuantity: number; completedQuantity: number; status: string }
 type Batch = {
@@ -40,9 +41,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
       </div>
 
       {batches.length === 0 ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-12 text-center">
-          <p className="text-sm text-zinc-500">No completed batches yet</p>
-        </div>
+        <EmptyState icon="clock" title="No completed batches yet" description="Batches will appear here when they're marked complete or cancelled" />
       ) : (
         <div className="space-y-2.5">
           {batches.map((batch) => {

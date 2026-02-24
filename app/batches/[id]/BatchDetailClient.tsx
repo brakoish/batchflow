@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from '@/app/components/Header'
+import AppShell from '@/app/components/AppShell'
 import {
   LockClosedIcon,
   CheckCircleIcon,
@@ -175,8 +175,8 @@ export default function BatchDetailClient({
   )
 
   return (
-    <div className="min-h-dvh bg-zinc-950">
-      <Header session={session} />
+    <AppShell session={session}>
+
 
       {/* Toast */}
       {toast && (
@@ -417,6 +417,6 @@ export default function BatchDetailClient({
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   )
 }

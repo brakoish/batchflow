@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import Header from '@/app/components/Header'
+import AppShell from '@/app/components/AppShell'
 import BatchCreator from './BatchCreator'
 
 export default async function NewBatchPage() {
@@ -16,8 +16,8 @@ export default async function NewBatchPage() {
   })
 
   return (
-    <div className="min-h-dvh bg-zinc-950">
-      <Header session={session} />
+    <AppShell session={session}>
+
       <main className="max-w-lg mx-auto px-4 py-5">
         <h1 className="text-lg font-semibold tracking-tight text-zinc-50 mb-5">New Batch</h1>
 
@@ -35,6 +35,6 @@ export default async function NewBatchPage() {
           <BatchCreator recipes={JSON.parse(JSON.stringify(recipes))} />
         )}
       </main>
-    </div>
+    </AppShell>
   )
 }

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Header from '@/app/components/Header'
+import AppShell from '@/app/components/AppShell'
+import EmptyState from '@/app/components/EmptyState'
 
 type Session = { id: string; name: string; role: string }
 type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number }
@@ -34,8 +35,8 @@ export default function BatchListClient({
   }, [])
 
   return (
-    <div className="min-h-dvh bg-zinc-950">
-      <Header session={session} />
+    <AppShell session={session}>
+
       <main className="max-w-2xl mx-auto px-4 py-5">
         <div className="mb-5">
           <h1 className="text-lg font-semibold tracking-tight text-zinc-50">Active Batches</h1>
@@ -43,9 +44,7 @@ export default function BatchListClient({
         </div>
 
         {batches.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-sm text-zinc-500">No active batches</p>
-          </div>
+          <EmptyState icon="inbox" title="No active batches" description="Batches will show up here when your team starts a new run." />
         ) : (
           <div className="space-y-2.5">
             {batches.map((batch) => {
@@ -94,6 +93,6 @@ export default function BatchListClient({
           </div>
         )}
       </main>
-    </div>
+    </AppShell>
   )
 }

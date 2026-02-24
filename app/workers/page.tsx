@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import Header from '@/app/components/Header'
+import AppShell from '@/app/components/AppShell'
 import WorkerManager from './WorkerManager'
 
 export default async function WorkersPage() {
@@ -15,8 +15,8 @@ export default async function WorkersPage() {
   })
 
   return (
-    <div className="min-h-dvh bg-zinc-950">
-      <Header session={session} />
+    <AppShell session={session}>
+
       <main className="max-w-5xl mx-auto px-4 py-5">
         <h1 className="text-lg font-semibold tracking-tight text-zinc-50 mb-5">Workers</h1>
 
@@ -44,6 +44,6 @@ export default async function WorkersPage() {
           <WorkerManager />
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }

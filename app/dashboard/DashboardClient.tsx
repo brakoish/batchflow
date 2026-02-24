@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Header from '@/app/components/Header'
+import AppShell from '@/app/components/AppShell'
 import { LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/solid'
+import EmptyState from '@/app/components/EmptyState'
 
 type Session = { id: string; name: string; role: string }
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number }
@@ -47,8 +48,8 @@ export default function DashboardClient({
   const totalUnits = activity.reduce((sum, l) => sum + l.quantity, 0)
 
   return (
-    <div className="min-h-dvh bg-zinc-950">
-      <Header session={session} />
+    <AppShell session={session}>
+
       <main className="max-w-5xl mx-auto px-4 py-5">
         {/* Stats */}
         <div className="flex items-center gap-4 mb-5 text-xs text-zinc-500">
@@ -65,12 +66,7 @@ export default function DashboardClient({
           {/* Batches */}
           <div className="lg:col-span-2 space-y-2.5">
             {batches.length === 0 ? (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-12 text-center">
-                <p className="text-sm text-zinc-500 mb-3">No active batches</p>
-                <Link href="/batches/new" className="inline-block px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors">
-                  Create First Batch
-                </Link>
-              </div>
+              <EmptyState icon="clipboard" title="No active batches" description="Start your first production run" actionLabel="Create Batch" actionHref="/batches/new" />
             ) : (
               batches.map((batch) => {
                 const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
@@ -213,6 +209,6 @@ export default function DashboardClient({
           </div>
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }

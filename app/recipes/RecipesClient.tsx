@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
 import RecipeBuilder from './RecipeBuilder'
+import EmptyState from '@/app/components/EmptyState'
 
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
@@ -40,9 +41,7 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
       <div className="space-y-2.5">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Existing</h2>
         {recipes.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-8 text-center">
-            <p className="text-sm text-zinc-500">No recipes yet</p>
-          </div>
+          <EmptyState icon="beaker" title="No recipes yet" description="Create your first recipe to get started" />
         ) : (
           recipes.map((recipe) => (
             <div key={recipe.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
