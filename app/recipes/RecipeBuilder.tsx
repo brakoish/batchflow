@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 
-type UnitDef = { name: string; ratio: number }
+type UnitDef = { name: string; count: number; perUnit: string }
 type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
 
 type EditRecipe = {
@@ -19,7 +19,9 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const [description, setDescription] = useState(editRecipe?.description || '')
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || 'bags')
   const [units, setUnits] = useState<UnitDef[]>(
-    editRecipe?.units.length ? editRecipe.units : []
+    editRecipe?.units.length
+      ? editRecipe.units.map(u => ({ name: u.name, count: u.ratio, perUnit: '' }))
+      : []
   )
   const [steps, setSteps] = useState<StepDef[]>(
     editRecipe?.steps.length
@@ -31,7 +33,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const router = useRouter()
 
   // Unit helpers
-  const addUnit = () => setUnits([...units, { name: '', ratio: 1 }])
+  const addUnit = () => setUnits([...units, { name: '', count: 1, perUnit: '' }])
   const removeUnit = (i: number) => setUnits(units.filter((_, idx) => idx !== i))
   const updateUnit = (i: number, field: string, value: any) => {
     const u = [...units]; (u[i] as any)[field] = value; setUnits(u)
@@ -49,7 +51,20 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     const s = [...steps]; [s[i], s[t]] = [s[t], s[i]]; setSteps(s)
   }
 
-  const allUnits = [{ name: baseUnit, ratio: 1 }, ...units.filter(u => u.name.trim())]
+  // Compute base ratio for each unit by chaining
+  const getBaseRatio = (unitName: string, visited: Set<string> = new Set()): number => {
+    if (!unitName || unitName === baseUnit) return 1
+    if (visited.has(unitName)) return 1 // prevent cycles
+    visited.add(unitName)
+    const u = units.find(x => x.name === unitName)
+    if (!u) return 1
+    return u.count * getBaseRatio(u.perUnit, visited)
+  }
+
+  const allUnits = [
+    { name: baseUnit, ratio: 1 },
+    ...units.filter(u => u.name.trim()).map(u => ({ name: u.name, ratio: getBaseRatio(u.name) })),
+  ]
 
   const handleSubmit = async () => {
     if (!name.trim()) { setError('Recipe name required'); return }
@@ -65,7 +80,10 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name, description: description || undefined, baseUnit,
-          units: units.filter(u => u.name.trim()),
+          units: units.filter(u => u.name.trim()).map(u => ({
+            name: u.name,
+            ratio: getBaseRatio(u.name),
+          })),
           steps: validSteps,
         }),
       })
@@ -117,21 +135,34 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             <p className="text-xs text-zinc-600 italic">No additional units. Steps will use {baseUnit || 'base units'}.</p>
           ) : (
             <div className="space-y-2">
-              {units.map((u, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input type="text" value={u.name} onChange={(e) => updateUnit(i, 'name', e.target.value)}
-                    placeholder="Unit name (e.g. cases)" disabled={loading}
-                    className="flex-1 px-2.5 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
-                  <span className="text-[10px] text-zinc-500">=</span>
-                  <input type="number" value={u.ratio} onChange={(e) => updateUnit(i, 'ratio', parseInt(e.target.value) || 1)}
-                    min="1" disabled={loading}
-                    className="w-16 px-2.5 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs tabular-nums text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
-                  <span className="text-[10px] text-zinc-500 shrink-0">{baseUnit}</span>
-                  <button onClick={() => removeUnit(i)} className="p-1 text-zinc-500 hover:text-red-400 transition-colors">
-                    <XMarkIcon className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
+              {units.map((u, i) => {
+                // Available "per" units: base + any units defined before this one
+                const perOptions = [baseUnit, ...units.slice(0, i).filter(x => x.name.trim()).map(x => x.name)]
+                const resolved = getBaseRatio(u.name)
+                return (
+                  <div key={i} className="flex items-center gap-2 flex-wrap">
+                    <input type="text" value={u.name} onChange={(e) => updateUnit(i, 'name', e.target.value)}
+                      placeholder="Unit name (e.g. cases)" disabled={loading}
+                      className="flex-1 min-w-[100px] px-2.5 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                    <span className="text-[10px] text-zinc-500">=</span>
+                    <input type="number" value={u.count} onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
+                      min="1" disabled={loading}
+                      className="w-14 px-2.5 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs tabular-nums text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                    <select value={u.perUnit} onChange={(e) => updateUnit(i, 'perUnit', e.target.value)} disabled={loading}
+                      className="px-2 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all">
+                      {perOptions.map((opt) => (
+                        <option key={opt} value={opt === baseUnit ? '' : opt}>{opt}</option>
+                      ))}
+                    </select>
+                    {resolved > 1 && u.perUnit && (
+                      <span className="text-[10px] text-zinc-600">= {resolved} {baseUnit}</span>
+                    )}
+                    <button onClick={() => removeUnit(i)} className="p-1 text-zinc-500 hover:text-red-400 transition-colors">
+                      <XMarkIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -179,7 +210,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                     >
                       <option value="">{baseUnit} (base)</option>
                       {units.filter(u => u.name.trim()).map((u, idx) => (
-                        <option key={idx} value={u.name}>{u.name} ({u.ratio} {baseUnit}/ea)</option>
+                        <option key={idx} value={u.name}>{u.name} ({getBaseRatio(u.name)} {baseUnit}/ea)</option>
                       ))}
                     </select>
                   )}
@@ -206,8 +237,8 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
               if (s.type === 'CHECK') return (
                 <p key={i} className="text-xs text-zinc-400"><span className="text-zinc-600 tabular-nums">{i+1}.</span> {s.name} — <span className="text-blue-400">check</span></p>
               )
+              const ratio = s.unitName ? getBaseRatio(s.unitName) : 1
               const unit = s.unitName ? units.find(u => u.name === s.unitName) : null
-              const ratio = unit?.ratio || 1
               const target = Math.ceil(500 / ratio)
               const label = unit?.name || baseUnit
               return (
