@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  WORKER
+  OWNER
+}
+
+enum BatchStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum StepStatus {
+  LOCKED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Worker {
+  id          String        @id @default(cuid())
+  name        String
+  pin         String        @unique
+  role        Role
+  createdAt   DateTime      @default(now())
+  progressLogs ProgressLog[]
+}
+
+model Recipe {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime      @default(now())
+  steps       RecipeStep[]
+  batches     Batch[]
+}
+
+model RecipeStep {
+  id          String        @id @default(cuid())
+  recipeId    String
+  recipe      Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name        String
+  order       Int
+  notes       String?
+  batchSteps  BatchStep[]
+
+  @@index([recipeId])
+}
+
+model Batch {
+  id              String        @id @default(cuid())
+  recipeId        String
+  recipe          Recipe        @relation(fields: [recipeId], references: [id])
+  name            String
+  targetQuantity  Int
+  status          BatchStatus   @default(ACTIVE)
+  startDate       DateTime      @default(now())
+  completedDate   DateTime?
+  createdAt       DateTime      @default(now())
+  steps           BatchStep[]
+
+  @@index([recipeId])
+  @@index([status])
+}
+
+model BatchStep {
+  id                String        @id @default(cuid())
+  batchId           String
+  batch             Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  recipeStepId      String
+  recipeStep        RecipeStep    @relation(fields: [recipeStepId], references: [id])
+  name              String
+  order             Int
+  targetQuantity    Int
+  completedQuantity Int           @default(0)
+  status            StepStatus    @default(LOCKED)
+  progressLogs      ProgressLog[]
+
+  @@index([batchId])
+  @@index([recipeStepId])
+}
+
+model ProgressLog {
+  id          String      @id @default(cuid())
+  batchStepId String
+  batchStep   BatchStep   @relation(fields: [batchStepId], references: [id], onDelete: Cascade)
+  workerId    String
+  worker      Worker      @relation(fields: [workerId], references: [id])
+  quantity    Int
+  note        String?
+  createdAt   DateTime    @default(now())
+
+  @@index([batchStepId])
+  @@index([workerId])
+  @@index([createdAt])
+}
