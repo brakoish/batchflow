@@ -24,19 +24,22 @@ export default function DashboardClient({
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [activity, setActivity] = useState(initialActivity)
+  const [workerSummary, setWorkerSummary] = useState<{ id: string; name: string; todayLogs: number; todayUnits: number; batches: string[] }[]>([])
 
   useEffect(() => {
     const poll = async () => {
       try {
-        const [bRes, aRes] = await Promise.all([
+        const [bRes, aRes, wRes] = await Promise.all([
           fetch('/api/batches'),
           fetch('/api/activity'),
+          fetch('/api/workers/activity'),
         ])
         if (bRes.ok) { const d = await bRes.json(); if (d.batches) setBatches(d.batches) }
         if (aRes.ok) { const d = await aRes.json(); if (d.logs) setActivity(d.logs) }
+        if (wRes.ok) { const d = await wRes.json(); if (d.workers) setWorkerSummary(d.workers) }
       } catch {}
     }
-    poll() // immediate fetch on mount/nav
+    poll()
     const id = setInterval(poll, 5000)
     return () => clearInterval(id)
   }, [])
@@ -173,6 +176,40 @@ export default function DashboardClient({
                 ))
               )}
             </div>
+
+            {/* Worker Summary */}
+            {workerSummary.length > 0 && (
+              <div className="mt-5">
+                <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Today&apos;s Team</h2>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800/50">
+                  {workerSummary.map((w) => (
+                    <div key={w.id} className="px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-bold text-blue-400">{w.name.charAt(0)}</span>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-zinc-50">{w.name}</p>
+                          {w.batches.length > 0 && (
+                            <p className="text-[10px] text-zinc-600 truncate max-w-[150px]">{w.batches.join(', ')}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {w.todayLogs > 0 ? (
+                          <>
+                            <p className="text-xs text-emerald-400 font-semibold tabular-nums">{w.todayUnits} units</p>
+                            <p className="text-[10px] text-zinc-600 tabular-nums">{w.todayLogs} logs</p>
+                          </>
+                        ) : (
+                          <p className="text-[10px] text-zinc-700">No activity</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>

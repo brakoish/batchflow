@@ -71,6 +71,21 @@ export default function BatchDetailClient({
     setTimeout(() => setToast(''), 2000)
   }
 
+  const handleStatusChange = async (status: string) => {
+    const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
+    if (!confirm(`Are you sure you want to ${labels[status] || status} this batch?`)) return
+    try {
+      const res = await fetch(`/api/batches/${batch.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) { setError((await res.json()).error); return }
+      setBatch(prev => ({ ...prev, status }))
+      showToast(`Batch ${labels[status]}d`)
+    } catch { setError('Connection error') }
+  }
+
   const handleDeleteLog = async (logId: string, stepId: string, qty: number) => {
     if (!confirm(`Delete this log entry (+${qty})?`)) return
     try {
@@ -183,7 +198,34 @@ export default function BatchDetailClient({
             <span className="text-xs text-zinc-500">{batch.targetQuantity} {batch.baseUnit}</span>
             <span className="text-zinc-700">·</span>
             <span className="text-xs text-emerald-400 font-medium">{overallPct}%</span>
+            {batch.status !== 'ACTIVE' && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                batch.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'
+              }`}>
+                {batch.status}
+              </span>
+            )}
           </div>
+
+          {/* Owner batch controls */}
+          {session.role === 'OWNER' && batch.status === 'ACTIVE' && (
+            <div className="flex items-center gap-2 mt-3">
+              <button onClick={() => handleStatusChange('COMPLETED')}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-medium transition-all">
+                Mark Complete
+              </button>
+              <button onClick={() => handleStatusChange('CANCELLED')}
+                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 active:scale-[0.96] text-red-400 text-xs font-medium transition-all">
+                Cancel Batch
+              </button>
+            </div>
+          )}
+          {session.role === 'OWNER' && batch.status !== 'ACTIVE' && (
+            <button onClick={() => handleStatusChange('ACTIVE')}
+              className="mt-3 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 active:scale-[0.96] text-blue-400 text-xs font-medium transition-all">
+              Reopen Batch
+            </button>
+          )}
         </div>
 
         {/* Steps */}
