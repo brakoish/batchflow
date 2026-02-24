@@ -38,6 +38,23 @@ export default function BatchDetailClient({
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const quantityRef = useRef<HTMLInputElement>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const fetchBatch = async () => {
+      try {
+        const res = await fetch(`/api/batches/${batch.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.batch) setBatch(data.batch)
+        }
+      } catch {}
+    }
+
+    pollRef.current = setInterval(fetchBatch, 5000)
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [batch.id])
   const router = useRouter()
 
   useEffect(() => {
