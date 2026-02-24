@@ -11,8 +11,16 @@ export default function LoginPage() {
 
   const handleNumberClick = (num: string) => {
     if (pin.length < 4) {
-      setPin(pin + num)
+      const newPin = pin + num
+      setPin(newPin)
       setError('')
+
+      // Auto-submit when 4th digit is entered
+      if (newPin.length === 4) {
+        setTimeout(() => {
+          submitPin(newPin)
+        }, 100)
+      }
     }
   }
 
@@ -21,8 +29,8 @@ export default function LoginPage() {
     setError('')
   }
 
-  const handleSubmit = async () => {
-    if (pin.length !== 4) {
+  const submitPin = async (pinToSubmit: string) => {
+    if (pinToSubmit.length !== 4) {
       setError('PIN must be 4 digits')
       return
     }
@@ -36,7 +44,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ pin }),
+        body: JSON.stringify({ pin: pinToSubmit }),
       })
 
       const data = await res.json()
@@ -59,6 +67,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = () => {
+    submitPin(pin)
   }
 
   return (
@@ -102,13 +114,7 @@ export default function LoginPage() {
               {num}
             </button>
           ))}
-          <button
-            onClick={handleBackspace}
-            disabled={loading || pin.length === 0}
-            className="h-16 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-white text-xl font-semibold border border-zinc-700 transition-colors disabled:opacity-50"
-          >
-            ←
-          </button>
+          <div />
           <button
             onClick={() => handleNumberClick('0')}
             disabled={loading}
@@ -117,11 +123,11 @@ export default function LoginPage() {
             0
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={loading || pin.length !== 4}
-            className="h-16 rounded-xl bg-green-600 hover:bg-green-500 active:bg-green-700 text-white text-xl font-semibold transition-colors disabled:opacity-50 disabled:bg-zinc-800"
+            onClick={handleBackspace}
+            disabled={loading || pin.length === 0}
+            className="h-16 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-white text-xl font-semibold border border-zinc-700 transition-colors disabled:opacity-50"
           >
-            {loading ? '...' : '✓'}
+            ←
           </button>
         </div>
       </div>

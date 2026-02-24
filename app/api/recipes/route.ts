@@ -52,9 +52,10 @@ export async function POST(request: NextRequest) {
         name,
         description,
         steps: {
-          create: steps.map((step: { name: string; notes?: string }, index: number) => ({
+          create: steps.map((step: { name: string; notes?: string; type?: string }, index: number) => ({
             name: step.name,
             notes: step.notes,
+            type: step.type === 'CHECK' ? 'CHECK' : 'COUNT',
             order: index + 1,
           })),
         },

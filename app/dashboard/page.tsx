@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import Header from '@/app/components/Header'
 
 export default async function DashboardPage() {
   const session = await getSession()
@@ -59,41 +60,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Dashboard</h1>
-            <p className="text-zinc-400">Welcome, {session.name}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/recipes"
-              className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium border border-zinc-700 transition-colors"
-            >
-              Recipes
-            </Link>
-            <Link
-              href="/batches/new"
-              className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-semibold transition-colors"
-            >
-              New Batch
-            </Link>
-            <Link
-              href="/workers"
-              className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium border border-zinc-700 transition-colors"
-            >
-              Workers
-            </Link>
-            <form action="/api/auth/logout" method="POST">
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium border border-zinc-700 transition-colors"
-              >
-                Logout
-              </button>
-            </form>
-          </div>
+      <Header session={session} />
+      <div className="max-w-7xl mx-auto px-4 py-6 pb-safe">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-1">Dashboard</h1>
+          <p className="text-zinc-400">Welcome, {session.name}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -120,9 +91,10 @@ export default async function DashboardPage() {
                 const totalSteps = batch.steps.length
 
                 return (
-                  <div
+                  <Link
                     key={batch.id}
-                    className="bg-zinc-900 rounded-2xl p-6 border border-zinc-800"
+                    href={`/batches/${batch.id}`}
+                    className="block bg-zinc-900 rounded-2xl p-6 border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div>
@@ -142,12 +114,13 @@ export default async function DashboardPage() {
                     </div>
 
                     {/* Waterfall Progress */}
-                    <div className="space-y-2 mb-4">
+                    <div className="space-y-2">
                       {batch.steps.map((step) => {
                         const progress =
                           (step.completedQuantity / step.targetQuantity) * 100
                         const isLocked = step.status === 'LOCKED'
                         const isCompleted = step.status === 'COMPLETED'
+                        const isInProgress = !isLocked && !isCompleted
 
                         return (
                           <div key={step.id}>
@@ -156,10 +129,10 @@ export default async function DashboardPage() {
                                 <span
                                   className={`${
                                     isLocked
-                                      ? 'text-zinc-600'
+                                      ? 'text-zinc-500'
                                       : isCompleted
-                                      ? 'text-green-500'
-                                      : 'text-white'
+                                      ? 'text-green-400'
+                                      : 'text-blue-400'
                                   } font-medium`}
                                 >
                                   {step.order}. {step.name}
@@ -173,23 +146,27 @@ export default async function DashboardPage() {
                               <span
                                 className={`${
                                   isLocked
-                                    ? 'text-zinc-600'
+                                    ? 'text-zinc-500'
                                     : isCompleted
-                                    ? 'text-green-500'
-                                    : 'text-zinc-400'
-                                }`}
+                                    ? 'text-green-400'
+                                    : 'text-blue-400'
+                                } text-xs`}
                               >
-                                {step.completedQuantity} /{' '}
-                                {step.targetQuantity}
+                                {(step as any).type === 'CHECK'
+                                  ? (isCompleted ? '✅' : isLocked ? '🔒' : '⬚')
+                                  : `${Math.round(progress)}% • ${step.completedQuantity} / ${step.targetQuantity}`
+                                }
                               </span>
                             </div>
                             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                               <div
-                                className={`h-full ${
-                                  isCompleted
-                                    ? 'bg-green-600'
-                                    : 'bg-green-500'
-                                } transition-all`}
+                                className={`h-full transition-all ${
+                                  isLocked
+                                    ? 'bg-zinc-700'
+                                    : isCompleted
+                                    ? 'bg-green-500'
+                                    : 'bg-blue-500'
+                                }`}
                                 style={{
                                   width: `${Math.min(progress, 100)}%`,
                                 }}
@@ -199,14 +176,7 @@ export default async function DashboardPage() {
                         )
                       })}
                     </div>
-
-                    <Link
-                      href={`/batches/${batch.id}`}
-                      className="text-green-500 hover:text-green-400 text-sm font-medium"
-                    >
-                      View Details →
-                    </Link>
-                  </div>
+                  </Link>
                 )
               })
             )}

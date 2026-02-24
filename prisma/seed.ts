@@ -45,14 +45,15 @@ async function main() {
       description: 'Standard 14g ground flower bags',
       steps: {
         create: [
-          { name: 'Prep Bags', order: 1, notes: 'Set up bagging station' },
+          { name: 'Prep Bags', order: 1, notes: 'Pull correct qty of bags', type: 'CHECK' },
           {
             name: 'Measure Flower',
             order: 2,
-            notes: 'Weigh out 14g portions',
+            notes: 'Weigh out total ground flower needed',
+            type: 'CHECK',
           },
-          { name: 'Sift Flower', order: 3, notes: 'Remove stems and seeds' },
-          { name: 'Fill Bags', order: 4, notes: 'Set filler to 14g' },
+          { name: 'Sift Flower', order: 3, notes: 'Remove stems and seeds', type: 'CHECK' },
+          { name: 'Fill Bags', order: 4, notes: 'Set filler to 14g', type: 'COUNT' },
           { name: 'Label Bags', order: 5, notes: 'Apply strain labels' },
           {
             name: 'Pack Master Cases',
@@ -88,6 +89,7 @@ async function main() {
           recipeStepId: step.id,
           name: step.name,
           order: step.order,
+          type: step.type,
           targetQuantity: 500,
           completedQuantity: 0,
           status: index === 0 ? 'IN_PROGRESS' : 'LOCKED',
@@ -106,72 +108,87 @@ async function main() {
   console.log('Created batch:', batch)
 
   // Add some progress logs to simulate work
-  const step1 = batch.steps[0]
-  const step2 = batch.steps[1]
+  const step1 = batch.steps[0] // Prep Bags (CHECK)
+  const step2 = batch.steps[1] // Measure Flower (CHECK)
+  const step3 = batch.steps[2] // Sift Flower (CHECK)
+  const step4 = batch.steps[3] // Fill Bags (COUNT)
 
-  // Maria logs progress on step 1
+  // Maria completed Prep Bags (CHECK step)
   await prisma.progressLog.create({
     data: {
       batchStepId: step1.id,
       workerId: maria.id,
-      quantity: 200,
-      note: 'Morning shift progress',
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+      quantity: 500,
+      note: 'Bags ready',
+      createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
     },
   })
-
   await prisma.batchStep.update({
     where: { id: step1.id },
-    data: {
-      completedQuantity: 200,
-      status: 'IN_PROGRESS',
-    },
+    data: { completedQuantity: 500, status: 'COMPLETED' },
   })
 
-  // James logs progress on step 1
-  await prisma.progressLog.create({
-    data: {
-      batchStepId: step1.id,
-      workerId: james.id,
-      quantity: 150,
-      note: 'Afternoon batch',
-      createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-    },
-  })
-
-  await prisma.batchStep.update({
-    where: { id: step1.id },
-    data: {
-      completedQuantity: 350,
-      status: 'IN_PROGRESS',
-    },
-  })
-
-  // Unlock step 2
-  await prisma.batchStep.update({
-    where: { id: step2.id },
-    data: {
-      status: 'IN_PROGRESS',
-    },
-  })
-
-  // Maria starts step 2
+  // Maria completed Measure Flower (CHECK step)
   await prisma.progressLog.create({
     data: {
       batchStepId: step2.id,
       workerId: maria.id,
+      quantity: 500,
+      note: 'Weighed out',
+      createdAt: new Date(Date.now() - 2.5 * 60 * 60 * 1000),
+    },
+  })
+  await prisma.batchStep.update({
+    where: { id: step2.id },
+    data: { completedQuantity: 500, status: 'COMPLETED' },
+  })
+
+  // James completed Sift Flower (CHECK step)
+  await prisma.progressLog.create({
+    data: {
+      batchStepId: step3.id,
+      workerId: james.id,
+      quantity: 500,
+      note: 'All sifted',
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    },
+  })
+  await prisma.batchStep.update({
+    where: { id: step3.id },
+    data: { completedQuantity: 500, status: 'COMPLETED' },
+  })
+
+  // Fill Bags is now IN_PROGRESS (COUNT step)
+  await prisma.batchStep.update({
+    where: { id: step4.id },
+    data: { status: 'IN_PROGRESS' },
+  })
+
+  // Maria filled 200 bags
+  await prisma.progressLog.create({
+    data: {
+      batchStepId: step4.id,
+      workerId: maria.id,
+      quantity: 200,
+      note: 'Morning shift',
+      createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
+    },
+  })
+
+  // James filled 150 bags
+  await prisma.progressLog.create({
+    data: {
+      batchStepId: step4.id,
+      workerId: james.id,
       quantity: 150,
-      note: 'Started measuring',
-      createdAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+      note: 'Afternoon batch',
+      createdAt: new Date(Date.now() - 30 * 60 * 1000),
     },
   })
 
   await prisma.batchStep.update({
-    where: { id: step2.id },
-    data: {
-      completedQuantity: 150,
-      status: 'IN_PROGRESS',
-    },
+    where: { id: step4.id },
+    data: { completedQuantity: 350 },
   })
 
   console.log('Added progress logs')

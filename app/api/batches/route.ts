@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
             recipeStepId: step.id,
             name: step.name,
             order: step.order,
+            type: step.type,
             targetQuantity,
             status: step.order === 1 ? 'IN_PROGRESS' : 'LOCKED',
           })),

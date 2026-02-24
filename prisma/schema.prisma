@@ -24,6 +24,11 @@ enum StepStatus {
   COMPLETED
 }
 
+enum StepType {
+  CHECK
+  COUNT
+}
+
 model Worker {
   id          String        @id @default(cuid())
   name        String
@@ -49,6 +54,7 @@ model RecipeStep {
   name        String
   order       Int
   notes       String?
+  type        StepType      @default(COUNT)
   batchSteps  BatchStep[]
 
   @@index([recipeId])
@@ -78,6 +84,7 @@ model BatchStep {
   recipeStep        RecipeStep    @relation(fields: [recipeStepId], references: [id])
   name              String
   order             Int
+  type              StepType      @default(COUNT)
   targetQuantity    Int
   completedQuantity Int           @default(0)
   status            StepStatus    @default(LOCKED)

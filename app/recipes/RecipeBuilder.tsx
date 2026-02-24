@@ -6,18 +6,19 @@ import { useRouter } from 'next/navigation'
 type Step = {
   name: string
   notes: string
+  type: 'CHECK' | 'COUNT'
 }
 
 export default function RecipeBuilder() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [steps, setSteps] = useState<Step[]>([{ name: '', notes: '' }])
+  const [steps, setSteps] = useState<Step[]>([{ name: '', notes: '', type: 'COUNT' }])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
 
   const addStep = () => {
-    setSteps([...steps, { name: '', notes: '' }])
+    setSteps([...steps, { name: '', notes: '', type: 'COUNT' }])
   }
 
   const removeStep = (index: number) => {
@@ -28,11 +29,11 @@ export default function RecipeBuilder() {
 
   const updateStep = (
     index: number,
-    field: 'name' | 'notes',
+    field: 'name' | 'notes' | 'type',
     value: string
   ) => {
     const newSteps = [...steps]
-    newSteps[index][field] = value
+    ;(newSteps[index] as any)[field] = value
     setSteps(newSteps)
   }
 
@@ -91,7 +92,7 @@ export default function RecipeBuilder() {
       // Reset form
       setName('')
       setDescription('')
-      setSteps([{ name: '', notes: '' }])
+      setSteps([{ name: '', notes: '', type: 'COUNT' }])
       router.refresh()
     } catch (err) {
       setError('Connection error')
@@ -192,6 +193,31 @@ export default function RecipeBuilder() {
                     ×
                   </button>
                 </div>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-zinc-500 text-xs">Type:</span>
+                <button
+                  onClick={() => updateStep(index, 'type', 'CHECK')}
+                  disabled={loading}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    step.type === 'CHECK'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-700'
+                  }`}
+                >
+                  ✅ Check
+                </button>
+                <button
+                  onClick={() => updateStep(index, 'type', 'COUNT')}
+                  disabled={loading}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    step.type === 'COUNT'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-700'
+                  }`}
+                >
+                  🔢 Count
+                </button>
               </div>
               <input
                 type="text"

@@ -96,6 +96,9 @@ export default async function RecipesPage() {
                           </span>
                           <div className="flex-1">
                             <span className="text-zinc-300">{step.name}</span>
+                            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${(step as any).type === 'CHECK' ? 'bg-blue-900/30 text-blue-400' : 'bg-green-900/30 text-green-400'}`}>
+                              {(step as any).type === 'CHECK' ? '✅' : '🔢'}
+                            </span>
                             {step.notes && (
                               <p className="text-zinc-500 text-xs mt-0.5">
                                 {step.notes}

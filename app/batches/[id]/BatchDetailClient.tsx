@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Header from '@/app/components/Header'
 
 type Worker = {
   id: string
@@ -21,6 +22,7 @@ type BatchStep = {
   id: string
   name: string
   order: number
+  type: 'CHECK' | 'COUNT'
   targetQuantity: number
   completedQuantity: number
   status: string
@@ -57,7 +59,10 @@ export default function BatchDetailClient({
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
   const router = useRouter()
+  const isOwner = session.role === 'OWNER'
 
   const handleLogClick = (step: BatchStep) => {
     setSelectedStep(step)
@@ -68,6 +73,44 @@ export default function BatchDetailClient({
 
   const handleQuickAdd = (amount: number) => {
     setQuantity((parseInt(quantity) || 0) + amount + '')
+  }
+
+  const handleCheckComplete = async (step: BatchStep) => {
+    setLoading(true)
+    try {
+      const res = await fetch(
+        `/api/batches/${batch.id}/steps/${step.id}/log`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity: step.targetQuantity }),
+        }
+      )
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Failed to complete step')
+        return
+      }
+      // Optimistically update
+      const updatedSteps = batch.steps.map((s) => {
+        if (s.id === step.id) {
+          return { ...s, completedQuantity: s.targetQuantity, status: 'COMPLETED' }
+        }
+        // Unlock next step
+        if (s.order === step.order + 1 && s.status === 'LOCKED') {
+          return { ...s, status: 'IN_PROGRESS' }
+        }
+        return s
+      })
+      setBatch({ ...batch, steps: updatedSteps })
+      setToastMessage(`✅ ${step.name} complete`)
+      setShowToast(true)
+      setTimeout(() => setShowToast(false), 2000)
+    } catch (err) {
+      setError('Connection error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSubmit = async () => {
@@ -101,8 +144,42 @@ export default function BatchDetailClient({
         return
       }
 
-      // Refresh the page data
-      router.refresh()
+      // Optimistically update the batch state
+      const updatedSteps = batch.steps.map((step) => {
+        if (step.id === selectedStep.id) {
+          const newCompleted = step.completedQuantity + parseInt(quantity)
+          const newStatus =
+            newCompleted >= step.targetQuantity
+              ? 'COMPLETED'
+              : step.status
+
+          return {
+            ...step,
+            completedQuantity: newCompleted,
+            status: newStatus,
+          }
+        }
+        return step
+      })
+
+      // Check if next step should be unlocked
+      const finalSteps = updatedSteps.map((step, idx) => {
+        if (step.status === 'LOCKED' && idx > 0) {
+          const prevStep = updatedSteps[idx - 1]
+          if (prevStep.status === 'COMPLETED') {
+            return { ...step, status: 'ACTIVE' }
+          }
+        }
+        return step
+      })
+
+      setBatch({ ...batch, steps: finalSteps })
+
+      // Show success toast
+      setToastMessage(`✓ Logged ${parseInt(quantity)} units`)
+      setShowToast(true)
+      setTimeout(() => setShowToast(false), 2000)
+
       setSelectedStep(null)
       setQuantity('')
       setNote('')
@@ -121,14 +198,24 @@ export default function BatchDetailClient({
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <Header session={session} />
+      <div className="max-w-4xl mx-auto px-4 py-6 pb-safe">
+        {/* Success Toast */}
+        {showToast && (
+          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-slide-down">
+            <div className="bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg font-semibold">
+              {toastMessage}
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-6">
           <Link
-            href="/batches"
+            href={isOwner ? '/dashboard' : '/batches'}
             className="inline-flex items-center text-zinc-400 hover:text-white mb-4 text-sm"
           >
-            ← Back to Batches
+            ← Back to {isOwner ? 'Dashboard' : 'Batches'}
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">{batch.name}</h1>
           <div className="flex items-center gap-4 text-sm">
@@ -147,6 +234,7 @@ export default function BatchDetailClient({
             const progress = (step.completedQuantity / step.targetQuantity) * 100
             const isLocked = step.status === 'LOCKED'
             const isCompleted = step.status === 'COMPLETED'
+            const isInProgress = !isLocked && !isCompleted
 
             return (
               <div
@@ -160,19 +248,38 @@ export default function BatchDetailClient({
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3
+                        className={`text-lg font-semibold ${
+                          isLocked
+                            ? 'text-zinc-500'
+                            : isCompleted
+                            ? 'text-green-400'
+                            : 'text-blue-400'
+                        }`}
+                      >
                         {step.order}. {step.name}
                       </h3>
                       {isLocked && (
                         <span className="text-zinc-500 text-xl">🔒</span>
                       )}
                       {isCompleted && (
-                        <span className="text-green-500 text-xl">✓</span>
+                        <span className="text-green-400 text-xl">✓</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="text-zinc-400">
-                        {step.completedQuantity} / {step.targetQuantity}
+                      <span
+                        className={`${
+                          isLocked
+                            ? 'text-zinc-500'
+                            : isCompleted
+                            ? 'text-green-400'
+                            : 'text-blue-400'
+                        }`}
+                      >
+                        {step.type === 'CHECK'
+                          ? (isCompleted ? '✅ Done' : isLocked ? '🔒' : '⬚ Pending')
+                          : `${Math.round(progress)}% • ${step.completedQuantity} / ${step.targetQuantity}`
+                        }
                       </span>
                       {!isLocked && ceiling < step.targetQuantity && (
                         <>
@@ -185,27 +292,56 @@ export default function BatchDetailClient({
                     </div>
                   </div>
 
-                  {!isLocked && !isCompleted && (
+                  {!isLocked && !isCompleted && step.type === 'COUNT' && (
                     <button
                       onClick={() => handleLogClick(step)}
-                      className="px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-semibold transition-colors"
+                      className="px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-semibold transition-colors min-h-[44px]"
                     >
                       + Log
                     </button>
                   )}
+                  {!isLocked && !isCompleted && step.type === 'CHECK' && (
+                    <button
+                      onClick={() => handleCheckComplete(step)}
+                      disabled={loading}
+                      className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold transition-colors min-h-[44px] disabled:opacity-50"
+                    >
+                      Mark Done ✅
+                    </button>
+                  )}
                 </div>
 
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${
-                        isCompleted ? 'bg-green-600' : 'bg-green-500'
-                      } transition-all`}
-                      style={{ width: `${Math.min(progress, 100)}%` }}
-                    />
+                {/* Progress: Bar for COUNT, Checkbox for CHECK */}
+                {step.type === 'CHECK' ? (
+                  <div className="mb-4 flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center ${
+                      isCompleted ? 'bg-green-600 border-green-600' : isLocked ? 'border-zinc-700' : 'border-blue-500'
+                    }`}>
+                      {isCompleted && <span className="text-white text-sm">✓</span>}
+                    </div>
+                    <span className={`text-sm ${isCompleted ? 'text-green-400' : isLocked ? 'text-zinc-600' : 'text-zinc-300'}`}>
+                      {isCompleted ? 'Completed' : isLocked ? 'Locked' : 'Ready'}
+                    </span>
                   </div>
-                </div>
+                ) : (
+                  <div className="mb-4">
+                    <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${
+                          isLocked
+                            ? 'bg-zinc-700'
+                            : isCompleted
+                            ? 'bg-green-500'
+                            : 'bg-blue-500'
+                        }`}
+                        style={{
+                          width: `${Math.min(progress, 100)}%`,
+                          transform: showToast && selectedStep?.id === step.id ? 'scaleY(1.1)' : 'scaleY(1)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Recent Logs */}
                 {step.progressLogs.length > 0 && (
