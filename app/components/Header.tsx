@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Bars3Icon,
   XMarkIcon,
   ArrowRightOnRectangleIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline'
 
 type HeaderProps = {
@@ -19,13 +20,29 @@ type HeaderProps = {
 
 export default function Header({ session }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [onShift, setOnShift] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const isOwner = session.role === 'OWNER'
 
+  useEffect(() => {
+    if (isOwner) return
+    // Check shift status
+    fetch('/api/shifts')
+      .then(r => r.json())
+      .then(d => setOnShift(!!d.activeShift))
+      .catch(() => {})
+  }, [isOwner, pathname])
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/')
+    window.location.href = '/' // hard refresh to clear state
+  }
+
+  const handleClockOut = async () => {
+    await fetch('/api/shifts', { method: 'PATCH' })
+    setOnShift(false)
+    window.location.reload()
   }
 
   const navItems = isOwner
@@ -70,11 +87,21 @@ export default function Header({ session }: HeaderProps) {
         </nav>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Clock Out button if on shift */}
+          {!isOwner && onShift && (
+            <button
+              onClick={handleClockOut}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 text-xs font-medium transition-colors"
+            >
+              <StopIcon className="w-3.5 h-3.5" /> Clock Out
+            </button>
+          )}
+
           <span className="hidden sm:block text-xs text-zinc-500">{session.name}</span>
           <button
             onClick={handleLogout}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors p-1.5 rounded-lg hover:bg-zinc-900"
           >
             <ArrowRightOnRectangleIcon className="w-4 h-4" />
           </button>
@@ -107,8 +134,19 @@ export default function Header({ session }: HeaderProps) {
                 {item.label}
               </Link>
             ))}
+
+            {/* Mobile clock out */}
+            {!isOwner && onShift && (
+              <button
+                onClick={() => { handleClockOut(); setMenuOpen(false) }}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+              >
+                <StopIcon className="w-4 h-4" /> Clock Out
+              </button>
+            )}
+
             <button
-              onClick={handleLogout}
+              onClick={() => { handleLogout(); setMenuOpen(false) }}
               className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
             >
               Log out
