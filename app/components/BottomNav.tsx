@@ -28,6 +28,7 @@ export default function BottomNav({ role }: Props) {
     { href: '/dashboard', label: 'Home', Icon: HomeIcon, IconActive: HomeIconSolid },
     { href: '/batches/new', label: 'New', Icon: PlusCircleIcon, IconActive: PlusCircleIconSolid },
     { href: '/history', label: 'History', Icon: ClockIcon, IconActive: ClockIconSolid },
+    { href: '/timesheet', label: 'Time', Icon: ClockIcon, IconActive: ClockIconSolid },
     { href: '/recipes', label: 'Recipes', Icon: BeakerIcon, IconActive: BeakerIconSolid },
     { href: '/workers', label: 'Team', Icon: UsersIcon, IconActive: UsersIconSolid },
   ]

@@ -5,6 +5,8 @@ import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
 
+import { ClockIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid'
+
 type Session = { id: string; name: string; role: string }
 type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number }
 type Batch = {
@@ -12,20 +14,31 @@ type Batch = {
   recipe: { name: string }; steps: Step[]
 }
 
+type Shift = { id: string; status: string; startedAt: string }
+
 export default function BatchListClient({
   initialBatches, session,
 }: {
   initialBatches: Batch[]; session: Session
 }) {
   const [batches, setBatches] = useState(initialBatches)
+  const [shift, setShift] = useState<Shift | null>(null)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch('/api/batches')
-        if (res.ok) {
-          const data = await res.json()
+        const [bRes, sRes] = await Promise.all([
+          fetch('/api/batches'),
+          fetch('/api/shifts'),
+        ])
+        if (bRes.ok) {
+          const data = await bRes.json()
           if (data.batches) setBatches(data.batches)
+        }
+        if (sRes.ok) {
+          const data = await sRes.json()
+          setShift(data.activeShift)
         }
       } catch {}
     }
@@ -34,10 +47,71 @@ export default function BatchListClient({
     return () => clearInterval(id)
   }, [])
 
+  const handleClockIn = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/shifts', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setShift(data.shift)
+      }
+    } catch {}
+    setLoading(false)
+  }
+
+  const handleClockOut = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/shifts', { method: 'PATCH' })
+      if (res.ok) {
+        setShift(null)
+      }
+    } catch {}
+    setLoading(false)
+  }
+
   return (
     <AppShell session={session}>
 
       <main className="max-w-2xl mx-auto px-4 py-5">
+        {/* Clock In/Out */}
+        <div className="mb-5 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${shift ? 'bg-emerald-500/15' : 'bg-zinc-800'}`}>
+                <ClockIcon className={`w-5 h-5 ${shift ? 'text-emerald-400' : 'text-zinc-500'}`} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-zinc-50">
+                  {shift ? 'On Shift' : 'Not Clocked In'}
+                </p>
+                {shift && (
+                  <p className="text-xs text-emerald-400">
+                    Started {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
+            </div>
+            {shift ? (
+              <button
+                onClick={handleClockOut}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 active:scale-[0.96] text-white text-xs font-semibold transition-all disabled:opacity-50"
+              >
+                <StopIcon className="w-4 h-4" />Clock Out
+              </button>
+            ) : (
+              <button
+                onClick={handleClockIn}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-semibold transition-all disabled:opacity-50"
+              >
+                <PlayIcon className="w-4 h-4" />Clock In
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="mb-5">
           <h1 className="text-lg font-semibold tracking-tight text-zinc-50">Active Batches</h1>
           <p className="text-xs text-zinc-500 mt-0.5">{batches.length} batch{batches.length !== 1 ? 'es' : ''} in progress</p>

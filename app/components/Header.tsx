@@ -33,6 +33,7 @@ export default function Header({ session }: HeaderProps) {
         { href: '/dashboard', label: 'Dashboard' },
         { href: '/batches/new', label: 'New Batch' },
         { href: '/history', label: 'History' },
+        { href: '/timesheet', label: 'Timesheet' },
         { href: '/recipes', label: 'Recipes' },
         { href: '/workers', label: 'Workers' },
       ]
