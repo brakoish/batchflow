@@ -51,7 +51,7 @@ export default function LoginPage() {
 
       setSuccess(true)
       setTimeout(() => {
-        router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/batches')
+        router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/shift')
       }, 300)
     } catch (err) {
       setError('Connection error')
