@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/app/components/Header'
+import { LockClosedIcon, CheckCircleIcon, ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/solid'
+import { MinusCircleIcon } from '@heroicons/react/24/outline'
 
 type Worker = {
   id: string
@@ -103,7 +105,7 @@ export default function BatchDetailClient({
         return s
       })
       setBatch({ ...batch, steps: updatedSteps })
-      setToastMessage(`✅ ${step.name} complete`)
+      setToastMessage(`${step.name} complete`)
       setShowToast(true)
       setTimeout(() => setShowToast(false), 2000)
     } catch (err) {
@@ -176,7 +178,7 @@ export default function BatchDetailClient({
       setBatch({ ...batch, steps: finalSteps })
 
       // Show success toast
-      setToastMessage(`✓ Logged ${parseInt(quantity)} units`)
+      setToastMessage(`Logged ${parseInt(quantity)} units`)
       setShowToast(true)
       setTimeout(() => setShowToast(false), 2000)
 
@@ -215,7 +217,7 @@ export default function BatchDetailClient({
             href={isOwner ? '/dashboard' : '/batches'}
             className="inline-flex items-center text-zinc-400 hover:text-white mb-4 text-sm"
           >
-            ← Back to {isOwner ? 'Dashboard' : 'Batches'}
+            <ArrowLeftIcon className="w-4 h-4 inline mr-1" />Back to {isOwner ? 'Dashboard' : 'Batches'}
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">{batch.name}</h1>
           <div className="flex items-center gap-4 text-sm">
@@ -260,10 +262,10 @@ export default function BatchDetailClient({
                         {step.order}. {step.name}
                       </h3>
                       {isLocked && (
-                        <span className="text-zinc-500 text-xl">🔒</span>
+                        <LockClosedIcon className="w-5 h-5 text-zinc-500" />
                       )}
                       {isCompleted && (
-                        <span className="text-green-400 text-xl">✓</span>
+                        <CheckCircleIcon className="w-5 h-5 text-green-400" />
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
@@ -277,8 +279,8 @@ export default function BatchDetailClient({
                         }`}
                       >
                         {step.type === 'CHECK'
-                          ? (isCompleted ? '✅ Done' : isLocked ? '🔒' : '⬚ Pending')
-                          : `${Math.round(progress)}% • ${step.completedQuantity} / ${step.targetQuantity}`
+                          ? (isCompleted ? 'Done' : isLocked ? 'Locked' : 'Pending')
+                          : `${Math.round(progress)}% · ${step.completedQuantity} / ${step.targetQuantity}`
                         }
                       </span>
                       {!isLocked && ceiling < step.targetQuantity && (
@@ -306,7 +308,7 @@ export default function BatchDetailClient({
                       disabled={loading}
                       className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold transition-colors min-h-[44px] disabled:opacity-50"
                     >
-                      Mark Done ✅
+                      <CheckIcon className="w-5 h-5 inline mr-1" />Mark Done
                     </button>
                   )}
                 </div>
@@ -317,7 +319,7 @@ export default function BatchDetailClient({
                     <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center ${
                       isCompleted ? 'bg-green-600 border-green-600' : isLocked ? 'border-zinc-700' : 'border-blue-500'
                     }`}>
-                      {isCompleted && <span className="text-white text-sm">✓</span>}
+                      {isCompleted && <CheckIcon className="w-4 h-4 text-white" />}
                     </div>
                     <span className={`text-sm ${isCompleted ? 'text-green-400' : isLocked ? 'text-zinc-600' : 'text-zinc-300'}`}>
                       {isCompleted ? 'Completed' : isLocked ? 'Locked' : 'Ready'}

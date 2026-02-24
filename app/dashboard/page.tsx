@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import Header from '@/app/components/Header'
+import { LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/solid'
 
 export default async function DashboardPage() {
   const session = await getSession()
@@ -139,7 +140,7 @@ export default async function DashboardPage() {
                                 </span>
                                 {isLocked && (
                                   <span className="text-zinc-600 text-xs">
-                                    🔒
+                                    <LockClosedIcon className="w-3 h-3" />
                                   </span>
                                 )}
                               </div>
@@ -153,8 +154,8 @@ export default async function DashboardPage() {
                                 } text-xs`}
                               >
                                 {(step as any).type === 'CHECK'
-                                  ? (isCompleted ? '✅' : isLocked ? '🔒' : '⬚')
-                                  : `${Math.round(progress)}% • ${step.completedQuantity} / ${step.targetQuantity}`
+                                  ? (isCompleted ? 'Done' : isLocked ? 'Locked' : 'Pending')
+                                  : `${Math.round(progress)}% · ${step.completedQuantity} / ${step.targetQuantity}`
                                 }
                               </span>
                             </div>

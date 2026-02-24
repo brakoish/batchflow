@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import RecipeBuilder from './RecipeBuilder'
+import { ArrowLeftIcon, CheckCircleIcon, HashtagIcon } from '@heroicons/react/24/solid'
 
 export default async function RecipesPage() {
   const session = await getSession()
@@ -43,7 +44,7 @@ export default async function RecipesPage() {
               href="/dashboard"
               className="inline-flex items-center text-zinc-400 hover:text-white mb-4 text-sm"
             >
-              ← Back to Dashboard
+              <ArrowLeftIcon className="w-4 h-4 inline mr-1" />Back to Dashboard
             </Link>
             <h1 className="text-3xl font-bold text-white">Recipes</h1>
           </div>
@@ -96,8 +97,11 @@ export default async function RecipesPage() {
                           </span>
                           <div className="flex-1">
                             <span className="text-zinc-300">{step.name}</span>
-                            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${(step as any).type === 'CHECK' ? 'bg-blue-900/30 text-blue-400' : 'bg-green-900/30 text-green-400'}`}>
-                              {(step as any).type === 'CHECK' ? '✅' : '🔢'}
+                            <span className={`ml-2 inline-flex items-center text-xs px-1.5 py-0.5 rounded ${(step as any).type === 'CHECK' ? 'bg-blue-900/30 text-blue-400' : 'bg-green-900/30 text-green-400'}`}>
+                              {(step as any).type === 'CHECK'
+                                ? <><CheckCircleIcon className="w-3 h-3 mr-0.5" />Check</>
+                                : <><HashtagIcon className="w-3 h-3 mr-0.5" />Count</>
+                              }
                             </span>
                             {step.notes && (
                               <p className="text-zinc-500 text-xs mt-0.5">

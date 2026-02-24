@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import WorkerManager from './WorkerManager'
+import { ArrowLeftIcon } from '@heroicons/react/24/solid'
 
 export default async function WorkersPage() {
   const session = await getSession()
@@ -37,7 +38,7 @@ export default async function WorkersPage() {
             href="/dashboard"
             className="inline-flex items-center text-zinc-400 hover:text-white mb-4 text-sm"
           >
-            ← Back to Dashboard
+            <ArrowLeftIcon className="w-4 h-4 inline mr-1" />Back to Dashboard
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">
             Worker Management

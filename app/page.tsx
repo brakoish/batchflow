@@ -127,7 +127,7 @@ export default function LoginPage() {
             disabled={loading || pin.length === 0}
             className="h-16 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-white text-xl font-semibold border border-zinc-700 transition-colors disabled:opacity-50"
           >
-            ←
+            ‹
           </button>
         </div>
       </div>

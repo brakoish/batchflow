@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckCircleIcon, HashtagIcon } from '@heroicons/react/24/solid'
 
 type Step = {
   name: string
@@ -205,18 +206,18 @@ export default function RecipeBuilder() {
                       : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-700'
                   }`}
                 >
-                  ✅ Check
+                  <CheckCircleIcon className="w-3.5 h-3.5 inline mr-1" />Check
                 </button>
                 <button
                   onClick={() => updateStep(index, 'type', 'COUNT')}
                   disabled={loading}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center ${
                     step.type === 'COUNT'
                       ? 'bg-green-600 text-white'
                       : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-700'
                   }`}
                 >
-                  🔢 Count
+                  <HashtagIcon className="w-3.5 h-3.5 inline mr-1" />Count
                 </button>
               </div>
               <input
