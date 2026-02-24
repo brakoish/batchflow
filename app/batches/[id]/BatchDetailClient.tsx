@@ -8,6 +8,7 @@ import {
   CheckCircleIcon,
   CheckIcon,
   PlusIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/solid'
 
 type Worker = { id: string; name: string }
@@ -68,6 +69,29 @@ export default function BatchDetailClient({
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(''), 2000)
+  }
+
+  const handleDeleteLog = async (logId: string, stepId: string, qty: number) => {
+    if (!confirm(`Delete this log entry (+${qty})?`)) return
+    try {
+      const res = await fetch(`/api/logs/${logId}`, { method: 'DELETE' })
+      if (!res.ok) { const d = await res.json(); setError(d.error); return }
+      // Optimistically update
+      setBatch(prev => ({
+        ...prev,
+        steps: prev.steps.map(s => {
+          if (s.id === stepId) {
+            return {
+              ...s,
+              completedQuantity: Math.max(0, s.completedQuantity - qty),
+              progressLogs: s.progressLogs.filter(l => l.id !== logId),
+            }
+          }
+          return s
+        }),
+      }))
+      showToast('Log entry deleted')
+    } catch { setError('Connection error') }
   }
 
   const handleCheckComplete = async (step: BatchStep) => {
@@ -246,6 +270,31 @@ export default function BatchDetailClient({
                         style={{ width: `${Math.min(pct, 100)}%` }}
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* Recent logs */}
+                {step.progressLogs && step.progressLogs.length > 0 && !isLocked && (
+                  <div className="mt-3 space-y-1">
+                    {step.progressLogs.slice(0, 3).map((log) => (
+                      <div key={log.id} className="flex items-center justify-between text-[10px] text-zinc-500 group">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-zinc-400 font-medium">{log.worker.name}</span>
+                          <span className="text-emerald-400 tabular-nums">+{log.quantity}</span>
+                          {log.note && <span className="text-zinc-600 truncate max-w-[120px]">{log.note}</span>}
+                          <span className="text-zinc-700">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        {(session.role === 'OWNER' || session.id === log.worker.id) && (
+                          <button
+                            onClick={() => handleDeleteLog(log.id, step.id, log.quantity)}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-red-400 transition-all"
+                            title="Delete this log"
+                          >
+                            <XMarkIcon className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
