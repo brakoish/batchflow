@@ -42,9 +42,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Name and steps required' }, { status: 400 })
     }
 
-    // Delete old units and steps, recreate
-    await prisma.recipeUnit.deleteMany({ where: { recipeId: id } })
+    // Delete steps first (they reference units), then units
     await prisma.recipeStep.deleteMany({ where: { recipeId: id } })
+    await prisma.recipeUnit.deleteMany({ where: { recipeId: id } })
 
     // Update recipe
     const recipe = await prisma.recipe.update({

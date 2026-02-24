@@ -37,6 +37,7 @@ model Worker {
   createdAt   DateTime      @default(now())
   progressLogs ProgressLog[]
   assignments BatchAssignment[]
+  shifts      Shift[]
 }
 
 model Recipe {
@@ -107,6 +108,26 @@ model BatchAssignment {
   @@unique([batchId, workerId])
   @@index([batchId])
   @@index([workerId])
+}
+
+enum ShiftStatus {
+  ACTIVE
+  COMPLETED
+}
+
+model Shift {
+  id          String      @id @default(cuid())
+  workerId    String
+  worker      Worker      @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  status      ShiftStatus @default(ACTIVE)
+  startedAt   DateTime    @default(now())
+  endedAt     DateTime?
+  notes       String?
+  createdAt   DateTime    @default(now())
+
+  @@index([workerId])
+  @@index([status])
+  @@index([startedAt])
 }
 
 model BatchStep {
