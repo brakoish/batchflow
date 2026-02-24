@@ -1,100 +1,49 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import Link from 'next/link'
+import Header from '@/app/components/Header'
 import WorkerManager from './WorkerManager'
-import { ArrowLeftIcon } from '@heroicons/react/24/solid'
 
 export default async function WorkersPage() {
   const session = await getSession()
-
-  if (!session) {
-    redirect('/')
-  }
-
-  if (session.role !== 'OWNER') {
-    redirect('/batches')
-  }
+  if (!session) redirect('/')
+  if (session.role !== 'OWNER') redirect('/batches')
 
   const workers = await prisma.worker.findMany({
-    select: {
-      id: true,
-      name: true,
-      pin: true,
-      role: true,
-      createdAt: true,
-    },
-    orderBy: {
-      name: 'asc',
-    },
+    select: { id: true, name: true, pin: true, role: true, createdAt: true },
+    orderBy: { name: 'asc' },
   })
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center text-zinc-400 hover:text-white mb-4 text-sm"
-          >
-            <ArrowLeftIcon className="w-4 h-4 inline mr-1" />Back to Dashboard
-          </Link>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Worker Management
-          </h1>
-          <p className="text-zinc-400">
-            Manage workers and their PIN access
-          </p>
-        </div>
+    <div className="min-h-dvh bg-zinc-950">
+      <Header session={session} />
+      <main className="max-w-5xl mx-auto px-4 py-5">
+        <h1 className="text-lg font-semibold tracking-tight text-zinc-50 mb-5">Workers</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Worker List */}
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-4">Workers</h2>
-            {workers.length === 0 ? (
-              <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-800 text-center">
-                <p className="text-zinc-500">No workers yet</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {workers.map((worker) => (
-                  <div
-                    key={worker.id}
-                    className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">
-                          {worker.name}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-zinc-500">
-                            PIN: {worker.pin}
-                          </span>
-                          <span className="text-zinc-700">•</span>
-                          <span
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              worker.role === 'OWNER'
-                                ? 'bg-purple-900/30 text-purple-400'
-                                : 'bg-blue-900/30 text-blue-400'
-                            }`}
-                          >
-                            {worker.role}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="space-y-2.5">
+            <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Team</h2>
+            {workers.map((worker) => (
+              <div key={worker.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-50">{worker.name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-zinc-500 font-mono tabular-nums">{worker.pin}</span>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                      worker.role === 'OWNER'
+                        ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                    }`}>
+                      {worker.role}
+                    </span>
                   </div>
-                ))}
+                </div>
               </div>
-            )}
+            ))}
           </div>
-
-          {/* Add Worker Form */}
           <WorkerManager />
         </div>
-      </div>
+      </main>
     </div>
   )
 }

@@ -2,68 +2,39 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import Header from '@/app/components/Header'
 import BatchCreator from './BatchCreator'
-import { ArrowLeftIcon } from '@heroicons/react/24/solid'
 
 export default async function NewBatchPage() {
   const session = await getSession()
-
-  if (!session) {
-    redirect('/')
-  }
-
-  if (session.role !== 'OWNER') {
-    redirect('/batches')
-  }
+  if (!session) redirect('/')
+  if (session.role !== 'OWNER') redirect('/batches')
 
   const recipes = await prisma.recipe.findMany({
-    include: {
-      steps: {
-        orderBy: {
-          order: 'asc',
-        },
-      },
-    },
-    orderBy: {
-      name: 'asc',
-    },
+    include: { steps: { orderBy: { order: 'asc' } } },
+    orderBy: { name: 'asc' },
   })
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <div className="max-w-2xl mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center text-zinc-400 hover:text-white mb-4 text-sm"
-          >
-            <ArrowLeftIcon className="w-4 h-4 inline mr-1" />Back to Dashboard
-          </Link>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Create New Batch
-          </h1>
-          <p className="text-zinc-400">
-            Select a recipe and configure your batch
-          </p>
-        </div>
+    <div className="min-h-dvh bg-zinc-950">
+      <Header session={session} />
+      <main className="max-w-lg mx-auto px-4 py-5">
+        <h1 className="text-lg font-semibold tracking-tight text-zinc-50 mb-5">New Batch</h1>
 
         {recipes.length === 0 ? (
-          <div className="bg-zinc-900 rounded-2xl p-12 border border-zinc-800 text-center">
-            <p className="text-zinc-400 mb-4">
-              No recipes available. Create a recipe first.
-            </p>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-12 text-center">
+            <p className="text-sm text-zinc-500 mb-3">Create a recipe first</p>
             <Link
               href="/recipes"
-              className="inline-block px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-semibold transition-colors"
+              className="inline-block px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
             >
               Go to Recipes
             </Link>
           </div>
         ) : (
-          <BatchCreator recipes={recipes} />
+          <BatchCreator recipes={JSON.parse(JSON.stringify(recipes))} />
         )}
-      </div>
+      </main>
     </div>
   )
 }

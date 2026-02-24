@@ -6,118 +6,84 @@ import Header from '@/app/components/Header'
 
 export default async function BatchesPage() {
   const session = await getSession()
-
-  if (!session) {
-    redirect('/')
-  }
+  if (!session) redirect('/')
+  if (session.role === 'OWNER') redirect('/dashboard')
 
   const batches = await prisma.batch.findMany({
-    where: {
-      status: 'ACTIVE',
-    },
+    where: { status: 'ACTIVE' },
     include: {
       recipe: true,
-      steps: {
-        orderBy: {
-          order: 'asc',
-        },
-      },
+      steps: { orderBy: { order: 'asc' } },
     },
-    orderBy: {
-      startDate: 'desc',
-    },
+    orderBy: { startDate: 'desc' },
   })
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-dvh bg-zinc-950">
       <Header session={session} />
-      <div className="max-w-4xl mx-auto px-4 py-6 pb-safe">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-1">
-            Active Batches
-          </h1>
-          <p className="text-zinc-400">Welcome, {session.name}</p>
+      <main className="max-w-2xl mx-auto px-4 py-5">
+        <div className="mb-5">
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-50">Active Batches</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">{batches.length} batch{batches.length !== 1 ? 'es' : ''} in progress</p>
         </div>
 
-        {/* Batch List */}
         {batches.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-zinc-500 text-lg">No active batches</p>
+          <div className="text-center py-16">
+            <p className="text-sm text-zinc-500">No active batches</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2.5">
             {batches.map((batch) => {
-              const firstIncompleteStep = batch.steps.find(
-                (step) => step.status !== 'COMPLETED'
-              )
-              const completedSteps = batch.steps.filter(
-                (step) => step.status === 'COMPLETED'
-              ).length
+              const firstIncomplete = batch.steps.find((s) => s.status !== 'COMPLETED')
+              const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const totalSteps = batch.steps.length
+              const pct = Math.round((completedSteps / totalSteps) * 100)
 
               return (
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className="block bg-zinc-900 rounded-2xl p-6 border border-zinc-800 hover:border-zinc-700 transition-colors"
+                  className="block rounded-xl border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-700 hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">
-                        {batch.name}
-                      </h2>
-                      <p className="text-zinc-400 text-sm">
-                        {batch.recipe.name}
-                      </p>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-semibold text-zinc-50 truncate">{batch.name}</h2>
+                      <p className="text-xs text-zinc-500 mt-0.5">{batch.recipe.name}</p>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-white">
-                        {batch.targetQuantity}
-                      </div>
-                      <div className="text-zinc-500 text-sm">target</div>
+                    <div className="text-right ml-4 shrink-0">
+                      <span className="text-lg font-bold tabular-nums text-zinc-50">{batch.targetQuantity}</span>
+                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider">target</p>
                     </div>
                   </div>
 
-                  {/* Progress */}
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-zinc-400">
-                        {completedSteps} of {totalSteps} steps
-                      </span>
-                      <span className="text-zinc-400">
-                        {Math.round((completedSteps / totalSteps) * 100)}%
-                      </span>
-                    </div>
-                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  {/* Progress bar */}
+                  <div className="mb-2.5">
+                    <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
                       <div
-                        className="h-full bg-green-600 transition-all"
-                        style={{
-                          width: `${(completedSteps / totalSteps) * 100}%`,
-                        }}
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
                       />
                     </div>
                   </div>
 
-                  {/* Current Step */}
-                  {firstIncompleteStep && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-zinc-500">Current:</span>
-                      <span className="text-white font-medium">
-                        {firstIncompleteStep.name}
-                      </span>
-                      <span className="text-zinc-600">•</span>
-                      <span className="text-zinc-400">
-                        {firstIncompleteStep.completedQuantity} /{' '}
-                        {firstIncompleteStep.targetQuantity}
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-zinc-500">{completedSteps}/{totalSteps} steps</span>
+                      <span className="text-zinc-700">·</span>
+                      <span className="text-zinc-400">{pct}%</span>
                     </div>
-                  )}
+                    {firstIncomplete && (
+                      <span className="text-xs text-blue-400 font-medium">
+                        {firstIncomplete.name}: {firstIncomplete.completedQuantity}/{firstIncomplete.targetQuantity}
+                      </span>
+                    )}
+                  </div>
                 </Link>
               )
             })}
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }

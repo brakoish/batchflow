@@ -2,13 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircleIcon, HashtagIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, HashtagIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 
-type Step = {
-  name: string
-  notes: string
-  type: 'CHECK' | 'COUNT'
-}
+type Step = { name: string; notes: string; type: 'CHECK' | 'COUNT' }
 
 export default function RecipeBuilder() {
   const [name, setName] = useState('')
@@ -18,233 +14,140 @@ export default function RecipeBuilder() {
   const [error, setError] = useState('')
   const router = useRouter()
 
-  const addStep = () => {
-    setSteps([...steps, { name: '', notes: '', type: 'COUNT' }])
+  const addStep = () => setSteps([...steps, { name: '', notes: '', type: 'COUNT' }])
+  const removeStep = (i: number) => steps.length > 1 && setSteps(steps.filter((_, idx) => idx !== i))
+  const updateStep = (i: number, field: string, value: string) => {
+    const s = [...steps]; (s[i] as any)[field] = value; setSteps(s)
   }
-
-  const removeStep = (index: number) => {
-    if (steps.length > 1) {
-      setSteps(steps.filter((_, i) => i !== index))
-    }
-  }
-
-  const updateStep = (
-    index: number,
-    field: 'name' | 'notes' | 'type',
-    value: string
-  ) => {
-    const newSteps = [...steps]
-    ;(newSteps[index] as any)[field] = value
-    setSteps(newSteps)
-  }
-
-  const moveStep = (index: number, direction: 'up' | 'down') => {
-    if (
-      (direction === 'up' && index === 0) ||
-      (direction === 'down' && index === steps.length - 1)
-    ) {
-      return
-    }
-
-    const newSteps = [...steps]
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    ;[newSteps[index], newSteps[targetIndex]] = [
-      newSteps[targetIndex],
-      newSteps[index],
-    ]
-    setSteps(newSteps)
+  const moveStep = (i: number, dir: 'up' | 'down') => {
+    const t = dir === 'up' ? i - 1 : i + 1
+    if (t < 0 || t >= steps.length) return
+    const s = [...steps]; [s[i], s[t]] = [s[t], s[i]]; setSteps(s)
   }
 
   const handleSubmit = async () => {
-    if (!name.trim()) {
-      setError('Recipe name is required')
-      return
-    }
+    if (!name.trim()) { setError('Recipe name required'); return }
+    const valid = steps.filter((s) => s.name.trim())
+    if (!valid.length) { setError('Add at least one step'); return }
 
-    const validSteps = steps.filter((s) => s.name.trim())
-    if (validSteps.length === 0) {
-      setError('At least one step is required')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-
+    setLoading(true); setError('')
     try {
       const res = await fetch('/api/recipes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name,
-          description: description || undefined,
-          steps: validSteps,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: description || undefined, steps: valid }),
       })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Failed to create recipe')
-        return
-      }
-
-      // Reset form
-      setName('')
-      setDescription('')
-      setSteps([{ name: '', notes: '', type: 'COUNT' }])
+      if (!res.ok) { setError((await res.json()).error); return }
+      setName(''); setDescription(''); setSteps([{ name: '', notes: '', type: 'COUNT' }])
       router.refresh()
-    } catch (err) {
-      setError('Connection error')
-    } finally {
-      setLoading(false)
-    }
+    } catch { setError('Connection error') }
+    finally { setLoading(false) }
   }
 
   return (
-    <div className="bg-zinc-900 rounded-2xl p-6 border border-zinc-800">
-      <h2 className="text-xl font-semibold text-white mb-6">
-        Create New Recipe
-      </h2>
-
-      {/* Recipe Name */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-zinc-400 mb-2">
-          Recipe Name *
-        </label>
+    <div>
+      <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">New Recipe</h2>
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g., 14g Ground Flower"
-          className="w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+          placeholder="Recipe name"
+          className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-2.5"
           disabled={loading}
         />
-      </div>
-
-      {/* Description */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-zinc-400 mb-2">
-          Description (optional)
-        </label>
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Brief description..."
-          className="w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+          placeholder="Description (optional)"
+          className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-4"
           disabled={loading}
         />
-      </div>
 
-      {/* Steps */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <label className="block text-sm font-medium text-zinc-400">
-            Steps *
-          </label>
-          <button
-            onClick={addStep}
-            disabled={loading}
-            className="text-green-500 hover:text-green-400 text-sm font-medium"
-          >
-            + Add Step
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {steps.map((step, index) => (
-            <div
-              key={index}
-              className="bg-zinc-800 rounded-xl p-4 border border-zinc-700"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-zinc-500 font-semibold text-sm w-6">
-                  {index + 1}.
-                </span>
+        {/* Steps */}
+        <div className="space-y-2.5 mb-4">
+          {steps.map((step, i) => (
+            <div key={i} className="rounded-lg bg-zinc-800/50 border border-zinc-700 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] text-zinc-600 font-bold tabular-nums w-4">{i + 1}.</span>
                 <input
                   type="text"
                   value={step.name}
-                  onChange={(e) => updateStep(index, 'name', e.target.value)}
+                  onChange={(e) => updateStep(i, 'name', e.target.value)}
                   placeholder="Step name"
-                  className="flex-1 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="flex-1 px-2.5 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   disabled={loading}
                 />
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => moveStep(index, 'up')}
-                    disabled={loading || index === 0}
-                    className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-700 text-zinc-400 disabled:opacity-30"
-                  >
-                    ↑
+                <div className="flex items-center gap-0.5">
+                  <button onClick={() => moveStep(i, 'up')} disabled={i === 0} className="p-1 rounded text-zinc-500 hover:text-zinc-300 disabled:opacity-20 transition-colors">
+                    <ChevronUpIcon className="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    onClick={() => moveStep(index, 'down')}
-                    disabled={loading || index === steps.length - 1}
-                    className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-700 text-zinc-400 disabled:opacity-30"
-                  >
-                    ↓
+                  <button onClick={() => moveStep(i, 'down')} disabled={i === steps.length - 1} className="p-1 rounded text-zinc-500 hover:text-zinc-300 disabled:opacity-20 transition-colors">
+                    <ChevronDownIcon className="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    onClick={() => removeStep(index)}
-                    disabled={loading || steps.length === 1}
-                    className="p-1.5 rounded-lg bg-zinc-900 hover:bg-red-900/50 text-red-400 disabled:opacity-30"
-                  >
-                    ×
+                  <button onClick={() => removeStep(i)} disabled={steps.length === 1} className="p-1 rounded text-zinc-500 hover:text-red-400 disabled:opacity-20 transition-colors">
+                    <XMarkIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-zinc-500 text-xs">Type:</span>
+
+              {/* Type toggle — segmented control */}
+              <div className="flex items-center gap-1 mb-2">
                 <button
-                  onClick={() => updateStep(index, 'type', 'CHECK')}
+                  onClick={() => updateStep(i, 'type', 'CHECK')}
                   disabled={loading}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold transition-all ${
                     step.type === 'CHECK'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                      : 'text-zinc-500 hover:text-zinc-400'
                   }`}
                 >
-                  <CheckCircleIcon className="w-3.5 h-3.5 inline mr-1" />Check
+                  <CheckCircleIcon className="w-3 h-3" />Check
                 </button>
                 <button
-                  onClick={() => updateStep(index, 'type', 'COUNT')}
+                  onClick={() => updateStep(i, 'type', 'COUNT')}
                   disabled={loading}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center ${
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold transition-all ${
                     step.type === 'COUNT'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : 'text-zinc-500 hover:text-zinc-400'
                   }`}
                 >
-                  <HashtagIcon className="w-3.5 h-3.5 inline mr-1" />Count
+                  <HashtagIcon className="w-3 h-3" />Count
                 </button>
               </div>
+
               <input
                 type="text"
                 value={step.notes}
-                onChange={(e) => updateStep(index, 'notes', e.target.value)}
+                onChange={(e) => updateStep(i, 'notes', e.target.value)}
                 placeholder="Notes (optional)"
-                className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-2.5 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                 disabled={loading}
               />
             </div>
           ))}
         </div>
+
+        <button
+          onClick={addStep}
+          disabled={loading}
+          className="w-full py-2 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors flex items-center justify-center gap-1 mb-4"
+        >
+          <PlusIcon className="w-3.5 h-3.5" />Add Step
+        </button>
+
+        {error && <p className="text-red-400 text-xs text-center mb-3">{error}</p>}
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+        >
+          {loading ? 'Creating...' : 'Create Recipe'}
+        </button>
       </div>
-
-      {error && (
-        <p className="text-red-500 text-sm mb-4 text-center">{error}</p>
-      )}
-
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-semibold transition-colors disabled:opacity-50"
-      >
-        {loading ? 'Creating...' : 'Create Recipe'}
-      </button>
     </div>
   )
 }
