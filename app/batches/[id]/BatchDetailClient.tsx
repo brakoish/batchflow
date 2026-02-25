@@ -367,7 +367,7 @@ export default function BatchDetailClient({
                 {step.progressLogs && step.progressLogs.length > 0 && !isLocked && (
                   <div className="mt-3 space-y-1">
                     {step.progressLogs.slice(0, 3).map((log) => (
-                      <div key={log.id} className="flex items-center justify-between text-[10px] text-zinc-500 group">
+                      <div key={log.id} className="flex items-center justify-between text-[10px] text-zinc-500">
                         <div className="flex items-center gap-1.5">
                           <span className="text-zinc-400 font-medium">{log.worker.name}</span>
                           <span className="text-emerald-400 tabular-nums">+{log.quantity}</span>
@@ -377,7 +377,7 @@ export default function BatchDetailClient({
                         {(session.role === 'OWNER' || session.id === log.worker.id) && (
                           <button
                             onClick={() => handleDeleteLog(log.id, step.id, log.quantity)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-red-400 transition-all"
+                            className="p-1 text-zinc-600 hover:text-red-400 transition-colors"
                             title="Delete this log"
                           >
                             <XMarkIcon className="w-3 h-3" />
