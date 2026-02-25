@@ -55,7 +55,7 @@ function QuickAddButtons({ remaining, current, onAdd }: { remaining: number; cur
   })()
 
   // Remove duplicates and sort
-  const unique = [...new Set(increments)].sort((a, b) => a - b).slice(0, 3)
+  const unique = Array.from(new Set(increments)).sort((a, b) => a - b).slice(0, 3)
 
   return (
     <div className="grid grid-cols-3 gap-2 mt-3">
