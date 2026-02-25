@@ -8,6 +8,7 @@ import {
   XMarkIcon,
   ArrowRightOnRectangleIcon,
   StopIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline'
 
 type HeaderProps = {
@@ -42,6 +43,12 @@ export default function Header({ session }: HeaderProps) {
   const handleClockOut = async () => {
     await fetch('/api/shifts', { method: 'PATCH' })
     setOnShift(false)
+    window.location.reload()
+  }
+
+  const handleClockIn = async () => {
+    await fetch('/api/shifts', { method: 'POST' })
+    setOnShift(true)
     window.location.reload()
   }
 
@@ -88,14 +95,23 @@ export default function Header({ session }: HeaderProps) {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
-          {/* Clock Out button if on shift */}
-          {!isOwner && onShift && (
-            <button
-              onClick={handleClockOut}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 text-xs font-medium transition-colors"
-            >
-              <StopIcon className="w-3.5 h-3.5" /> Clock Out
-            </button>
+          {/* Clock In/Out button */}
+          {!isOwner && (
+            onShift ? (
+              <button
+                onClick={handleClockOut}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 text-xs font-medium transition-colors"
+              >
+                <StopIcon className="w-3.5 h-3.5" /> Clock Out
+              </button>
+            ) : (
+              <button
+                onClick={handleClockIn}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 text-xs font-medium transition-colors"
+              >
+                <PlayIcon className="w-3.5 h-3.5" /> Clock In
+              </button>
+            )
           )}
 
           <span className="hidden sm:block text-xs text-zinc-500">{session.name}</span>
@@ -135,14 +151,23 @@ export default function Header({ session }: HeaderProps) {
               </Link>
             ))}
 
-            {/* Mobile clock out */}
-            {!isOwner && onShift && (
-              <button
-                onClick={() => { handleClockOut(); setMenuOpen(false) }}
-                className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
-              >
-                <StopIcon className="w-4 h-4" /> Clock Out
-              </button>
+            {/* Mobile clock in/out */}
+            {!isOwner && (
+              onShift ? (
+                <button
+                  onClick={() => { handleClockOut(); setMenuOpen(false) }}
+                  className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                >
+                  <StopIcon className="w-4 h-4" /> Clock Out
+                </button>
+              ) : (
+                <button
+                  onClick={() => { handleClockIn(); setMenuOpen(false) }}
+                  className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors flex items-center gap-2"
+                >
+                  <PlayIcon className="w-4 h-4" /> Clock In
+                </button>
+              )
             )}
 
             <button

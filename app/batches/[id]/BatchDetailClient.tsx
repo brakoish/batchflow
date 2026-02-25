@@ -28,6 +28,54 @@ type Batch = {
 }
 type Session = { id: string; name: string; role: string }
 
+// Smart increment buttons that adapt to remaining quantity
+function QuickAddButtons({ remaining, current, onAdd }: { remaining: number; current: number; onAdd: (val: number) => void }) {
+  // Don't show buttons if nothing remaining
+  if (remaining <= 0) return null
+
+  // Calculate smart increments based on remaining quantity
+  const increments = (() => {
+    // Small batch: <= 50
+    if (remaining <= 50) {
+      if (remaining <= 10) return [remaining]
+      if (remaining <= 25) return [10, remaining]
+      return [10, 25, remaining]
+    }
+    // Medium batch: 51-200
+    if (remaining <= 200) {
+      if (remaining <= 100) return [25, 50, remaining]
+      return [50, 100, remaining]
+    }
+    // Large batch: 201-500
+    if (remaining <= 500) {
+      return [50, 100, 250].filter(n => n < remaining).concat([remaining])
+    }
+    // Very large batch: > 500
+    return [100, 250, 500]
+  })()
+
+  // Remove duplicates and sort
+  const unique = [...new Set(increments)].sort((a, b) => a - b).slice(0, 3)
+
+  return (
+    <div className="grid grid-cols-3 gap-2 mt-3">
+      {unique.map((amt) => (
+        <button
+          key={amt}
+          onClick={() => onAdd(current + amt)}
+          className={`py-2.5 rounded-lg border text-sm font-medium active:scale-[0.96] transition-all duration-150 ${
+            amt === remaining
+              ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/30'
+              : 'bg-zinc-800 hover:bg-zinc-750 border-zinc-700 text-zinc-300'
+          }`}
+        >
+          {amt === remaining ? 'Rest' : `+${amt}`}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function BatchDetailClient({
   batch: initialBatch, session,
 }: {
@@ -381,18 +429,12 @@ export default function BatchDetailClient({
                 className="w-full px-4 py-3.5 rounded-xl bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-xl font-semibold tabular-nums placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
               />
 
-              {/* Quick add */}
-              <div className="grid grid-cols-3 gap-2 mt-3">
-                {[50, 100, 250].map((amt) => (
-                  <button
-                    key={amt}
-                    onClick={() => setQuantity(String((parseInt(quantity) || 0) + amt))}
-                    className="py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 text-zinc-300 text-sm font-medium active:scale-[0.96] transition-all duration-150"
-                  >
-                    +{amt}
-                  </button>
-                ))}
-              </div>
+              {/* Quick add - smart increments based on remaining quantity */}
+              <QuickAddButtons
+                remaining={selectedStep.targetQuantity - selectedStep.completedQuantity}
+                current={parseInt(quantity) || 0}
+                onAdd={(val) => setQuantity(String(val))}
+              />
 
               {/* Note */}
               <input
