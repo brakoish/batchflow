@@ -333,18 +333,18 @@ export default function BatchDetailClient({
                   {!isLocked && !isCompleted && step.type === 'COUNT' && (
                     <button
                       onClick={() => { setSelectedStep(step); setQuantity(''); setNote(''); setError('') }}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-semibold transition-all duration-150 shrink-0"
+                      className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0"
                     >
-                      <PlusIcon className="w-3.5 h-3.5" />Log
+                      <PlusIcon className="w-4 h-4" />Log
                     </button>
                   )}
                   {!isLocked && !isCompleted && step.type === 'CHECK' && (
                     <button
                       onClick={() => handleCheckComplete(step)}
                       disabled={loading}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-[0.96] text-white text-xs font-semibold transition-all duration-150 shrink-0 disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0 disabled:opacity-50"
                     >
-                      <CheckIcon className="w-3.5 h-3.5" />Done
+                      <CheckIcon className="w-4 h-4" />Done
                     </button>
                   )}
                 </div>
@@ -377,10 +377,10 @@ export default function BatchDetailClient({
                         {(session.role === 'OWNER' || session.id === log.worker.id) && (
                           <button
                             onClick={() => handleDeleteLog(log.id, step.id, log.quantity)}
-                            className="p-1 text-zinc-600 hover:text-red-400 transition-colors"
+                            className="flex items-center justify-center w-8 h-8 min-w-[32px] rounded-lg text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 transition-colors"
                             title="Delete this log"
                           >
-                            <XMarkIcon className="w-3 h-3" />
+                            <XMarkIcon className="w-4 h-4" />
                           </button>
                         )}
                       </div>

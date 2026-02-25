@@ -96,28 +96,28 @@ export default function DashboardClient({
                         const isCheck = step.type === 'CHECK'
 
                         return (
-                          <div key={step.id} className="flex items-center gap-2.5">
-                            <div className="w-4 flex justify-center shrink-0">
+                          <div key={step.id} className="flex items-center gap-3">
+                            <div className="w-6 flex justify-center shrink-0">
                               {isCompleted ? (
-                                <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />
+                                <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
                               ) : isLocked ? (
-                                <LockClosedIcon className="w-3 h-3 text-zinc-700" />
+                                <LockClosedIcon className="w-4 h-4 text-zinc-700" />
                               ) : (
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                                <div className="w-2.5 h-2.5 rounded-full bg-blue-400" />
                               )}
                             </div>
-                            <span className={`text-xs w-28 truncate shrink-0 ${
+                            <span className={`text-sm w-28 truncate shrink-0 ${
                               isLocked ? 'text-zinc-600' : isCompleted ? 'text-emerald-400' : 'text-zinc-300'
                             }`}>
                               {step.name}
                             </span>
                             <div className="flex-1">
                               {isCheck ? (
-                                <span className={`text-[10px] ${isCompleted ? 'text-emerald-400' : isLocked ? 'text-zinc-700' : 'text-zinc-500'}`}>
+                                <span className={`text-xs ${isCompleted ? 'text-emerald-400' : isLocked ? 'text-zinc-700' : 'text-zinc-500'}`}>
                                   {isCompleted ? 'Done' : 'Pending'}
                                 </span>
                               ) : (
-                                <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
+                                <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
                                   <div
                                     className={`h-full rounded-full transition-all duration-500 ${
                                       isCompleted ? 'bg-emerald-500' : isLocked ? 'bg-zinc-800' : 'bg-blue-500'
@@ -128,7 +128,7 @@ export default function DashboardClient({
                               )}
                             </div>
                             {!isCheck && (
-                              <span className={`text-[10px] tabular-nums shrink-0 ${
+                              <span className={`text-xs tabular-nums shrink-0 ${
                                 isLocked ? 'text-zinc-700' : isCompleted ? 'text-emerald-400' : 'text-zinc-500'
                               }`}>
                                 {step.completedQuantity}/{step.targetQuantity}
