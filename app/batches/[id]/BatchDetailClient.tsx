@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
-import Tooltip from '@/app/components/Tooltip'
 import {
   LockClosedIcon,
   CheckCircleIcon,
@@ -62,18 +61,17 @@ function QuickAddButtons({ remaining, current, onAdd }: { remaining: number; cur
   return (
     <div className="grid grid-cols-3 gap-2 mt-3">
       {unique.map((amt) => (
-        <Tooltip key={amt} text={amt === remaining ? `Add remaining ${amt} units` : `Add ${amt} units`} position="top">
-          <button
-            onClick={() => onAdd(current + amt)}
-            className={`w-full py-2.5 rounded-lg border text-sm font-medium active:scale-[0.96] transition-all duration-150 ${
-              amt === remaining
-                ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/30'
-                : 'bg-zinc-800 hover:bg-zinc-750 border-zinc-700 text-zinc-300'
-            }`}
-          >
-            {amt === remaining ? 'Rest' : `+${amt}`}
-          </button>
-        </Tooltip>
+        <button
+          key={amt}
+          onClick={() => onAdd(current + amt)}
+          className={`py-2.5 rounded-lg border text-sm font-medium active:scale-[0.96] transition-all duration-150 ${
+            amt === remaining
+              ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/30'
+              : 'bg-zinc-800 hover:bg-zinc-750 border-zinc-700 text-zinc-300'
+          }`}
+        >
+          {amt === remaining ? 'Rest' : `+${amt}`}
+        </button>
       ))}
     </div>
   )
@@ -300,23 +298,21 @@ export default function BatchDetailClient({
                 <div className="flex items-center justify-between gap-3">
                   {/* Left: status icon + name */}
                   <div className="flex items-center gap-3 min-w-0">
-                    <Tooltip text={isCompleted ? 'Step completed' : isLocked ? 'Locked - complete previous step' : `Step ${step.order}`} position="top">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                        isCompleted
-                          ? 'bg-emerald-500/15'
-                          : isLocked
-                          ? 'bg-zinc-800'
-                          : 'bg-blue-500/15'
-                      }`}>
-                        {isCompleted ? (
-                          <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
-                        ) : isLocked ? (
-                          <LockClosedIcon className="w-3.5 h-3.5 text-zinc-600" />
-                        ) : (
-                          <span className="text-xs font-bold text-blue-400">{step.order}</span>
-                        )}
-                      </div>
-                    </Tooltip>
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      isCompleted
+                        ? 'bg-emerald-500/15'
+                        : isLocked
+                        ? 'bg-zinc-800'
+                        : 'bg-blue-500/15'
+                    }`}>
+                      {isCompleted ? (
+                        <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                      ) : isLocked ? (
+                        <LockClosedIcon className="w-3.5 h-3.5 text-zinc-600" />
+                      ) : (
+                        <span className="text-xs font-bold text-blue-400">{step.order}</span>
+                      )}
+                    </div>
                     <div className="min-w-0">
                       <p className={`text-sm font-medium truncate ${
                         isCompleted ? 'text-emerald-300' : isLocked ? 'text-zinc-600' : 'text-zinc-50'
@@ -336,25 +332,21 @@ export default function BatchDetailClient({
 
                   {/* Right: action or status */}
                   {!isLocked && !isCompleted && step.type === 'COUNT' && (
-                    <Tooltip text="Log progress for this step" position="left">
-                      <button
-                        onClick={() => { setSelectedStep(step); setQuantity(''); setNote(''); setError('') }}
-                        className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0"
-                      >
-                        <PlusIcon className="w-4 h-4" />Log
-                      </button>
-                    </Tooltip>
+                    <button
+                      onClick={() => { setSelectedStep(step); setQuantity(''); setNote(''); setError('') }}
+                      className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0"
+                    >
+                      <PlusIcon className="w-4 h-4" />Log
+                    </button>
                   )}
                   {!isLocked && !isCompleted && step.type === 'CHECK' && (
-                    <Tooltip text="Mark this step complete" position="left">
-                      <button
-                        onClick={() => handleCheckComplete(step)}
-                        disabled={loading}
-                        className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0 disabled:opacity-50"
-                      >
-                        <CheckIcon className="w-4 h-4" />Done
-                      </button>
-                    </Tooltip>
+                    <button
+                      onClick={() => handleCheckComplete(step)}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0 disabled:opacity-50"
+                    >
+                      <CheckIcon className="w-4 h-4" />Done
+                    </button>
                   )}
                 </div>
 
@@ -374,15 +366,16 @@ export default function BatchDetailClient({
 
                 {/* Materials needed for this step */}
                 {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && !isLocked && (
-                  <div className="mt-2 space-y-1">
-                    <span className="text-[10px] text-zinc-500">Materials:</span>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="mt-3 pt-3 border-t border-zinc-800">
+                    <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">Materials Needed</span>
+                    <div className="mt-1.5 space-y-1">
                       {step.recipeStep.materials.map((mat, idx) => {
                         const total = (mat.quantityPerUnit * step.targetQuantity).toLocaleString()
                         return (
-                          <span key={idx} className="text-[10px] px-2 py-1 rounded bg-zinc-800 text-zinc-400">
-                            {mat.quantityPerUnit}{mat.unit} {mat.name} → {total}{mat.unit} total
-                          </span>
+                          <div key={idx} className="text-[11px] text-zinc-400">
+                            <span className="text-zinc-300">{mat.name}:</span>{' '}
+                            1 {step.unitLabel.slice(0, -1)} is {mat.quantityPerUnit}{mat.unit} → Total: {total}{mat.unit}
+                          </div>
                         )
                       })}
                     </div>
@@ -401,14 +394,13 @@ export default function BatchDetailClient({
                           <span className="text-zinc-700">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         {(session.role === 'OWNER' || session.id === log.worker.id) && (
-                          <Tooltip text="Delete this log entry" position="left">
-                            <button
-                              onClick={() => handleDeleteLog(log.id, step.id, log.quantity)}
-                              className="flex items-center justify-center w-8 h-8 min-w-[32px] rounded-lg text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 transition-colors"
-                            >
-                              <XMarkIcon className="w-4 h-4" />
-                            </button>
-                          </Tooltip>
+                          <button
+                            onClick={() => handleDeleteLog(log.id, step.id, log.quantity)}
+                            className="flex items-center justify-center w-8 h-8 min-w-[32px] rounded-lg text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 transition-colors"
+                            title="Delete this log"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
                     ))}
@@ -436,16 +428,14 @@ export default function BatchDetailClient({
                     {selectedStep.completedQuantity} / {selectedStep.targetQuantity} {selectedStep.unitLabel}
                   </p>
                 </div>
-                <Tooltip text="Close" position="bottom">
-                  <button
-                    onClick={() => setSelectedStep(null)}
-                    className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </Tooltip>
+                <button
+                  onClick={() => setSelectedStep(null)}
+                  className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
               {/* Quantity */}
