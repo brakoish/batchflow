@@ -366,16 +366,18 @@ export default function BatchDetailClient({
 
                 {/* Materials needed for this step */}
                 {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && !isLocked && (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] text-zinc-500">Need:</span>
-                    {step.recipeStep.materials.map((mat, idx) => {
-                      const total = (mat.quantityPerUnit * step.targetQuantity).toLocaleString()
-                      return (
-                        <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">
-                          {total} {mat.unit} {mat.name}
-                        </span>
-                      )
-                    })}
+                  <div className="mt-2 space-y-1">
+                    <span className="text-[10px] text-zinc-500">Materials:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {step.recipeStep.materials.map((mat, idx) => {
+                        const total = (mat.quantityPerUnit * step.targetQuantity).toLocaleString()
+                        return (
+                          <span key={idx} className="text-[10px] px-2 py-1 rounded bg-zinc-800 text-zinc-400">
+                            {mat.quantityPerUnit}{mat.unit} {mat.name} → {total}{mat.unit} total
+                          </span>
+                        )
+                      })}
+                    </div>
                   </div>
                 )}
 
