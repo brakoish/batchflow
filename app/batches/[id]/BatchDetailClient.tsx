@@ -15,11 +15,12 @@ type Worker = { id: string; name: string }
 type ProgressLog = {
   id: string; quantity: number; note: string | null; createdAt: string; worker: Worker
 }
+type StepMaterial = { name: string; quantityPerUnit: number; unit: string }
 type BatchStep = {
   id: string; name: string; order: number; type: 'CHECK' | 'COUNT'
   unitLabel: string; unitRatio: number
   targetQuantity: number; completedQuantity: number; status: string
-  recipeStep?: { notes: string | null }
+  recipeStep?: { notes: string | null; materials?: StepMaterial[] }
   progressLogs: ProgressLog[]
 }
 type Batch = {
@@ -360,6 +361,21 @@ export default function BatchDetailClient({
                         style={{ width: `${Math.min(pct, 100)}%` }}
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* Materials needed for this step */}
+                {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && !isLocked && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-zinc-500">Need:</span>
+                    {step.recipeStep.materials.map((mat, idx) => {
+                      const total = (mat.quantityPerUnit * step.targetQuantity).toLocaleString()
+                      return (
+                        <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">
+                          {total} {mat.unit} {mat.name}
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
 

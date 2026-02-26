@@ -1,3 +1,5 @@
+import type { StepMaterial } from './StepMaterial';
+
 /**
  * StepType - Type of recipe step
  */
@@ -30,6 +32,9 @@ export interface RecipeStep {
 
   /** ID of the associated recipe unit (optional) */
   unitId?: string;
+
+  /** Materials needed for this step */
+  materials?: StepMaterial[];
 
   /** IDs of batch steps created from this recipe step */
   batchStepIds: string[];

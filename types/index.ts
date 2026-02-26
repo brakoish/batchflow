@@ -7,4 +7,5 @@ export * from './Recipe';
 export * from './RecipeStep';
 export * from './RecipeUnit';
 export * from './Shift';
+export * from './StepMaterial';
 export * from './Worker';

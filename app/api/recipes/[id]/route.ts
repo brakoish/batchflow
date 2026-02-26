@@ -14,7 +14,7 @@ export async function GET(
       where: { id },
       include: {
         units: { orderBy: { order: 'asc' } },
-        steps: { orderBy: { order: 'asc' }, include: { unit: true } },
+        steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
         _count: { select: { batches: true } },
       },
     })
@@ -42,7 +42,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Name and steps required' }, { status: 400 })
     }
 
-    // Delete steps first (they reference units), then units
+    // Delete materials first, then steps (they reference units), then units
+    await prisma.stepMaterial.deleteMany({
+      where: { recipeStep: { recipeId: id } },
+    })
     await prisma.recipeStep.deleteMany({ where: { recipeId: id } })
     await prisma.recipeUnit.deleteMany({ where: { recipeId: id } })
 
@@ -64,14 +67,14 @@ export async function PUT(
       include: { units: true },
     })
 
-    // Create steps with unit references
+    // Create steps with unit references and materials
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
       const unitRef = step.unitName
         ? recipe.units.find((u) => u.name === step.unitName)
         : null
 
-      await prisma.recipeStep.create({
+      const createdStep = await prisma.recipeStep.create({
         data: {
           recipeId: id,
           name: step.name,
@@ -81,13 +84,25 @@ export async function PUT(
           unitId: unitRef?.id || null,
         },
       })
+
+      // Create materials for this step
+      if (step.materials && step.materials.length > 0) {
+        await prisma.stepMaterial.createMany({
+          data: step.materials.map((m: { name: string; quantityPerUnit: number; unit: string }) => ({
+            recipeStepId: createdStep.id,
+            name: m.name,
+            quantityPerUnit: m.quantityPerUnit,
+            unit: m.unit || 'units',
+          })),
+        })
+      }
     }
 
     const full = await prisma.recipe.findUnique({
       where: { id },
       include: {
         units: { orderBy: { order: 'asc' } },
-        steps: { orderBy: { order: 'asc' }, include: { unit: true } },
+        steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
         _count: { select: { batches: true } },
       },
     })

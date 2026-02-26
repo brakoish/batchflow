@@ -12,7 +12,7 @@ export default async function RecipesPage() {
   const recipes = await prisma.recipe.findMany({
     include: {
       units: { orderBy: { order: 'asc' } },
-      steps: { orderBy: { order: 'asc' }, include: { unit: true } },
+      steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
       _count: { select: { batches: true } },
     },
     orderBy: { createdAt: 'desc' },

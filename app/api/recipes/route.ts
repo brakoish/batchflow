@@ -11,7 +11,7 @@ export async function GET() {
         units: { orderBy: { order: 'asc' } },
         steps: {
           orderBy: { order: 'asc' },
-          include: { unit: true },
+          include: { unit: true, materials: true },
         },
         _count: { select: { batches: true } },
       },
@@ -50,14 +50,14 @@ export async function POST(request: NextRequest) {
       include: { units: true },
     })
 
-    // Create steps with unit references
+    // Create steps with unit references and materials
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
       const unitRef = step.unitName
         ? recipe.units.find((u) => u.name === step.unitName)
         : null
 
-      await prisma.recipeStep.create({
+      const createdStep = await prisma.recipeStep.create({
         data: {
           recipeId: recipe.id,
           name: step.name,
@@ -67,13 +67,25 @@ export async function POST(request: NextRequest) {
           unitId: unitRef?.id || null,
         },
       })
+
+      // Create materials for this step
+      if (step.materials && step.materials.length > 0) {
+        await prisma.stepMaterial.createMany({
+          data: step.materials.map((m: { name: string; quantityPerUnit: number; unit: string }) => ({
+            recipeStepId: createdStep.id,
+            name: m.name,
+            quantityPerUnit: m.quantityPerUnit,
+            unit: m.unit || 'units',
+          })),
+        })
+      }
     }
 
     const full = await prisma.recipe.findUnique({
       where: { id: recipe.id },
       include: {
         units: { orderBy: { order: 'asc' } },
-        steps: { orderBy: { order: 'asc' }, include: { unit: true } },
+        steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
       },
     })
 

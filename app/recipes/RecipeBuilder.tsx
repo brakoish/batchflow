@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 
 type UnitDef = { name: string; count: number; perUnit: string }
-type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
+type MaterialDef = { name: string; quantityPerUnit: number; unit: string }
+type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string; materials: MaterialDef[] }
 
 type EditRecipe = {
   id: string; name: string; description: string | null; baseUnit: string
@@ -25,8 +26,18 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   )
   const [steps, setSteps] = useState<StepDef[]>(
     editRecipe?.steps.length
-      ? editRecipe.steps.map(s => ({ name: s.name, notes: s.notes || '', type: s.type as 'CHECK' | 'COUNT', unitName: s.unit?.name || '' }))
-      : [{ name: '', notes: '', type: 'COUNT', unitName: '' }]
+      ? editRecipe.steps.map(s => ({
+          name: s.name,
+          notes: s.notes || '',
+          type: s.type as 'CHECK' | 'COUNT',
+          unitName: s.unit?.name || '',
+          materials: (s as any).materials?.map((m: MaterialDef) => ({
+            name: m.name,
+            quantityPerUnit: m.quantityPerUnit,
+            unit: m.unit,
+          })) || [],
+        }))
+      : [{ name: '', notes: '', type: 'COUNT', unitName: '', materials: [] }]
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -40,7 +51,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   }
 
   // Step helpers
-  const addStep = () => setSteps([...steps, { name: '', notes: '', type: 'COUNT', unitName: '' }])
+  const addStep = () => setSteps([...steps, { name: '', notes: '', type: 'COUNT', unitName: '', materials: [] }])
   const removeStep = (i: number) => steps.length > 1 && setSteps(steps.filter((_, idx) => idx !== i))
   const updateStep = (i: number, field: string, value: string) => {
     const s = [...steps]; (s[i] as any)[field] = value; setSteps(s)
@@ -49,6 +60,23 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     const t = dir === 'up' ? i - 1 : i + 1
     if (t < 0 || t >= steps.length) return
     const s = [...steps]; [s[i], s[t]] = [s[t], s[i]]; setSteps(s)
+  }
+
+  // Material helpers
+  const addMaterial = (stepIdx: number) => {
+    const s = [...steps]
+    s[stepIdx].materials = [...s[stepIdx].materials, { name: '', quantityPerUnit: 1, unit: 'units' }]
+    setSteps(s)
+  }
+  const removeMaterial = (stepIdx: number, matIdx: number) => {
+    const s = [...steps]
+    s[stepIdx].materials = s[stepIdx].materials.filter((_, idx) => idx !== matIdx)
+    setSteps(s)
+  }
+  const updateMaterial = (stepIdx: number, matIdx: number, field: string, value: string | number) => {
+    const s = [...steps]
+    ;(s[stepIdx].materials[matIdx] as any)[field] = value
+    setSteps(s)
   }
 
   // Compute base ratio for each unit by chaining
@@ -84,13 +112,23 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             name: u.name,
             ratio: getBaseRatio(u.name),
           })),
-          steps: validSteps,
+          steps: validSteps.map(s => ({
+            name: s.name,
+            notes: s.notes || undefined,
+            type: s.type,
+            unitName: s.unitName || undefined,
+            materials: s.materials.filter(m => m.name.trim()).map(m => ({
+              name: m.name,
+              quantityPerUnit: m.quantityPerUnit,
+              unit: m.unit,
+            })),
+          })),
         }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
       if (!isEdit) {
         setName(''); setDescription(''); setBaseUnit('bags')
-        setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
+        setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '', materials: [] }])
       }
       router.refresh()
       onDone?.()
@@ -218,7 +256,40 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
 
                 <input type="text" value={step.notes} onChange={(e) => updateStep(i, 'notes', e.target.value)}
                   placeholder="Notes (optional)" disabled={loading}
-                  className="w-full px-2.5 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                  className="w-full px-2.5 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all mb-2" />
+
+                {/* Materials for this step */}
+                <div className="rounded-md bg-zinc-900/50 border border-zinc-800 p-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] text-zinc-500 font-medium">Materials</span>
+                    <button onClick={() => addMaterial(i)} disabled={loading}
+                      className="text-emerald-400 hover:text-emerald-300 text-[10px] font-medium flex items-center gap-0.5">
+                      <PlusIcon className="w-3 h-3" />Add
+                    </button>
+                  </div>
+                  {step.materials.length === 0 ? (
+                    <p className="text-[10px] text-zinc-600 italic">No materials</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {step.materials.map((mat, mi) => (
+                        <div key={mi} className="flex items-center gap-1.5">
+                          <input type="text" value={mat.name} onChange={(e) => updateMaterial(i, mi, 'name', e.target.value)}
+                            placeholder="Material name" disabled={loading}
+                            className="flex-1 min-w-[80px] px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-zinc-50 text-[11px] placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
+                          <input type="number" value={mat.quantityPerUnit} onChange={(e) => updateMaterial(i, mi, 'quantityPerUnit', parseFloat(e.target.value) || 0)}
+                            placeholder="Qty" disabled={loading} step="0.01"
+                            className="w-16 px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-zinc-50 text-[11px] tabular-nums text-center focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
+                          <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, mi, 'unit', e.target.value)}
+                            placeholder="Unit" disabled={loading}
+                            className="w-14 px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-zinc-50 text-[11px] placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
+                          <button onClick={() => removeMaterial(i, mi)} className="p-0.5 text-zinc-500 hover:text-red-400 transition-colors">
+                            <XMarkIcon className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

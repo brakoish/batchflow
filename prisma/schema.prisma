@@ -74,9 +74,22 @@ model RecipeStep {
   unitId      String?
   unit        RecipeUnit?   @relation(fields: [unitId], references: [id])
   batchSteps  BatchStep[]
+  materials   StepMaterial[]
 
   @@index([recipeId])
   @@index([unitId])
+}
+
+model StepMaterial {
+  id              String      @id @default(cuid())
+  recipeStepId    String
+  recipeStep      RecipeStep  @relation(fields: [recipeStepId], references: [id], onDelete: Cascade)
+  name            String
+  quantityPerUnit Float
+  unit            String      @default("units")
+  createdAt       DateTime    @default(now())
+
+  @@index([recipeStepId])
 }
 
 model Batch {

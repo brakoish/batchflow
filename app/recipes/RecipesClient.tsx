@@ -9,7 +9,7 @@ import EmptyState from '@/app/components/EmptyState'
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
-  steps: { name: string; notes: string | null; type: string; unit: { name: string } | null }[]
+  steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
   _count: { batches: number }
 }
 

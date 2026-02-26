@@ -19,7 +19,12 @@ export async function GET(
             order: 'asc',
           },
           include: {
-            recipeStep: { select: { notes: true } },
+            recipeStep: {
+              select: {
+                notes: true,
+                materials: true,
+              },
+            },
             progressLogs: {
               include: {
                 worker: {
