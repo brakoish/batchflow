@@ -97,6 +97,17 @@ export default function BatchDetailClient({
   const [toast, setToast] = useState('')
   const quantityRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editName, setEditName] = useState(batch.name)
+  const [editTargetQty, setEditTargetQty] = useState(batch.targetQuantity.toString())
+  const [editDueDate, setEditDueDate] = useState(batch.dueDate?.split('T')[0] || '')
+  const [editMetrcBatchId, setEditMetrcBatchId] = useState(batch.metrcBatchId || '')
+  const [editLotNumber, setEditLotNumber] = useState(batch.lotNumber || '')
+  const [editStrain, setEditStrain] = useState(batch.strain || '')
+  const [editPackageTag, setEditPackageTag] = useState(batch.packageTag || '')
+  const [editWorkerIds, setEditWorkerIds] = useState<string[]>(batch.assignments?.map(a => a.worker.id) || [])
 
   // Auto-refresh every 5 seconds
   useEffect(() => {
@@ -187,6 +198,32 @@ export default function BatchDetailClient({
     finally { setLoading(false) }
   }
 
+  const handleEditSave = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/batches/${batch.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          targetQuantity: parseInt(editTargetQty),
+          dueDate: editDueDate || undefined,
+          workerIds: editWorkerIds,
+          metrcBatchId: editMetrcBatchId || undefined,
+          lotNumber: editLotNumber || undefined,
+          strain: editStrain || undefined,
+          packageTag: editPackageTag || undefined,
+        }),
+      })
+      if (!res.ok) { setError((await res.json()).error); return }
+      const data = await res.json()
+      setBatch(data.batch)
+      setShowEditModal(false)
+      showToast('Batch updated')
+    } catch { setError('Connection error') }
+    finally { setLoading(false) }
+  }
+
   const handleSubmit = async () => {
     if (!selectedStep || !quantity || parseInt(quantity) <= 0) {
       setError('Enter a valid quantity'); return
@@ -247,10 +284,16 @@ export default function BatchDetailClient({
         {/* Batch header */}
         <div className="mb-5">
           <h1 className="text-lg font-semibold tracking-tight text-zinc-50">{batch.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-zinc-500">{batch.recipe.name}</span>
             <span className="text-zinc-700">·</span>
             <span className="text-xs text-zinc-500">{batch.targetQuantity} {batch.baseUnit}</span>
+            {batch.dueDate && (
+              <>
+                <span className="text-zinc-700">·</span>
+                <span className="text-xs text-zinc-500">Due: {new Date(batch.dueDate).toLocaleDateString()}</span>
+              </>
+            )}
             <span className="text-zinc-700">·</span>
             <span className="text-xs text-emerald-400 font-medium">{overallPct}%</span>
             {batch.status !== 'ACTIVE' && (
@@ -261,6 +304,24 @@ export default function BatchDetailClient({
               </span>
             )}
           </div>
+          
+          {/* METRC Fields Display */}
+          {(batch.metrcBatchId || batch.lotNumber || batch.strain || batch.packageTag) && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {batch.metrcBatchId && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">METRC: {batch.metrcBatchId}</span>
+              )}
+              {batch.lotNumber && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Lot: {batch.lotNumber}</span>
+              )}
+              {batch.strain && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{batch.strain}</span>
+              )}
+              {batch.packageTag && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Tag: {batch.packageTag}</span>
+              )}
+            </div>
+          )}
 
           {/* Owner batch controls */}
           {session.role === 'OWNER' && batch.status === 'ACTIVE' && (
@@ -268,6 +329,10 @@ export default function BatchDetailClient({
               <button onClick={() => handleStatusChange('COMPLETED')}
                 className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-medium transition-all">
                 Mark Complete
+              </button>
+              <button onClick={() => setShowEditModal(true)}
+                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 active:scale-[0.96] text-zinc-300 text-xs font-medium transition-all">
+                Edit Batch
               </button>
               <button onClick={() => handleStatusChange('CANCELLED')}
                 className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 active:scale-[0.96] text-red-400 text-xs font-medium transition-all">
@@ -480,6 +545,108 @@ export default function BatchDetailClient({
               >
                 {loading ? 'Saving...' : 'Submit'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Batch Modal */}
+      {showEditModal && session.role === 'OWNER' && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-t-2xl sm:rounded-2xl safe-bottom max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-sm font-semibold text-zinc-50">Edit Batch</p>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
+                  <input
+                    type="number"
+                    value={editTargetQty}
+                    onChange={(e) => setEditTargetQty(e.target.value)}
+                    min="1"
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                </div>
+
+                {/* METRC Fields */}
+                <div className="rounded-lg bg-zinc-800/50 border border-zinc-700 p-3 space-y-2">
+                  <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">METRC Fields</p>
+                  <input
+                    type="text"
+                    value={editMetrcBatchId}
+                    onChange={(e) => setEditMetrcBatchId(e.target.value)}
+                    placeholder="METRC Batch ID"
+                    className="w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                  <input
+                    type="text"
+                    value={editLotNumber}
+                    onChange={(e) => setEditLotNumber(e.target.value)}
+                    placeholder="Lot Number"
+                    className="w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                  <input
+                    type="text"
+                    value={editStrain}
+                    onChange={(e) => setEditStrain(e.target.value)}
+                    placeholder="Strain"
+                    className="w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                  <input
+                    type="text"
+                    value={editPackageTag}
+                    onChange={(e) => setEditPackageTag(e.target.value)}
+                    placeholder="Package Tag"
+                    className="w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                </div>
+
+                {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+
+                <button
+                  onClick={handleEditSave}
+                  disabled={loading || !editName.trim() || !editTargetQty}
+                  className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
