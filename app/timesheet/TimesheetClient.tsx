@@ -42,10 +42,19 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
 
   const totalHours = shifts.reduce((sum, s) => sum + s.hours, 0)
 
+  const handleExport = () => {
+    const params = new URLSearchParams()
+    if (filterWorker) params.append('workerId', filterWorker)
+    if (dateFrom) params.append('startDate', dateFrom)
+    if (dateTo) params.append('endDate', dateTo)
+    
+    window.open(`/api/timesheet/export?${params}`, '_blank')
+  }
+
   return (
     <div>
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
+      <div className="flex flex-wrap gap-3 mb-5 items-center">
         <select
           value={filterWorker}
           onChange={(e) => setFilterWorker(e.target.value)}
@@ -68,6 +77,12 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
           onChange={(e) => setDateTo(e.target.value)}
           className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs"
         />
+        <button
+          onClick={handleExport}
+          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+        >
+          Export CSV
+        </button>
       </div>
 
       {/* Summary */}

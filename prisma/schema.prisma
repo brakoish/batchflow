@@ -101,8 +101,15 @@ model Batch {
   baseUnit        String        @default("units")
   status          BatchStatus   @default(ACTIVE)
   startDate       DateTime      @default(now())
+  dueDate         DateTime?
   completedDate   DateTime?
   createdAt       DateTime      @default(now())
+  
+  // METRC prep fields
+  metrcBatchId    String?
+  lotNumber       String?
+  strain          String?
+  packageTag      String?
   steps           BatchStep[]
   assignments     BatchAssignment[]
 

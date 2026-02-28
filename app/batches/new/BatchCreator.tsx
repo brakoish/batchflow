@@ -15,9 +15,15 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [name, setName] = useState('')
   const [targetQuantity, setTargetQuantity] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
+  const [dueDate, setDueDate] = useState('')
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([])
+  const [metrcBatchId, setMetrcBatchId] = useState('')
+  const [lotNumber, setLotNumber] = useState('')
+  const [strain, setStrain] = useState('')
+  const [packageTag, setPackageTag] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showMetrc, setShowMetrc] = useState(false)
   const router = useRouter()
 
   const selected = recipes.find((r) => r.id === selectedId)
@@ -43,7 +49,12 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
           name,
           targetQuantity: qty,
           startDate,
+          dueDate: dueDate || undefined,
           workerIds: selectedWorkers.length > 0 ? selectedWorkers : undefined,
+          metrcBatchId: metrcBatchId || undefined,
+          lotNumber: lotNumber || undefined,
+          strain: strain || undefined,
+          packageTag: packageTag || undefined,
         }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
@@ -109,9 +120,65 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         type="date"
         value={startDate}
         onChange={(e) => setStartDate(e.target.value)}
-        className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-4"
+        className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-2.5"
         disabled={loading}
       />
+
+      <input
+        type="date"
+        value={dueDate}
+        onChange={(e) => setDueDate(e.target.value)}
+        placeholder="Due date (optional)"
+        className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-4"
+        disabled={loading}
+      />
+
+      {/* METRC Fields Toggle */}
+      <button
+        type="button"
+        onClick={() => setShowMetrc(!showMetrc)}
+        className="w-full py-2 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors mb-2"
+      >
+        {showMetrc ? 'Hide METRC Fields' : 'Add METRC Fields'}
+      </button>
+
+      {showMetrc && (
+        <div className="rounded-lg bg-zinc-800/30 border border-zinc-700/50 p-3 mb-4 space-y-2.5">
+          <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">METRC Fields</p>
+          <input
+            type="text"
+            value={metrcBatchId}
+            onChange={(e) => setMetrcBatchId(e.target.value)}
+            placeholder="METRC Batch ID"
+            className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+            disabled={loading}
+          />
+          <input
+            type="text"
+            value={lotNumber}
+            onChange={(e) => setLotNumber(e.target.value)}
+            placeholder="Lot Number"
+            className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+            disabled={loading}
+          />
+          <input
+            type="text"
+            value={strain}
+            onChange={(e) => setStrain(e.target.value)}
+            placeholder="Strain"
+            className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+            disabled={loading}
+          />
+          <input
+            type="text"
+            value={packageTag}
+            onChange={(e) => setPackageTag(e.target.value)}
+            placeholder="Package Tag"
+            className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+            disabled={loading}
+          />
+        </div>
+      )}
 
       {/* Worker Assignment */}
       {workers.length > 0 && (

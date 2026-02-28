@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     await requireOwner()
 
-    const { recipeId, name, targetQuantity, startDate, workerIds } = await request.json()
+    const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag } = await request.json()
 
     if (!recipeId || !name || !targetQuantity) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -68,6 +68,11 @@ export async function POST(request: NextRequest) {
         targetQuantity,
         baseUnit: recipe.baseUnit,
         startDate: startDate ? new Date(startDate) : new Date(),
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        metrcBatchId: metrcBatchId || undefined,
+        lotNumber: lotNumber || undefined,
+        strain: strain || undefined,
+        packageTag: packageTag || undefined,
         assignments: workerIds?.length
           ? { create: workerIds.map((id: string) => ({ workerId: id })) }
           : undefined,

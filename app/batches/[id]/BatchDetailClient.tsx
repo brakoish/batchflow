@@ -25,7 +25,13 @@ type BatchStep = {
 }
 type Batch = {
   id: string; name: string; targetQuantity: number; baseUnit: string; status: string
+  dueDate?: string
+  metrcBatchId?: string
+  lotNumber?: string
+  strain?: string
+  packageTag?: string
   recipe: { name: string }; steps: BatchStep[]
+  assignments?: { worker: Worker }[]
 }
 type Session = { id: string; name: string; role: string }
 
