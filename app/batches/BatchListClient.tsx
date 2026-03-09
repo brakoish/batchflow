@@ -81,14 +81,14 @@ export default function BatchListClient({
     <AppShell session={session}>
       <main className="max-w-2xl mx-auto px-4 py-5 pb-24">
         <div className="mb-5">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">Active Batches</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{batches.length} batch{batches.length !== 1 ? 'es' : ''} in progress</p>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Active Batches</h1>
+          <p className="text-sm text-muted-foreground mt-1">{batches.length} batch{batches.length !== 1 ? 'es' : ''} in progress</p>
         </div>
 
         {batches.length === 0 ? (
           <EmptyState icon="inbox" title="No active batches" description="Batches will show up here when your team starts a new run." />
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {batches.map((batch) => {
               const firstIncomplete = batch.steps.find((s) => s.status !== 'COMPLETED')
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
@@ -98,40 +98,43 @@ export default function BatchListClient({
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className="block rounded-xl border border-border bg-card p-4 hover:border-input hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
+                  className="block rounded-2xl bg-card p-4 shadow-sm active:scale-[0.98] transition-all duration-150"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h2 className="text-sm font-semibold text-foreground truncate">{batch.name}</h2>
+                        <h2 className="text-base font-semibold text-foreground truncate">{batch.name}</h2>
                         {batch.strain && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">
                             {batch.strain}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{batch.recipe.name}</p>
+                      <p className="text-sm text-muted-foreground">{batch.recipe.name}</p>
                     </div>
                     <div className="text-right ml-4 shrink-0">
-                      <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
-                      <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
+                      <span className="text-xl font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">target</p>
                     </div>
                   </div>
 
-                  <div className="mb-2.5">
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                  <div className="mb-3">
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div 
+                        className="h-full bg-success rounded-full transition-all duration-500" 
+                        style={{ width: `${pct}%` }} 
+                      />
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">{completedSteps}/{batch.steps.length} steps</span>
                       <span className="text-border">·</span>
                       <span className="text-muted-foreground">{pct}%</span>
                     </div>
                     {firstIncomplete && (
-                      <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                      <span className="text-primary font-medium">
                         {firstIncomplete.name}: {firstIncomplete.completedQuantity}/{firstIncomplete.targetQuantity}
                       </span>
                     )}
@@ -144,20 +147,20 @@ export default function BatchListClient({
 
         {/* Floating Clock Out Bar */}
         {onShift && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border safe-bottom">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border safe-bottom shadow-lg">
             <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
                 <div>
-                  <p className="text-xs font-medium text-foreground">On Shift</p>
-                  <p className="text-[10px] text-muted-foreground tabular-nums">{elapsed}</p>
+                  <p className="text-sm font-medium text-foreground">On Shift</p>
+                  <p className="text-xs text-muted-foreground tabular-nums">{elapsed}</p>
                 </div>
               </div>
               <button
                 onClick={handleClockOut}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20 text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-destructive/10 text-destructive text-sm font-medium transition-colors"
               >
-                <StopIcon className="w-3.5 h-3.5" /> Clock Out
+                <StopIcon className="w-4 h-4" /> Clock Out
               </button>
             </div>
           </div>

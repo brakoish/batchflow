@@ -11,15 +11,39 @@ const config: Config = {
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
-        card: 'var(--card)',
-        'card-foreground': 'var(--card-foreground)',
-        muted: 'var(--muted)',
-        'muted-foreground': 'var(--muted-foreground)',
+        card: {
+          DEFAULT: 'var(--card)',
+          foreground: 'var(--card-foreground)',
+        },
+        muted: {
+          DEFAULT: 'var(--muted)',
+          foreground: 'var(--muted-foreground)',
+        },
         border: 'var(--border)',
         input: 'var(--input)',
-        primary: 'var(--primary)',
-        'primary-foreground': 'var(--primary-foreground)',
+        primary: {
+          DEFAULT: 'var(--primary)',
+          foreground: 'var(--primary-foreground)',
+        },
+        success: {
+          DEFAULT: 'var(--success)',
+          foreground: 'var(--success-foreground)',
+        },
+        destructive: {
+          DEFAULT: 'var(--destructive)',
+          foreground: 'var(--destructive-foreground)',
+        },
+        warning: {
+          DEFAULT: 'var(--warning)',
+          foreground: 'var(--warning-foreground)',
+        },
         ring: 'var(--ring)',
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        DEFAULT: 'var(--shadow)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
       },
       spacing: {
         safe: 'env(safe-area-inset-bottom)',
@@ -27,6 +51,9 @@ const config: Config = {
       },
       padding: {
         safe: 'env(safe-area-inset-bottom)',
+      },
+      fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'sans-serif'],
       },
       keyframes: {
         'slide-up': {
