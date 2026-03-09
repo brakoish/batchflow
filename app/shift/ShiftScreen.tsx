@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlayIcon, StopIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
+import { haptic } from '@/lib/haptic'
 
 type Shift = { id: string; startedAt: string }
 
@@ -35,6 +36,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
   }, [shift])
 
   const handleClockIn = async () => {
+    haptic('medium')
     setLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'POST' })
@@ -47,6 +49,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
   }
 
   const handleClockOut = async () => {
+    haptic('medium')
     setLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
@@ -55,7 +58,10 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
     setLoading(false)
   }
 
-  const goToWork = () => router.push('/batches')
+  const goToWork = () => {
+    haptic('light')
+    router.push('/batches')
+  }
 
   // Owners skip this screen
   if (worker.role === 'OWNER') {

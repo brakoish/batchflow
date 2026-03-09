@@ -10,6 +10,7 @@ import {
   PlusIcon,
   XMarkIcon,
 } from '@heroicons/react/24/solid'
+import { haptic } from '@/lib/haptic'
 
 type Worker = { id: string; name: string }
 type ProgressLog = {
@@ -69,7 +70,7 @@ function QuickAddButtons({ remaining, current, onAdd }: { remaining: number; cur
       {unique.map((amt) => (
         <button
           key={amt}
-          onClick={() => onAdd(current + amt)}
+          onClick={() => { haptic('light'); onAdd(current + amt); }}
           className={`py-2.5 rounded-lg border text-sm font-medium active:scale-[0.96] transition-all duration-150 ${
             amt === remaining
               ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/30'
@@ -228,6 +229,7 @@ export default function BatchDetailClient({
     if (!selectedStep || !quantity || parseInt(quantity) <= 0) {
       setError('Enter a valid quantity'); return
     }
+    haptic('medium')
     setLoading(true); setError('')
 
     try {
@@ -285,13 +287,13 @@ export default function BatchDetailClient({
         <div className="mb-5">
           <h1 className="text-lg font-semibold tracking-tight text-foreground">{batch.name}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-xs text-foreground0">{batch.recipe.name}</span>
+            <span className="text-xs text-foreground">{batch.recipe.name}</span>
             <span className="text-muted-foreground/30">·</span>
-            <span className="text-xs text-foreground0">{batch.targetQuantity} {batch.baseUnit}</span>
+            <span className="text-xs text-foreground">{batch.targetQuantity} {batch.baseUnit}</span>
             {batch.dueDate && (
               <>
                 <span className="text-muted-foreground/30">·</span>
-                <span className="text-xs text-foreground0">Due: {new Date(batch.dueDate).toLocaleDateString()}</span>
+                <span className="text-xs text-foreground">Due: {new Date(batch.dueDate).toLocaleDateString()}</span>
               </>
             )}
             <span className="text-muted-foreground/30">·</span>
@@ -394,7 +396,7 @@ export default function BatchDetailClient({
                         <p className="text-[10px] text-muted-foreground/70 mt-0.5">{step.recipeStep.notes}</p>
                       )}
                       {step.type === 'COUNT' && !isLocked && (
-                        <p className="text-xs text-foreground0 tabular-nums mt-0.5">
+                        <p className="text-xs text-foreground tabular-nums mt-0.5">
                           {step.completedQuantity} / {step.targetQuantity} {step.unitLabel}
                         </p>
                       )}
@@ -404,7 +406,7 @@ export default function BatchDetailClient({
                   {/* Right: action or status */}
                   {!isLocked && !isCompleted && step.type === 'COUNT' && (
                     <button
-                      onClick={() => { setSelectedStep(step); setQuantity(''); setNote(''); setError('') }}
+                      onClick={() => { haptic('light'); setSelectedStep(step); setQuantity(''); setNote(''); setError('') }}
                       className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0"
                     >
                       <PlusIcon className="w-4 h-4" />Log
@@ -412,7 +414,7 @@ export default function BatchDetailClient({
                   )}
                   {!isLocked && !isCompleted && step.type === 'CHECK' && (
                     <button
-                      onClick={() => handleCheckComplete(step)}
+                      onClick={() => { haptic('light'); handleCheckComplete(step); }}
                       disabled={loading}
                       className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0 disabled:opacity-50"
                     >
@@ -438,7 +440,7 @@ export default function BatchDetailClient({
                 {/* Materials needed for this step */}
                 {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && !isLocked && (
                   <div className="mt-3 pt-3 border-t border">
-                    <span className="text-[10px] text-foreground0 font-medium uppercase tracking-wider">Materials Needed</span>
+                    <span className="text-[10px] text-foreground font-medium uppercase tracking-wider">Materials Needed</span>
                     <div className="mt-1.5 space-y-1">
                       {step.recipeStep.materials.map((mat, idx) => {
                         const total = (mat.quantityPerUnit * step.targetQuantity).toLocaleString()
@@ -457,7 +459,7 @@ export default function BatchDetailClient({
                 {step.progressLogs && step.progressLogs.length > 0 && !isLocked && (
                   <div className="mt-3 space-y-1">
                     {step.progressLogs.slice(0, 3).map((log) => (
-                      <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground0">
+                      <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground">
                         <div className="flex items-center gap-1.5">
                           <span className="text-muted-foreground font-medium">{log.worker.name}</span>
                           <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
@@ -495,13 +497,13 @@ export default function BatchDetailClient({
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <p className="text-sm font-semibold text-foreground">{selectedStep.name}</p>
-                  <p className="text-xs text-foreground0 tabular-nums mt-0.5">
+                  <p className="text-xs text-foreground tabular-nums mt-0.5">
                     {selectedStep.completedQuantity} / {selectedStep.targetQuantity} {selectedStep.unitLabel}
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedStep(null)}
-                  className="p-1.5 rounded-lg text-foreground0 hover:text-foreground/80 hover:bg-muted transition-colors"
+                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -563,7 +565,7 @@ export default function BatchDetailClient({
                 <p className="text-sm font-semibold text-foreground">Edit Batch</p>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="p-1.5 rounded-lg text-foreground0 hover:text-foreground/80 hover:bg-muted transition-colors"
+                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -574,7 +576,7 @@ export default function BatchDetailClient({
               {/* Form */}
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] text-foreground0 font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
                   <input
                     type="text"
                     value={editName}
@@ -584,7 +586,7 @@ export default function BatchDetailClient({
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-foreground0 font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
                   <input
                     type="number"
                     value={editTargetQty}
@@ -595,7 +597,7 @@ export default function BatchDetailClient({
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-foreground0 font-semibold uppercase tracking-wider block mb-1">Due Date</label>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Due Date</label>
                   <input
                     type="date"
                     value={editDueDate}
@@ -606,7 +608,7 @@ export default function BatchDetailClient({
 
                 {/* METRC Fields */}
                 <div className="rounded-lg bg-muted/50 border border-input p-3 space-y-2">
-                  <p className="text-[10px] text-foreground0 font-semibold uppercase tracking-wider">METRC Fields</p>
+                  <p className="text-[10px] text-foreground font-semibold uppercase tracking-wider">METRC Fields</p>
                   <input
                     type="text"
                     value={editMetrcBatchId}

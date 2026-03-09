@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeftIcon } from '@heroicons/react/24/solid'
+import { haptic } from '@/lib/haptic'
 
 export default function LoginPage() {
   const [pin, setPin] = useState('')
@@ -13,6 +14,7 @@ export default function LoginPage() {
 
   const handleNumberClick = (num: string) => {
     if (pin.length < 4 && !loading) {
+      haptic('light')
       const newPin = pin + num
       setPin(newPin)
       setError('')
@@ -25,6 +27,7 @@ export default function LoginPage() {
 
   const handleBackspace = () => {
     if (!loading) {
+      haptic('light')
       setPin(pin.slice(0, -1))
       setError('')
     }
@@ -44,16 +47,19 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
+        haptic('heavy')
         setError(data.error || 'Invalid PIN')
         setPin('')
         return
       }
 
+      haptic('medium')
       setSuccess(true)
       setTimeout(() => {
         router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/shift')
       }, 300)
     } catch (err) {
+      haptic('heavy')
       setError('Connection error')
       setPin('')
     } finally {
