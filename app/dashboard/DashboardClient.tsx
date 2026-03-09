@@ -9,13 +9,23 @@ import EmptyState from '@/app/components/EmptyState'
 type Session = { id: string; name: string; role: string }
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number }
 type Batch = {
-  id: string; name: string; targetQuantity: number; status: string
+  id: string; name: string; targetQuantity: number; status: string; strain?: string
   recipe: { name: string }; steps: Step[]
 }
 type ActivityLog = {
   id: string; quantity: number; note: string | null; createdAt: string
   worker: { id: string; name: string }
   batchStep: { name: string; batch: { id: string; name: string } }
+}
+
+function timeAgo(date: string) {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
 }
 
 export default function DashboardClient({
@@ -25,7 +35,8 @@ export default function DashboardClient({
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [activity, setActivity] = useState(initialActivity)
-  const [workerSummary, setWorkerSummary] = useState<{ id: string; name: string; todayLogs: number; todayUnits: number; batches: string[] }[]>([])
+  const [workerSummary, setWorkerSummary] = useState<{ id: string; name: string; todayLogs: number; todayUnits: number; batches: string[]; onShift?: boolean; lastActivity?: string }[]>([])
+  const [activeWorkers, setActiveWorkers] = useState(0)
 
   useEffect(() => {
     const poll = async () => {
@@ -37,7 +48,13 @@ export default function DashboardClient({
         ])
         if (bRes.ok) { const d = await bRes.json(); if (d.batches) setBatches(d.batches) }
         if (aRes.ok) { const d = await aRes.json(); if (d.logs) setActivity(d.logs) }
-        if (wRes.ok) { const d = await wRes.json(); if (d.workers) setWorkerSummary(d.workers) }
+        if (wRes.ok) { 
+          const d = await wRes.json(); 
+          if (d.workers) {
+            setWorkerSummary(d.workers)
+            setActiveWorkers(d.workers.filter((w: any) => w.onShift).length)
+          }
+        }
       } catch {}
     }
     poll()
@@ -57,7 +74,10 @@ export default function DashboardClient({
           <span className="text-border">|</span>
           <span>{batches.length} active</span>
           <span className="text-border">·</span>
-          <span>{activity.length} recent logs</span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            {activeWorkers} working
+          </span>
           <span className="text-border">·</span>
           <span>{totalUnits.toLocaleString()} units</span>
         </div>
@@ -78,11 +98,18 @@ export default function DashboardClient({
                     className="block rounded-xl border border-border bg-card p-4 hover:border-input hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
                   >
                     <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground">{batch.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">{batch.recipe.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-sm font-semibold text-foreground truncate">{batch.name}</h3>
+                          {batch.strain && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                              {batch.strain}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{batch.recipe.name}</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right ml-4 shrink-0">
                         <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
                         <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
                       </div>
@@ -151,7 +178,7 @@ export default function DashboardClient({
               {activity.length === 0 ? (
                 <p className="text-xs text-muted-foreground/60 text-center py-8">No activity yet</p>
               ) : (
-                activity.map((log) => (
+                activity.slice(0, 10).map((log) => (
                   <div key={log.id} className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
@@ -164,7 +191,7 @@ export default function DashboardClient({
                           <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">+{log.quantity}</span>
                         </p>
                         <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
-                          {log.batchStep.batch.name} · {log.batchStep.name}
+                          {log.batchStep.batch.name} · {log.batchStep.name} · {timeAgo(log.createdAt)}
                         </p>
                       </div>
                     </div>
@@ -181,11 +208,14 @@ export default function DashboardClient({
                   {workerSummary.map((w) => (
                     <div key={w.id} className="px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">{w.name.charAt(0)}</span>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${w.onShift ? 'bg-emerald-500/10' : 'bg-muted'}`}>
+                          <span className={`text-[10px] font-bold ${w.onShift ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>{w.name.charAt(0)}</span>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-foreground">{w.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-medium text-foreground">{w.name}</p>
+                            {w.onShift && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                          </div>
                           {w.batches.length > 0 && (
                             <p className="text-[10px] text-muted-foreground/60 truncate max-w-[150px]">{w.batches.join(', ')}</p>
                           )}
@@ -195,7 +225,7 @@ export default function DashboardClient({
                         {w.todayLogs > 0 ? (
                           <>
                             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{w.todayUnits} units</p>
-                            <p className="text-[10px] text-muted-foreground/60 tabular-nums">{w.todayLogs} logs</p>
+                            <p className="text-[10px] text-muted-foreground/60 tabular-nums">{w.todayLogs} logs · {w.lastActivity ? timeAgo(w.lastActivity) : 'no activity'}</p>
                           </>
                         ) : (
                           <p className="text-[10px] text-muted-foreground/40">No activity</p>

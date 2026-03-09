@@ -15,10 +15,15 @@ export async function GET() {
       select: {
         id: true,
         name: true,
+        shifts: {
+          where: { status: 'ACTIVE' },
+          select: { startedAt: true },
+        },
         progressLogs: {
           where: { createdAt: { gte: startOfDay } },
           select: {
             quantity: true,
+            createdAt: true,
             batchStep: {
               select: {
                 unitLabel: true,
@@ -26,6 +31,7 @@ export async function GET() {
               },
             },
           },
+          orderBy: { createdAt: 'desc' },
         },
       },
       orderBy: { name: 'asc' },
@@ -37,6 +43,8 @@ export async function GET() {
       todayLogs: w.progressLogs.length,
       todayUnits: w.progressLogs.reduce((sum, l) => sum + l.quantity, 0),
       batches: Array.from(new Set(w.progressLogs.map(l => l.batchStep.batch.name))),
+      onShift: w.shifts.length > 0,
+      lastActivity: w.progressLogs[0]?.createdAt?.toISOString() || null,
     }))
 
     return NextResponse.json({ workers: summary })
