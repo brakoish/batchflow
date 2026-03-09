@@ -11,7 +11,7 @@ export default function AppShell({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-dvh bg-zinc-950">
+    <div className="min-h-dvh bg-background">
       <Header session={session} />
       {children}
       <BottomNav role={session.role} />

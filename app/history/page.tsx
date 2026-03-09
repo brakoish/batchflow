@@ -23,7 +23,7 @@ export default async function HistoryPage() {
     <AppShell session={session}>
 
       <main className="max-w-3xl mx-auto px-4 py-5">
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-50 mb-5">Batch History</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground mb-5">Batch History</h1>
         <HistoryClient initialBatches={JSON.parse(JSON.stringify(batches))} />
       </main>
     </AppShell>

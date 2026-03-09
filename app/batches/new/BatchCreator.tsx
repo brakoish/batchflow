@@ -64,9 +64,9 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       {/* Recipe selection */}
-      <label className="text-xs font-medium text-zinc-400 mb-2.5 block">Recipe</label>
+      <label className="text-xs font-medium text-muted-foreground mb-2.5 block">Recipe</label>
       <div className="space-y-2 mb-4">
         {recipes.map((r) => (
           <button
@@ -76,22 +76,22 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
               selectedId === r.id
                 ? 'border-emerald-500 bg-emerald-500/5'
-                : 'border-zinc-700 hover:border-zinc-600'
+                : 'border-input hover:border-border'
             }`}
           >
-            <p className="text-sm font-medium text-zinc-50">{r.name}</p>
-            {r.description && <p className="text-xs text-zinc-500 mt-0.5">{r.description}</p>}
-            <p className="text-[10px] text-zinc-600 mt-1">{r.steps.length} steps</p>
+            <p className="text-sm font-medium text-foreground">{r.name}</p>
+            {r.description && <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>}
+            <p className="text-[10px] text-muted-foreground/60 mt-1">{r.steps.length} steps</p>
           </button>
         ))}
       </div>
 
       {selected && (
-        <div className="rounded-lg bg-zinc-800/50 border border-zinc-700 p-3 mb-4">
-          <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mb-1.5">Steps</p>
+        <div className="rounded-lg bg-muted/50 border border-input p-3 mb-4">
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1.5">Steps</p>
           {selected.steps.map((s) => (
-            <p key={s.id} className="text-xs text-zinc-400">
-              <span className="text-zinc-600 tabular-nums">{s.order}.</span> {s.name}
+            <p key={s.id} className="text-xs text-muted-foreground">
+              <span className="text-muted-foreground/50 tabular-nums">{s.order}.</span> {s.name}
             </p>
           ))}
         </div>
@@ -102,7 +102,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Batch name"
-        className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-2.5"
+        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-2.5"
         disabled={loading}
       />
 
@@ -112,7 +112,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         onChange={(e) => setTargetQuantity(e.target.value)}
         placeholder="Target quantity"
         min="1"
-        className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm font-semibold tabular-nums placeholder:text-zinc-600 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-2.5"
+        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm font-semibold tabular-nums placeholder:text-muted-foreground/50 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-2.5"
         disabled={loading}
       />
 
@@ -120,7 +120,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         type="date"
         value={startDate}
         onChange={(e) => setStartDate(e.target.value)}
-        className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-2.5"
+        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-2.5"
         disabled={loading}
       />
 
@@ -129,7 +129,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         value={dueDate}
         onChange={(e) => setDueDate(e.target.value)}
         placeholder="Due date (optional)"
-        className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-4"
+        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-4"
         disabled={loading}
       />
 
@@ -137,20 +137,20 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
       <button
         type="button"
         onClick={() => setShowMetrc(!showMetrc)}
-        className="w-full py-2 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors mb-2"
+        className="w-full py-2 rounded-lg border border-dashed border-input text-xs text-muted-foreground hover:text-foreground hover:border-border transition-colors mb-2"
       >
         {showMetrc ? 'Hide METRC Fields' : 'Add METRC Fields'}
       </button>
 
       {showMetrc && (
-        <div className="rounded-lg bg-zinc-800/30 border border-zinc-700/50 p-3 mb-4 space-y-2.5">
-          <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">METRC Fields</p>
+        <div className="rounded-lg bg-muted/30 border border-input/50 p-3 mb-4 space-y-2.5">
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">METRC Fields</p>
           <input
             type="text"
             value={metrcBatchId}
             onChange={(e) => setMetrcBatchId(e.target.value)}
             placeholder="METRC Batch ID"
-            className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+            className="w-full px-3 py-2 rounded-md bg-muted border border-input text-foreground text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
             disabled={loading}
           />
           <input
@@ -158,7 +158,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             value={lotNumber}
             onChange={(e) => setLotNumber(e.target.value)}
             placeholder="Lot Number"
-            className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+            className="w-full px-3 py-2 rounded-md bg-muted border border-input text-foreground text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
             disabled={loading}
           />
           <input
@@ -166,7 +166,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             value={strain}
             onChange={(e) => setStrain(e.target.value)}
             placeholder="Strain"
-            className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+            className="w-full px-3 py-2 rounded-md bg-muted border border-input text-foreground text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
             disabled={loading}
           />
           <input
@@ -174,7 +174,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             value={packageTag}
             onChange={(e) => setPackageTag(e.target.value)}
             placeholder="Package Tag"
-            className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+            className="w-full px-3 py-2 rounded-md bg-muted border border-input text-foreground text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
             disabled={loading}
           />
         </div>
@@ -183,8 +183,8 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
       {/* Worker Assignment */}
       {workers.length > 0 && (
         <div className="mb-4">
-          <label className="text-xs font-medium text-zinc-400 mb-2.5 block">
-            Assign Workers <span className="text-zinc-600">(optional — leave empty for all)</span>
+          <label className="text-xs font-medium text-muted-foreground mb-2.5 block">
+            Assign Workers <span className="text-muted-foreground/50">(optional — leave empty for all)</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {workers.map((w) => (
@@ -194,8 +194,8 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
                 disabled={loading}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   selectedWorkers.includes(w.id)
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
-                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600'
+                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/40'
+                    : 'bg-muted text-muted-foreground border border-input hover:border-border'
                 }`}
               >
                 {w.name}
@@ -205,12 +205,12 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         </div>
       )}
 
-      {error && <p className="text-red-400 text-xs text-center mb-3">{error}</p>}
+      {error && <p className="text-red-500 text-xs text-center mb-3">{error}</p>}
 
       <button
         onClick={handleSubmit}
         disabled={loading || !selectedId}
-        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-zinc-800"
+        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
       >
         {loading ? 'Creating...' : 'Create Batch'}
       </button>

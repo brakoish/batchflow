@@ -72,15 +72,15 @@ export default function LoginPage() {
   })
 
   return (
-    <div className="min-h-dvh bg-zinc-950 flex items-center justify-center px-4">
+    <div className="min-h-dvh bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-xs">
         {/* Brand */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mb-4">
             <div className="w-5 h-5 rounded-md bg-emerald-500" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-50">BatchFlow</h1>
-          <p className="text-sm text-zinc-500 mt-1">Enter your PIN to continue</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">BatchFlow</h1>
+          <p className="text-sm text-muted-foreground mt-1">Enter your PIN to continue</p>
         </div>
 
         {/* PIN Dots */}
@@ -92,8 +92,8 @@ export default function LoginPage() {
                 success
                   ? 'bg-emerald-500 scale-110'
                   : pin[i]
-                  ? 'bg-zinc-50 scale-110'
-                  : 'bg-zinc-800 border border-zinc-700'
+                  ? 'bg-foreground scale-110'
+                  : 'bg-muted border border-input'
               }`}
             />
           ))}
@@ -101,7 +101,7 @@ export default function LoginPage() {
 
         {/* Error */}
         {error && (
-          <p className="text-red-400 text-center text-xs font-medium mb-4 animate-pulse">
+          <p className="text-red-500 text-center text-xs font-medium mb-4 animate-pulse">
             {error}
           </p>
         )}
@@ -113,7 +113,7 @@ export default function LoginPage() {
               key={num}
               onClick={() => handleNumberClick(num.toString())}
               disabled={loading}
-              className="h-14 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-[0.95] text-zinc-50 text-xl font-medium border border-zinc-800 transition-all duration-150 disabled:opacity-40 select-none"
+              className="h-14 rounded-xl bg-card hover:bg-muted active:scale-[0.95] text-foreground text-xl font-medium border border-border transition-all duration-150 disabled:opacity-40 select-none"
             >
               {num}
             </button>
@@ -122,14 +122,14 @@ export default function LoginPage() {
           <button
             onClick={() => handleNumberClick('0')}
             disabled={loading}
-            className="h-14 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-[0.95] text-zinc-50 text-xl font-medium border border-zinc-800 transition-all duration-150 disabled:opacity-40 select-none"
+            className="h-14 rounded-xl bg-card hover:bg-muted active:scale-[0.95] text-foreground text-xl font-medium border border-border transition-all duration-150 disabled:opacity-40 select-none"
           >
             0
           </button>
           <button
             onClick={handleBackspace}
             disabled={loading || pin.length === 0}
-            className="h-14 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-[0.95] text-zinc-400 border border-zinc-800 transition-all duration-150 disabled:opacity-20 select-none flex items-center justify-center"
+            className="h-14 rounded-xl bg-card hover:bg-muted active:scale-[0.95] text-muted-foreground border border-border transition-all duration-150 disabled:opacity-20 select-none flex items-center justify-center"
           >
             <ArrowLeftIcon className="w-5 h-5" />
           </button>
@@ -137,7 +137,7 @@ export default function LoginPage() {
 
         {loading && (
           <div className="flex justify-center mt-6">
-            <div className="w-5 h-5 border-2 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-input border-t-emerald-500 rounded-full animate-spin" />
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import {
   StopIcon,
   PlayIcon,
 } from '@heroicons/react/24/outline'
+import ThemeToggle from './ThemeToggle'
 
 type HeaderProps = {
   session: {
@@ -66,14 +67,14 @@ export default function Header({ session }: HeaderProps) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
-    <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/50">
+    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
       <div className="max-w-5xl mx-auto px-4 h-13 flex items-center justify-between">
         {/* Logo */}
         <Link href={isOwner ? '/dashboard' : '/batches'} className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-emerald-500 flex items-center justify-center">
             <div className="w-3 h-3 rounded-sm bg-emerald-300" />
           </div>
-          <span className="text-sm font-semibold text-zinc-50 tracking-tight">BatchFlow</span>
+          <span className="text-sm font-semibold text-foreground tracking-tight">BatchFlow</span>
         </Link>
 
         {/* Desktop Nav */}
@@ -84,8 +85,8 @@ export default function Header({ session }: HeaderProps) {
               href={item.href}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 isActive(item.href)
-                  ? 'bg-zinc-800 text-zinc-50'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}
             >
               {item.label}
@@ -95,6 +96,9 @@ export default function Header({ session }: HeaderProps) {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+          {/* Theme toggle */}
+          <ThemeToggle />
+
           {/* Clock In/Out button */}
           {!isOwner && (
             onShift ? (
@@ -114,10 +118,10 @@ export default function Header({ session }: HeaderProps) {
             )
           )}
 
-          <span className="hidden sm:block text-xs text-zinc-500">{session.name}</span>
+          <span className="hidden sm:block text-xs text-muted-foreground">{session.name}</span>
           <button
             onClick={handleLogout}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors p-1.5 rounded-lg hover:bg-zinc-900"
+            className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-muted"
           >
             <ArrowRightOnRectangleIcon className="w-4 h-4" />
           </button>
@@ -125,7 +129,7 @@ export default function Header({ session }: HeaderProps) {
           {/* Mobile menu toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="sm:hidden p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
+            className="sm:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             {menuOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
           </button>
@@ -134,7 +138,7 @@ export default function Header({ session }: HeaderProps) {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="sm:hidden border-t border-zinc-800/50 bg-zinc-950/95 backdrop-blur-xl">
+        <div className="sm:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
           <div className="px-4 py-3 space-y-1">
             {navItems.map((item) => (
               <Link
@@ -143,8 +147,8 @@ export default function Header({ session }: HeaderProps) {
                 onClick={() => setMenuOpen(false)}
                 className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive(item.href)
-                    ? 'bg-zinc-800 text-zinc-50'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 {item.label}
@@ -172,7 +176,7 @@ export default function Header({ session }: HeaderProps) {
 
             <button
               onClick={() => { handleLogout(); setMenuOpen(false) }}
-              className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
+              className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               Log out
             </button>

@@ -25,10 +25,10 @@ export default function EmptyState({
   const Icon = icons[icon] || InboxIcon
 
   return (
-    <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/50 py-12 px-6 text-center">
-      <Icon className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-      <p className="text-sm font-medium text-zinc-400">{title}</p>
-      {description && <p className="text-xs text-zinc-600 mt-1">{description}</p>}
+    <div className="rounded-xl border border-dashed border-border bg-card/50 py-12 px-6 text-center">
+      <Icon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      {description && <p className="text-xs text-muted-foreground/70 mt-1">{description}</p>}
       {actionLabel && actionHref && (
         <Link
           href={actionHref}

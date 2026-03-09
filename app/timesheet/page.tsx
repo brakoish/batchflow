@@ -18,7 +18,7 @@ export default async function TimesheetPage() {
   return (
     <AppShell session={session}>
       <main className="max-w-4xl mx-auto px-4 py-5">
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-50 mb-5">Timesheets</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground mb-5">Timesheets</h1>
         <TimesheetClient workers={JSON.parse(JSON.stringify(workers))} />
       </main>
     </AppShell>

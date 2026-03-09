@@ -22,7 +22,7 @@ export default async function RecipesPage() {
     <AppShell session={session}>
 
       <main className="max-w-5xl mx-auto px-4 py-5">
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-50 mb-5">Recipes</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground mb-5">Recipes</h1>
         <RecipesClient initialRecipes={JSON.parse(JSON.stringify(recipes))} />
       </main>
     </AppShell>

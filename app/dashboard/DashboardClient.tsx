@@ -52,13 +52,13 @@ export default function DashboardClient({
 
       <main className="max-w-5xl mx-auto px-4 py-5">
         {/* Stats */}
-        <div className="flex items-center gap-4 mb-5 text-xs text-zinc-500">
-          <span className="text-zinc-50 font-semibold text-lg tracking-tight">Dashboard</span>
-          <span className="text-zinc-800">|</span>
+        <div className="flex items-center gap-4 mb-5 text-xs text-muted-foreground">
+          <span className="text-foreground font-semibold text-lg tracking-tight">Dashboard</span>
+          <span className="text-border">|</span>
           <span>{batches.length} active</span>
-          <span className="text-zinc-800">·</span>
+          <span className="text-border">·</span>
           <span>{activity.length} recent logs</span>
-          <span className="text-zinc-800">·</span>
+          <span className="text-border">·</span>
           <span>{totalUnits.toLocaleString()} units</span>
         </div>
 
@@ -75,16 +75,16 @@ export default function DashboardClient({
                   <Link
                     key={batch.id}
                     href={`/batches/${batch.id}`}
-                    className="block rounded-xl border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-700 hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
+                    className="block rounded-xl border border-border bg-card p-4 hover:border-input hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h3 className="text-sm font-semibold text-zinc-50">{batch.name}</h3>
-                        <p className="text-xs text-zinc-500 mt-0.5">{batch.recipe.name}</p>
+                        <h3 className="text-sm font-semibold text-foreground">{batch.name}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{batch.recipe.name}</p>
                       </div>
                       <div className="text-right">
-                        <span className="text-lg font-bold tabular-nums text-zinc-50">{batch.targetQuantity}</span>
-                        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">target</p>
+                        <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
+                        <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
                       </div>
                     </div>
 
@@ -99,28 +99,28 @@ export default function DashboardClient({
                           <div key={step.id} className="flex items-center gap-3">
                             <div className="w-6 flex justify-center shrink-0">
                               {isCompleted ? (
-                                <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
+                                <CheckCircleIcon className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
                               ) : isLocked ? (
-                                <LockClosedIcon className="w-4 h-4 text-zinc-700" />
+                                <LockClosedIcon className="w-4 h-4 text-muted-foreground/30" />
                               ) : (
-                                <div className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+                                <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                               )}
                             </div>
                             <span className={`text-sm w-28 truncate shrink-0 ${
-                              isLocked ? 'text-zinc-600' : isCompleted ? 'text-emerald-400' : 'text-zinc-300'
+                              isLocked ? 'text-muted-foreground/40' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground/80'
                             }`}>
                               {step.name}
                             </span>
                             <div className="flex-1">
                               {isCheck ? (
-                                <span className={`text-xs ${isCompleted ? 'text-emerald-400' : isLocked ? 'text-zinc-700' : 'text-zinc-500'}`}>
+                                <span className={`text-xs ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : isLocked ? 'text-muted-foreground/30' : 'text-muted-foreground'}`}>
                                   {isCompleted ? 'Done' : 'Pending'}
                                 </span>
                               ) : (
-                                <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                                <div className="h-2 rounded-full bg-muted overflow-hidden">
                                   <div
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      isCompleted ? 'bg-emerald-500' : isLocked ? 'bg-zinc-800' : 'bg-blue-500'
+                                      isCompleted ? 'bg-emerald-500' : isLocked ? 'bg-muted' : 'bg-blue-500'
                                     }`}
                                     style={{ width: `${Math.min(stepPct, 100)}%` }}
                                   />
@@ -129,7 +129,7 @@ export default function DashboardClient({
                             </div>
                             {!isCheck && (
                               <span className={`text-xs tabular-nums shrink-0 ${
-                                isLocked ? 'text-zinc-700' : isCompleted ? 'text-emerald-400' : 'text-zinc-500'
+                                isLocked ? 'text-muted-foreground/30' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
                               }`}>
                                 {step.completedQuantity}/{step.targetQuantity}
                               </span>
@@ -146,24 +146,24 @@ export default function DashboardClient({
 
           {/* Activity Feed */}
           <div>
-            <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Activity</h2>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800/50">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Activity</h2>
+            <div className="rounded-xl border border-border bg-card divide-y divide-border/50">
               {activity.length === 0 ? (
-                <p className="text-xs text-zinc-600 text-center py-8">No activity yet</p>
+                <p className="text-xs text-muted-foreground/60 text-center py-8">No activity yet</p>
               ) : (
                 activity.map((log) => (
                   <div key={log.id} className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                        <span className="text-[10px] font-bold text-emerald-400">{log.worker.name.charAt(0)}</span>
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{log.worker.name.charAt(0)}</span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs text-zinc-300">
-                          <span className="font-medium text-zinc-50">{log.worker.name}</span>
+                        <p className="text-xs text-foreground/80">
+                          <span className="font-medium text-foreground">{log.worker.name}</span>
                           {' '}logged{' '}
-                          <span className="text-emerald-400 font-semibold tabular-nums">+{log.quantity}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">+{log.quantity}</span>
                         </p>
-                        <p className="text-[10px] text-zinc-600 truncate mt-0.5">
+                        <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
                           {log.batchStep.batch.name} · {log.batchStep.name}
                         </p>
                       </div>
@@ -176,29 +176,29 @@ export default function DashboardClient({
             {/* Worker Summary */}
             {workerSummary.length > 0 && (
               <div className="mt-5">
-                <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Today&apos;s Team</h2>
-                <div className="rounded-xl border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800/50">
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Today&apos;s Team</h2>
+                <div className="rounded-xl border border-border bg-card divide-y divide-border/50">
                   {workerSummary.map((w) => (
                     <div key={w.id} className="px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-bold text-blue-400">{w.name.charAt(0)}</span>
+                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">{w.name.charAt(0)}</span>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-zinc-50">{w.name}</p>
+                          <p className="text-xs font-medium text-foreground">{w.name}</p>
                           {w.batches.length > 0 && (
-                            <p className="text-[10px] text-zinc-600 truncate max-w-[150px]">{w.batches.join(', ')}</p>
+                            <p className="text-[10px] text-muted-foreground/60 truncate max-w-[150px]">{w.batches.join(', ')}</p>
                           )}
                         </div>
                       </div>
                       <div className="text-right">
                         {w.todayLogs > 0 ? (
                           <>
-                            <p className="text-xs text-emerald-400 font-semibold tabular-nums">{w.todayUnits} units</p>
-                            <p className="text-[10px] text-zinc-600 tabular-nums">{w.todayLogs} logs</p>
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{w.todayUnits} units</p>
+                            <p className="text-[10px] text-muted-foreground/60 tabular-nums">{w.todayLogs} logs</p>
                           </>
                         ) : (
-                          <p className="text-[10px] text-zinc-700">No activity</p>
+                          <p className="text-[10px] text-muted-foreground/40">No activity</p>
                         )}
                       </div>
                     </div>

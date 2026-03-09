@@ -58,7 +58,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
         <select
           value={filterWorker}
           onChange={(e) => setFilterWorker(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs"
+          className="px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-xs"
         >
           <option value="">All Workers</option>
           {workers.map((w) => (
@@ -69,13 +69,13 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
           type="date"
           value={dateFrom}
           onChange={(e) => setDateFrom(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs"
+          className="px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-xs"
         />
         <input
           type="date"
           value={dateTo}
           onChange={(e) => setDateTo(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-xs"
+          className="px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-xs"
         />
         <button
           onClick={handleExport}
@@ -87,38 +87,38 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
 
       {/* Summary */}
       <div className="mb-4 text-sm">
-        <span className="text-zinc-500">Total: </span>
-        <span className="text-zinc-50 font-semibold tabular-nums">{totalHours.toFixed(2)}</span>
-        <span className="text-zinc-500"> hours · </span>
-        <span className="text-zinc-50 font-semibold tabular-nums">{shifts.length}</span>
-        <span className="text-zinc-500"> shifts</span>
+        <span className="text-muted-foreground">Total: </span>
+        <span className="text-foreground font-semibold tabular-nums">{totalHours.toFixed(2)}</span>
+        <span className="text-muted-foreground"> hours · </span>
+        <span className="text-foreground font-semibold tabular-nums">{shifts.length}</span>
+        <span className="text-muted-foreground"> shifts</span>
       </div>
 
       {/* Shifts list */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800/50">
+      <div className="rounded-xl border border-border bg-card divide-y divide-border/50">
         {shifts.length === 0 ? (
-          <p className="text-sm text-zinc-600 text-center py-8">No shifts found</p>
+          <p className="text-sm text-muted-foreground/60 text-center py-8">No shifts found</p>
         ) : (
           shifts.map((shift) => (
             <div key={shift.id} className="px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-blue-400">{shift.worker.name.charAt(0)}</span>
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{shift.worker.name.charAt(0)}</span>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-zinc-50">{shift.worker.name}</p>
-                  <p className="text-[10px] text-zinc-500">
+                  <p className="text-sm font-medium text-foreground">{shift.worker.name}</p>
+                  <p className="text-[10px] text-muted-foreground">
                     {new Date(shift.startedAt).toLocaleDateString()} · {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {shift.endedAt && ` - ${new Date(shift.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className={`text-sm font-semibold tabular-nums ${shift.status === 'ACTIVE' ? 'text-emerald-400' : 'text-zinc-50'}`}>
+                <p className={`text-sm font-semibold tabular-nums ${shift.status === 'ACTIVE' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
                   {shift.hours.toFixed(2)}h
                 </p>
                 {shift.status === 'ACTIVE' && (
-                  <span className="text-[10px] text-emerald-500">On shift</span>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-500">On shift</span>
                 )}
               </div>
             </div>

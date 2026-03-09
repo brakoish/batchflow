@@ -26,11 +26,11 @@ export default async function NewBatchPage() {
     <AppShell session={session}>
 
       <main className="max-w-lg mx-auto px-4 py-5">
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-50 mb-5">New Batch</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground mb-5">New Batch</h1>
 
         {recipes.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-12 text-center">
-            <p className="text-sm text-zinc-500 mb-3">Create a recipe first</p>
+          <div className="rounded-xl border border-border bg-card p-12 text-center">
+            <p className="text-sm text-muted-foreground mb-3">Create a recipe first</p>
             <Link
               href="/recipes"
               className="inline-block px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"

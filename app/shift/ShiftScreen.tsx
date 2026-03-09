@@ -64,21 +64,21 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
   }
 
   return (
-    <div className="min-h-dvh bg-zinc-950 flex flex-col items-center justify-center px-6 py-8">
+    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 py-8">
       {/* Worker name */}
-      <p className="text-zinc-500 text-sm mb-2">Welcome back,</p>
-      <h1 className="text-2xl font-bold text-zinc-50 mb-8">{worker.name}</h1>
+      <p className="text-muted-foreground text-sm mb-2">Welcome back,</p>
+      <h1 className="text-2xl font-bold text-foreground mb-8">{worker.name}</h1>
 
       {shift ? (
         // On shift - show status + continue
         <div className="w-full max-w-sm text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-sm text-emerald-400 font-medium">On Shift</span>
+            <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">On Shift</span>
           </div>
 
-          <p className="text-4xl font-bold text-zinc-50 tabular-nums mb-1">{elapsed}</p>
-          <p className="text-xs text-zinc-500 mb-8">
+          <p className="text-4xl font-bold text-foreground tabular-nums mb-1">{elapsed}</p>
+          <p className="text-xs text-muted-foreground mb-8">
             Started {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
 
@@ -92,7 +92,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
           <button
             onClick={handleClockOut}
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-red-400 font-medium text-sm transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl bg-card hover:bg-muted border border-border text-red-500 dark:text-red-400 font-medium text-sm transition-all flex items-center justify-center gap-2"
           >
             <StopIcon className="w-4 h-4" /> Clock Out
           </button>
@@ -100,9 +100,9 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
       ) : (
         // Not on shift - clock in
         <div className="w-full max-w-sm text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900 border border-zinc-800 mb-8">
-            <span className="w-2 h-2 rounded-full bg-zinc-600" />
-            <span className="text-sm text-zinc-500">Not Clocked In</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border mb-8">
+            <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+            <span className="text-sm text-muted-foreground">Not Clocked In</span>
           </div>
 
           <button
@@ -112,7 +112,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
           >
             <PlayIcon className="w-6 h-6" /> Clock In
           </button>
-          <p className="text-xs text-zinc-600 mt-4">Start your shift to begin logging work</p>
+          <p className="text-xs text-muted-foreground/70 mt-4">Start your shift to begin logging work</p>
         </div>
       )}
     </div>

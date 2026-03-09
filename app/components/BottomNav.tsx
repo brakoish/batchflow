@@ -45,7 +45,7 @@ export default function BottomNav({ role }: Props) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800/50 safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-xl border-t border-border/50 safe-bottom">
       <div className="flex items-center justify-around h-14">
         {items.map((item) => {
           const active = isActive(item.href)
@@ -55,7 +55,7 @@ export default function BottomNav({ role }: Props) {
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${
-                active ? 'text-emerald-400' : 'text-zinc-500'
+                active ? 'text-emerald-500' : 'text-muted-foreground'
               }`}
             >
               <Icon className="w-5 h-5" />

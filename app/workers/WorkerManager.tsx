@@ -33,14 +33,14 @@ export default function WorkerManager() {
 
   return (
     <div>
-      <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Add Worker</h2>
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Add Worker</h2>
+      <div className="rounded-xl border border bg-card p-4">
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Worker name"
-          className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-3"
+          className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all mb-3"
           disabled={loading}
         />
 
@@ -55,7 +55,7 @@ export default function WorkerManager() {
                   ? r === 'OWNER'
                     ? 'border-purple-500 bg-purple-500/10 text-purple-300'
                     : 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                  : 'border-zinc-700 text-zinc-500 hover:border-zinc-600'
+                  : 'border-input text-foreground hover:border-input'
               }`}
             >
               {r.charAt(0) + r.slice(1).toLowerCase()}
@@ -70,7 +70,7 @@ export default function WorkerManager() {
         )}
         {success && (
           <div className="mb-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-            <p className="text-emerald-400 text-xs font-semibold">{success}</p>
+            <p className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold">{success}</p>
           </div>
         )}
 
@@ -81,7 +81,7 @@ export default function WorkerManager() {
         >
           {loading ? 'Creating...' : 'Create Worker'}
         </button>
-        <p className="text-[10px] text-zinc-600 text-center mt-2">A unique 4-digit PIN will be generated</p>
+        <p className="text-[10px] text-muted-foreground/70 text-center mt-2">A unique 4-digit PIN will be generated</p>
       </div>
     </div>
   )

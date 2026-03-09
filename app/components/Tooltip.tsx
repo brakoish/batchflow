@@ -19,10 +19,10 @@ export default function Tooltip({ children, text, position = 'top' }: TooltipPro
   }
 
   const arrowClasses = {
-    top: 'top-full left-1/2 -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-zinc-800',
-    bottom: 'bottom-full left-1/2 -translate-x-1/2 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-zinc-800',
-    left: 'left-full top-1/2 -translate-y-1/2 border-t-4 border-b-4 border-l-4 border-t-transparent border-b-transparent border-l-zinc-800',
-    right: 'right-full top-1/2 -translate-y-1/2 border-t-4 border-b-4 border-r-4 border-t-transparent border-b-transparent border-r-zinc-800',
+    top: 'top-full left-1/2 -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-muted',
+    bottom: 'bottom-full left-1/2 -translate-x-1/2 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-muted',
+    left: 'left-full top-1/2 -translate-y-1/2 border-t-4 border-b-4 border-l-4 border-t-transparent border-b-transparent border-l-muted',
+    right: 'right-full top-1/2 -translate-y-1/2 border-t-4 border-b-4 border-r-4 border-t-transparent border-b-transparent border-r-muted',
   }
 
   return (
@@ -36,7 +36,7 @@ export default function Tooltip({ children, text, position = 'top' }: TooltipPro
       {children}
       {show && (
         <div className={`absolute z-50 ${positionClasses[position]} pointer-events-none`}>
-          <div className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 text-xs whitespace-nowrap shadow-lg border border-zinc-700">
+          <div className="px-2 py-1 rounded bg-muted text-foreground/90 text-xs whitespace-nowrap shadow-lg border border-input">
             {text}
             <div className={`absolute w-0 h-0 ${arrowClasses[position]}`} />
           </div>

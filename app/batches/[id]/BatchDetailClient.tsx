@@ -72,8 +72,8 @@ function QuickAddButtons({ remaining, current, onAdd }: { remaining: number; cur
           onClick={() => onAdd(current + amt)}
           className={`py-2.5 rounded-lg border text-sm font-medium active:scale-[0.96] transition-all duration-150 ${
             amt === remaining
-              ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/30'
-              : 'bg-zinc-800 hover:bg-zinc-750 border-zinc-700 text-zinc-300'
+              ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/30'
+              : 'bg-muted hover:bg-muted/80 border-input text-foreground/80'
           }`}
         >
           {amt === remaining ? 'Rest' : `+${amt}`}
@@ -283,22 +283,22 @@ export default function BatchDetailClient({
       <main className="max-w-2xl mx-auto px-4 py-5">
         {/* Batch header */}
         <div className="mb-5">
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-50">{batch.name}</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">{batch.name}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-xs text-zinc-500">{batch.recipe.name}</span>
-            <span className="text-zinc-700">·</span>
-            <span className="text-xs text-zinc-500">{batch.targetQuantity} {batch.baseUnit}</span>
+            <span className="text-xs text-foreground0">{batch.recipe.name}</span>
+            <span className="text-muted-foreground/30">·</span>
+            <span className="text-xs text-foreground0">{batch.targetQuantity} {batch.baseUnit}</span>
             {batch.dueDate && (
               <>
-                <span className="text-zinc-700">·</span>
-                <span className="text-xs text-zinc-500">Due: {new Date(batch.dueDate).toLocaleDateString()}</span>
+                <span className="text-muted-foreground/30">·</span>
+                <span className="text-xs text-foreground0">Due: {new Date(batch.dueDate).toLocaleDateString()}</span>
               </>
             )}
-            <span className="text-zinc-700">·</span>
-            <span className="text-xs text-emerald-400 font-medium">{overallPct}%</span>
+            <span className="text-muted-foreground/30">·</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{overallPct}%</span>
             {batch.status !== 'ACTIVE' && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                batch.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'
+                batch.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/20'
               }`}>
                 {batch.status}
               </span>
@@ -309,16 +309,16 @@ export default function BatchDetailClient({
           {(batch.metrcBatchId || batch.lotNumber || batch.strain || batch.packageTag) && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {batch.metrcBatchId && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">METRC: {batch.metrcBatchId}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">METRC: {batch.metrcBatchId}</span>
               )}
               {batch.lotNumber && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Lot: {batch.lotNumber}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Lot: {batch.lotNumber}</span>
               )}
               {batch.strain && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{batch.strain}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{batch.strain}</span>
               )}
               {batch.packageTag && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Tag: {batch.packageTag}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Tag: {batch.packageTag}</span>
               )}
             </div>
           )}
@@ -331,18 +331,18 @@ export default function BatchDetailClient({
                 Mark Complete
               </button>
               <button onClick={() => setShowEditModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 active:scale-[0.96] text-zinc-300 text-xs font-medium transition-all">
+                className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground/80 text-xs font-medium transition-all">
                 Edit Batch
               </button>
               <button onClick={() => handleStatusChange('CANCELLED')}
-                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 active:scale-[0.96] text-red-400 text-xs font-medium transition-all">
+                className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-red-500 dark:text-red-400 text-xs font-medium transition-all">
                 Cancel Batch
               </button>
             </div>
           )}
           {session.role === 'OWNER' && batch.status !== 'ACTIVE' && (
             <button onClick={() => handleStatusChange('ACTIVE')}
-              className="mt-3 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 active:scale-[0.96] text-blue-400 text-xs font-medium transition-all">
+              className="mt-3 px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-blue-600 dark:text-blue-400 text-xs font-medium transition-all">
               Reopen Batch
             </button>
           )}
@@ -360,10 +360,10 @@ export default function BatchDetailClient({
                 key={step.id}
                 className={`rounded-xl border p-4 transition-all duration-150 ${
                   isLocked
-                    ? 'border-zinc-800/50 bg-zinc-900/50 opacity-50'
+                    ? 'border/50 bg-card/50 opacity-50'
                     : isCompleted
                     ? 'border-emerald-500/20 bg-emerald-500/5'
-                    : 'border-zinc-800 bg-zinc-900'
+                    : 'border bg-card'
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -373,28 +373,28 @@ export default function BatchDetailClient({
                       isCompleted
                         ? 'bg-emerald-500/15'
                         : isLocked
-                        ? 'bg-zinc-800'
+                        ? 'bg-muted'
                         : 'bg-blue-500/15'
                     }`}>
                       {isCompleted ? (
-                        <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                        <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       ) : isLocked ? (
-                        <LockClosedIcon className="w-3.5 h-3.5 text-zinc-600" />
+                        <LockClosedIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
                       ) : (
-                        <span className="text-xs font-bold text-blue-400">{step.order}</span>
+                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{step.order}</span>
                       )}
                     </div>
                     <div className="min-w-0">
                       <p className={`text-sm font-medium truncate ${
-                        isCompleted ? 'text-emerald-300' : isLocked ? 'text-zinc-600' : 'text-zinc-50'
+                        isCompleted ? 'text-emerald-600 dark:text-emerald-300' : isLocked ? 'text-muted-foreground/70' : 'text-foreground'
                       }`}>
                         {step.name}
                       </p>
                       {step.recipeStep?.notes && !isLocked && (
-                        <p className="text-[10px] text-zinc-600 mt-0.5">{step.recipeStep.notes}</p>
+                        <p className="text-[10px] text-muted-foreground/70 mt-0.5">{step.recipeStep.notes}</p>
                       )}
                       {step.type === 'COUNT' && !isLocked && (
-                        <p className="text-xs text-zinc-500 tabular-nums mt-0.5">
+                        <p className="text-xs text-foreground0 tabular-nums mt-0.5">
                           {step.completedQuantity} / {step.targetQuantity} {step.unitLabel}
                         </p>
                       )}
@@ -424,7 +424,7 @@ export default function BatchDetailClient({
                 {/* Progress bar for COUNT steps */}
                 {step.type === 'COUNT' && !isLocked && (
                   <div className="mt-3">
-                    <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ease-out ${
                           isCompleted ? 'bg-emerald-500' : 'bg-blue-500'
@@ -437,14 +437,14 @@ export default function BatchDetailClient({
 
                 {/* Materials needed for this step */}
                 {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && !isLocked && (
-                  <div className="mt-3 pt-3 border-t border-zinc-800">
-                    <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">Materials Needed</span>
+                  <div className="mt-3 pt-3 border-t border">
+                    <span className="text-[10px] text-foreground0 font-medium uppercase tracking-wider">Materials Needed</span>
                     <div className="mt-1.5 space-y-1">
                       {step.recipeStep.materials.map((mat, idx) => {
                         const total = (mat.quantityPerUnit * step.targetQuantity).toLocaleString()
                         return (
-                          <div key={idx} className="text-[11px] text-zinc-400">
-                            <span className="text-zinc-300">{mat.name}:</span>{' '}
+                          <div key={idx} className="text-[11px] text-muted-foreground">
+                            <span className="text-foreground/80">{mat.name}:</span>{' '}
                             1 {step.unitLabel.slice(0, -1)} is {mat.quantityPerUnit}{mat.unit} → Total: {total}{mat.unit}
                           </div>
                         )
@@ -457,17 +457,17 @@ export default function BatchDetailClient({
                 {step.progressLogs && step.progressLogs.length > 0 && !isLocked && (
                   <div className="mt-3 space-y-1">
                     {step.progressLogs.slice(0, 3).map((log) => (
-                      <div key={log.id} className="flex items-center justify-between text-[10px] text-zinc-500">
+                      <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-zinc-400 font-medium">{log.worker.name}</span>
-                          <span className="text-emerald-400 tabular-nums">+{log.quantity}</span>
-                          {log.note && <span className="text-zinc-600 truncate max-w-[120px]">{log.note}</span>}
-                          <span className="text-zinc-700">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-muted-foreground font-medium">{log.worker.name}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
+                          {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
+                          <span className="text-muted-foreground/30">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         {(session.role === 'OWNER' || session.id === log.worker.id) && (
                           <button
                             onClick={() => handleDeleteLog(log.id, step.id, log.quantity)}
-                            className="flex items-center justify-center w-8 h-8 min-w-[32px] rounded-lg text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 transition-colors"
+                            className="flex items-center justify-center w-8 h-8 min-w-[32px] rounded-lg text-muted-foreground/70 hover:text-red-500 dark:text-red-400 hover:bg-muted/50 transition-colors"
                             title="Delete this log"
                           >
                             <XMarkIcon className="w-4 h-4" />
@@ -487,21 +487,21 @@ export default function BatchDetailClient({
       {selectedStep && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <p className="text-sm font-semibold text-zinc-50">{selectedStep.name}</p>
-                  <p className="text-xs text-zinc-500 tabular-nums mt-0.5">
+                  <p className="text-sm font-semibold text-foreground">{selectedStep.name}</p>
+                  <p className="text-xs text-foreground0 tabular-nums mt-0.5">
                     {selectedStep.completedQuantity} / {selectedStep.targetQuantity} {selectedStep.unitLabel}
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedStep(null)}
-                  className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                  className="p-1.5 rounded-lg text-foreground0 hover:text-foreground/80 hover:bg-muted transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -516,7 +516,7 @@ export default function BatchDetailClient({
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="Quantity"
-                className="w-full px-4 py-3.5 rounded-xl bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-xl font-semibold tabular-nums placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-xl font-semibold tabular-nums placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
               />
 
               {/* Quick add - smart increments based on remaining quantity */}
@@ -532,16 +532,16 @@ export default function BatchDetailClient({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Note (optional)"
-                className="w-full mt-3 px-3.5 py-2.5 rounded-xl bg-zinc-800/50 border border-zinc-700 text-zinc-50 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                className="w-full mt-3 px-3.5 py-2.5 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
               />
 
-              {error && <p className="text-red-400 text-xs mt-3 text-center">{error}</p>}
+              {error && <p className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
 
               {/* Submit */}
               <button
                 onClick={handleSubmit}
                 disabled={loading || !quantity || parseInt(quantity) <= 0}
-                className="w-full mt-4 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-zinc-800"
+                className="w-full mt-4 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
               >
                 {loading ? 'Saving...' : 'Submit'}
               </button>
@@ -554,16 +554,16 @@ export default function BatchDetailClient({
       {showEditModal && session.role === 'OWNER' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-t-2xl sm:rounded-2xl safe-bottom max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
-                <p className="text-sm font-semibold text-zinc-50">Edit Batch</p>
+                <p className="text-sm font-semibold text-foreground">Edit Batch</p>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                  className="p-1.5 rounded-lg text-foreground0 hover:text-foreground/80 hover:bg-muted transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -574,70 +574,70 @@ export default function BatchDetailClient({
               {/* Form */}
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
+                  <label className="text-[10px] text-foreground0 font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
                   <input
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
+                  <label className="text-[10px] text-foreground0 font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
                   <input
                     type="number"
                     value={editTargetQty}
                     onChange={(e) => setEditTargetQty(e.target.value)}
                     min="1"
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block mb-1">Due Date</label>
+                  <label className="text-[10px] text-foreground0 font-semibold uppercase tracking-wider block mb-1">Due Date</label>
                   <input
                     type="date"
                     value={editDueDate}
                     onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
                 </div>
 
                 {/* METRC Fields */}
-                <div className="rounded-lg bg-zinc-800/50 border border-zinc-700 p-3 space-y-2">
-                  <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">METRC Fields</p>
+                <div className="rounded-lg bg-muted/50 border border-input p-3 space-y-2">
+                  <p className="text-[10px] text-foreground0 font-semibold uppercase tracking-wider">METRC Fields</p>
                   <input
                     type="text"
                     value={editMetrcBatchId}
                     onChange={(e) => setEditMetrcBatchId(e.target.value)}
                     placeholder="METRC Batch ID"
-                    className="w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
                   <input
                     type="text"
                     value={editLotNumber}
                     onChange={(e) => setEditLotNumber(e.target.value)}
                     placeholder="Lot Number"
-                    className="w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
                   <input
                     type="text"
                     value={editStrain}
                     onChange={(e) => setEditStrain(e.target.value)}
                     placeholder="Strain"
-                    className="w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
                   <input
                     type="text"
                     value={editPackageTag}
                     onChange={(e) => setEditPackageTag(e.target.value)}
                     placeholder="Package Tag"
-                    className="w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-50 text-xs placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
                 </div>
 
-                {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+                {error && <p className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
 
                 <button
                   onClick={handleEditSave}
