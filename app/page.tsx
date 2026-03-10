@@ -5,29 +5,12 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { haptic } from '@/lib/haptic'
 
-type RecentWorker = {
-  id: string
-  name: string
-  pin: string
-}
-
 export default function LoginPage() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [recentWorkers, setRecentWorkers] = useState<RecentWorker[]>([])
   const router = useRouter()
-
-  // Load recent workers from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem('recentWorkers')
-    if (stored) {
-      try {
-        setRecentWorkers(JSON.parse(stored))
-      } catch {}
-    }
-  }, [])
 
   const handleNumberClick = (num: string) => {
     if (pin.length < 4 && !loading) {
@@ -70,13 +53,6 @@ export default function LoginPage() {
         return
       }
 
-      // Save to recent workers
-      const newRecent = [{ id: data.worker.id, name: data.worker.name, pin: pinToSubmit },
-        ...recentWorkers.filter(w => w.id !== data.worker.id)
-      ].slice(0, 3)
-      setRecentWorkers(newRecent)
-      localStorage.setItem('recentWorkers', JSON.stringify(newRecent))
-
       haptic('medium')
       setSuccess(true)
       setTimeout(() => {
@@ -89,11 +65,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const quickLogin = (worker: RecentWorker) => {
-    setPin(worker.pin)
-    submitPin(worker.pin)
   }
 
   // Keyboard support
@@ -109,7 +80,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 py-8">
       {/* Brand */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-10">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-20 h-20 mx-auto mb-4 text-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="12" y="12" width="32" height="32" rx="6" fill="currentColor" stroke="none"/>
           <rect x="56" y="12" width="32" height="32" rx="6"/>
@@ -117,6 +88,7 @@ export default function LoginPage() {
           <path d="M64 56h16a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H64a6 6 0 0 1-6-6V62a6 6 0 0 1 6-6z"/>
         </svg>
         <h1 className="text-2xl font-semibold text-foreground">BatchFlow</h1>
+        <p className="text-sm text-muted-foreground mt-2">Enter your PIN</p>
       </div>
 
       {/* PIN Dots */}
@@ -170,28 +142,6 @@ export default function LoginPage() {
         </button>
         <div className="h-20 rounded-xl bg-transparent" />
       </div>
-
-      {/* Recent Workers */}
-      {recentWorkers.length > 0 && (
-        <div className="mt-8 w-full max-w-xs">
-          <p className="text-xs text-muted-foreground text-center mb-3">Quick Login</p>
-          <div className="flex justify-center gap-3">
-            {recentWorkers.map((worker) => (
-              <button
-                key={worker.id}
-                onClick={() => quickLogin(worker)}
-                disabled={loading}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-card border border-border hover:border-foreground active:scale-[0.95] transition-all duration-150 disabled:opacity-40"
-              >
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-lg font-semibold text-primary">{worker.name[0]}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">{worker.name.split(' ')[0]}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {loading && (
         <div className="flex justify-center mt-8">
