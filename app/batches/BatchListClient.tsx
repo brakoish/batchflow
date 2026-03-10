@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
-import { StopIcon } from '@heroicons/react/24/solid'
+import { StopIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
 type Session = { id: string; name: string; role: string }
@@ -21,7 +21,7 @@ export default function BatchListClient({
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [onShift, setOnShift] = useState(false)
-  const [elapsed, setElapsed] = useState('')
+  const [elapsed, setElapsed] = useState('0h 00m')
 
   useEffect(() => {
     const poll = async () => {
@@ -55,7 +55,7 @@ export default function BatchListClient({
           const ms = Date.now() - new Date(data.activeShift.startedAt).getTime()
           const hrs = Math.floor(ms / 3600000)
           const mins = Math.floor((ms % 3600000) / 60000)
-          setElapsed(`${hrs}h ${mins}m`)
+          setElapsed(`${hrs}h ${mins.toString().padStart(2, '0')}m`)
         }
       }
     }
@@ -66,7 +66,7 @@ export default function BatchListClient({
 
   const handleClockOut = async () => {
     haptic('medium')
-    if (!confirm('Clock out and end your shift?')) return
+    if (!confirm('Clock out?')) return
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
       if (res.ok) {
@@ -78,60 +78,100 @@ export default function BatchListClient({
 
   return (
     <AppShell session={session}>
-      <main className="max-w-2xl mx-auto px-4 py-6 pb-24">
+      <main className="max-w-2xl mx-auto px-4 py-6 pb-32">
+        {/* Header */}
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-foreground">Active Batches</h1>
-          <p className="text-sm text-muted-foreground mt-1">{batches.length} batch{batches.length !== 1 ? 'es' : ''}</p>
+          <h1 className="text-2xl font-bold text-foreground">Your Batches</h1>
+          <p className="text-muted-foreground mt-1">{batches.length} available</p>
         </div>
 
+        {/* Batch Cards */}
         {batches.length === 0 ? (
-          <EmptyState icon="inbox" title="No active batches" description="Batches will appear here when production starts." />
+          <EmptyState icon="inbox" title="No batches" description="Check back later for new work." />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {batches.map((batch) => {
               const firstIncomplete = batch.steps.find((s) => s.status !== 'COMPLETED')
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const pct = Math.round((completedSteps / batch.steps.length) * 100)
+              const isMyTurn = firstIncomplete && firstIncomplete.status !== 'LOCKED'
 
               return (
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className="block bg-card border border-border rounded-lg p-4 hover:border-foreground/20 active:scale-[0.99] transition-all duration-150"
+                  className="block bg-card border border-border rounded-xl p-5 hover:border-primary/30 active:scale-[0.99] transition-all duration-150"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  {/* Top Row */}
+                  <div className="flex items-start justify-between mb-4">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h2 className="text-base font-medium text-foreground truncate">{batch.name}</h2>
-                        {batch.strain && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                            {batch.strain}
-                          </span>
-                        )}
-                      </div>
+                      <h2 className="text-lg font-semibold text-foreground truncate">{batch.name}</h2>
                       <p className="text-sm text-muted-foreground">{batch.recipe.name}</p>
                     </div>
-                    <div className="text-right ml-4 shrink-0">
-                      <span className="text-lg font-semibold tabular-nums text-foreground">{batch.targetQuantity}</span>
-                    </div>
+                    <ChevronRightIcon className="w-5 h-5 text-muted-foreground shrink-0 ml-2" />
                   </div>
 
-                  <div className="mb-3">
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-success rounded-full transition-all duration-500" 
-                        style={{ width: `${pct}%` }} 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{completedSteps}/{batch.steps.length} steps · {pct}%</span>
-                    {firstIncomplete && (
-                      <span className="font-medium text-primary">
-                        {firstIncomplete.name}: {firstIncomplete.completedQuantity}/{firstIncomplete.targetQuantity}
+                  {/* Status Badge */}
+                  <div className="flex items-center gap-2 mb-4">
+                    {isMyTurn ? (
+                      <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                        YOUR TURN
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold">
+                        WAITING
                       </span>
                     )}
+                    {batch.strain && (
+                      <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs">
+                        {batch.strain}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Progress */}
+                  <div className="flex items-center gap-4">
+                    {/* Circular Progress */}
+                    <div className="relative w-12 h-12 shrink-0">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                        <path
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          className="text-muted"
+                        />
+                        <path
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeDasharray={`${pct}, 100`}
+                          className="text-success"
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
+                        {pct}%
+                      </span>
+                    </div>
+
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground">
+                        {completedSteps}/{batch.steps.length} steps complete
+                      </p>
+                      {firstIncomplete && (
+                        <p className="text-sm text-muted-foreground truncate">
+                          Next: {firstIncomplete.name}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Target */}
+                    <div className="text-right shrink-0">
+                      <p className="text-xl font-bold text-foreground">{batch.targetQuantity}</p>
+                      <p className="text-xs text-muted-foreground">units</p>
+                    </div>
                   </div>
                 </Link>
               )
@@ -142,9 +182,9 @@ export default function BatchListClient({
         {/* Floating Clock Out Bar */}
         {onShift && (
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-bottom">
-            <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                <span className="w-3 h-3 rounded-full bg-success animate-pulse" />
                 <div>
                   <p className="text-sm font-medium text-foreground">On Shift</p>
                   <p className="text-xs text-muted-foreground tabular-nums">{elapsed}</p>
@@ -152,7 +192,7 @@ export default function BatchListClient({
               </div>
               <button
                 onClick={handleClockOut}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-destructive-subtle text-destructive text-sm font-medium hover:bg-destructive hover:text-destructive-foreground transition-all duration-150"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive-subtle text-destructive text-sm font-semibold hover:bg-destructive hover:text-destructive-foreground transition-all"
               >
                 <StopIcon className="w-4 h-4" /> Clock Out
               </button>

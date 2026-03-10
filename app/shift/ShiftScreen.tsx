@@ -2,38 +2,58 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlayIcon, StopIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
+import { PlayIcon, StopIcon, ClockIcon, CubeIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
 type Shift = { id: string; startedAt: string }
+type TodayStats = { batches: number; units: number }
 
 export default function ShiftScreen({ worker }: { worker: { id: string; name: string; role: string } }) {
   const [shift, setShift] = useState<Shift | null>(null)
-  const [elapsed, setElapsed] = useState('')
+  const [elapsed, setElapsed] = useState('0h 00m')
   const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState<TodayStats>({ batches: 0, units: 0 })
   const router = useRouter()
 
   useEffect(() => {
     // Check current shift status
     fetch('/api/shifts')
       .then(r => r.json())
-      .then(d => setShift(d.activeShift))
+      .then(d => {
+        setShift(d.activeShift)
+        if (d.activeShift) {
+          updateElapsed(d.activeShift.startedAt)
+        }
+      })
       .catch(() => {})
-  }, [])
 
-  // Update elapsed time every second if on shift
+    // Fetch today's stats
+    fetch('/api/workers/activity')
+      .then(r => r.json())
+      .then(d => {
+        if (d.workers) {
+          const me = d.workers.find((w: any) => w.id === worker.id)
+          if (me) {
+            setStats({ batches: me.batches?.length || 0, units: me.todayUnits || 0 })
+          }
+        }
+      })
+      .catch(() => {})
+  }, [worker.id])
+
+  // Update elapsed time
   useEffect(() => {
     if (!shift) return
-    const update = () => {
-      const ms = Date.now() - new Date(shift.startedAt).getTime()
-      const hrs = Math.floor(ms / 3600000)
-      const mins = Math.floor((ms % 3600000) / 60000)
-      setElapsed(`${hrs}h ${mins}m`)
-    }
-    update()
-    const id = setInterval(update, 60000) // update every minute
+    const id = setInterval(() => updateElapsed(shift.startedAt), 60000)
     return () => clearInterval(id)
   }, [shift])
+
+  const updateElapsed = (startedAt: string) => {
+    const ms = Date.now() - new Date(startedAt).getTime()
+    const hrs = Math.floor(ms / 3600000)
+    const mins = Math.floor((ms % 3600000) / 60000)
+    setElapsed(`${hrs}h ${mins.toString().padStart(2, '0')}m`)
+  }
 
   const handleClockIn = async () => {
     haptic('medium')
@@ -43,6 +63,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
       if (res.ok) {
         const data = await res.json()
         setShift(data.shift)
+        updateElapsed(data.shift.startedAt)
       }
     } catch {}
     setLoading(false)
@@ -50,6 +71,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
 
   const handleClockOut = async () => {
     haptic('medium')
+    if (!confirm('End your shift?')) return
     setLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
@@ -70,57 +92,66 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 py-8">
-      {/* Worker name */}
-      <p className="text-muted-foreground text-sm mb-2">Welcome back,</p>
-      <h1 className="text-2xl font-bold text-foreground mb-8">{worker.name}</h1>
+    <div className="min-h-dvh bg-background flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+        {/* Status Indicator */}
+        <div className={`w-4 h-4 rounded-full mb-6 ${shift ? 'bg-success animate-pulse' : 'bg-muted'}`} />
 
-      {shift ? (
-        // On shift - show status + continue
-        <div className="w-full max-w-sm text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">On Shift</span>
-          </div>
+        {/* Status Text */}
+        <h1 className={`text-3xl font-bold mb-2 ${shift ? 'text-success' : 'text-muted-foreground'}`}>
+          {shift ? 'ON SHIFT' : 'OFF SHIFT'}
+        </h1>
 
-          <p className="text-4xl font-bold text-foreground tabular-nums mb-1">{elapsed}</p>
-          <p className="text-xs text-muted-foreground mb-8">
-            Started {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
+        {/* Welcome */}
+        <p className="text-lg text-foreground mb-8">{worker.name}</p>
 
-          <button
-            onClick={goToWork}
-            className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-base transition-all flex items-center justify-center gap-2 mb-3"
-          >
-            Continue to Work <ArrowRightIcon className="w-5 h-5" />
-          </button>
-
-          <button
-            onClick={handleClockOut}
-            disabled={loading}
-            className="w-full py-3 rounded-xl bg-card hover:bg-muted border border-border text-red-500 dark:text-red-400 font-medium text-sm transition-all flex items-center justify-center gap-2"
-          >
-            <StopIcon className="w-4 h-4" /> Clock Out
-          </button>
+        {/* Giant Timer */}
+        <div className="text-6xl font-bold text-foreground tabular-nums mb-8">
+          {elapsed}
         </div>
-      ) : (
-        // Not on shift - clock in
-        <div className="w-full max-w-sm text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border mb-8">
-            <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-            <span className="text-sm text-muted-foreground">Not Clocked In</span>
-          </div>
 
+        {/* Today's Stats */}
+        <div className="flex gap-6 mb-10">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <CubeIcon className="w-5 h-5" />
+            <span className="text-sm">{stats.batches} batches</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <ClockIcon className="w-5 h-5" />
+            <span className="text-sm">{stats.units} units</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Action */}
+      <div className="px-6 pb-8 safe-bottom">
+        {shift ? (
+          <div className="space-y-3">
+            <button
+              onClick={goToWork}
+              className="w-full py-4 rounded-xl bg-primary text-primary-foreground text-lg font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
+            >
+              Start Working
+            </button>
+            <button
+              onClick={handleClockOut}
+              disabled={loading}
+              className="w-full py-4 rounded-xl bg-destructive-subtle text-destructive text-lg font-semibold hover:bg-destructive hover:text-destructive-foreground active:scale-[0.98] transition-all duration-150 disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              <StopIcon className="w-5 h-5" /> Clock Out
+            </button>
+          </div>
+        ) : (
           <button
             onClick={handleClockIn}
             disabled={loading}
-            className="w-full py-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-500/20"
+            className="w-full py-5 rounded-xl bg-success text-success-foreground text-xl font-bold hover:bg-success/90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40 flex items-center justify-center gap-3"
           >
             <PlayIcon className="w-6 h-6" /> Clock In
           </button>
-          <p className="text-xs text-muted-foreground/70 mt-4">Start your shift to begin logging work</p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
