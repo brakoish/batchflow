@@ -82,11 +82,12 @@ export default function LoginPage() {
       <div className="w-full max-w-xs">
         {/* Brand */}
         <div className="text-center mb-8">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-16 h-16 mx-auto mb-4 text-foreground">
-            <rect x="10" y="10" width="35" height="35" fill="currentColor"/>
-            <rect x="55" y="10" width="35" height="35" fill="currentColor"/>
-            <rect x="10" y="55" width="35" height="35" fill="currentColor"/>
-            <rect x="55" y="55" width="35" height="35" fill="none" stroke="currentColor" strokeWidth="8"/>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-16 h-16 mx-auto mb-4 text-foreground" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="12" y="12" width="32" height="32" rx="8" fill="currentColor" stroke="none"/>
+            <rect x="56" y="12" width="32" height="32" rx="8"/>
+            <rect x="12" y="56" width="32" height="32" rx="8"/>
+            <path d="M64 56h16a8 8 0 0 1 8 8v16a8 8 0 0 1-8 8H64a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8z"/>
+            <path d="M72 72h8" strokeWidth="3"/>
           </svg>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">BatchFlow</h1>
           <p className="text-sm text-muted-foreground mt-1">Enter PIN</p>
