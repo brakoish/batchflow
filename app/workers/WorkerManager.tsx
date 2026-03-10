@@ -20,6 +20,9 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [success, setSuccess] = useState('')
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null)
   const [editPin, setEditPin] = useState('')
+  const [editName, setEditName] = useState('')
+  const [editRole, setEditRole] = useState<'WORKER' | 'OWNER'>('WORKER')
+  const [showEditModal, setShowEditModal] = useState(false)
   const router = useRouter()
 
   const generatePin = () => {
@@ -51,6 +54,28 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
     finally { setLoading(false) }
   }
 
+  const handleUpdateWorker = async () => {
+    if (!editingWorker) return
+    if (!editName.trim()) { setError('Name required'); return }
+    setLoading(true); setError('')
+
+    try {
+      const res = await fetch(`/api/workers/${editingWorker.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName, role: editRole }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error); return }
+      setSuccess(`Updated ${data.worker.name}`)
+      setEditingWorker(null)
+      setShowEditModal(false)
+      router.refresh()
+      setTimeout(() => setSuccess(''), 5000)
+    } catch { setError('Connection error') }
+    finally { setLoading(false) }
+  }
+
   const handleUpdatePin = async () => {
     if (!editingWorker) return
     if (!editPin || editPin.length !== 4 || !/^\d{4}$/.test(editPin)) {
@@ -73,6 +98,40 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       setTimeout(() => setSuccess(''), 5000)
     } catch { setError('Connection error') }
     finally { setLoading(false) }
+  }
+
+  const handleDeleteWorker = async (worker: Worker) => {
+    if (!confirm(`Delete ${worker.name}? This cannot be undone.`)) return
+    setLoading(true)
+
+    try {
+      const res = await fetch(`/api/workers/${worker.id}`, { method: 'DELETE' })
+      if (!res.ok) { 
+        const data = await res.json()
+        setError(data.error || 'Failed to delete')
+        return
+      }
+      setSuccess(`Deleted ${worker.name}`)
+      router.refresh()
+      setTimeout(() => setSuccess(''), 5000)
+    } catch { setError('Connection error') }
+    finally { setLoading(false) }
+  }
+
+  const openEditModal = (worker: Worker) => {
+    setEditingWorker(worker)
+    setEditName(worker.name)
+    setEditRole(worker.role as 'WORKER' | 'OWNER')
+    setEditPin('')
+    setError('')
+    setShowEditModal(true)
+  }
+
+  const openPinModal = (worker: Worker) => {
+    setEditingWorker(worker)
+    setEditPin('')
+    setError('')
+    setShowEditModal(false)
   }
 
   return (
@@ -148,45 +207,83 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
         </div>
       </div>
 
-      {/* Edit PIN Modal */}
-      {editingWorker && (
+      {/* Edit Worker Modal */}
+      {showEditModal && editingWorker && (
         <div className="bg-card border border-border p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Set PIN for {editingWorker.name}</h3>
+            <h3 className="text-sm font-medium">Edit Worker</h3>
             <button
-              onClick={() => { setEditingWorker(null); setEditPin(''); setError('') }}
+              onClick={() => { setShowEditModal(false); setEditingWorker(null); setError('') }}
               className="text-muted-foreground hover:text-foreground"
             >
               ✕
             </button>
           </div>
+          
           <input
             type="text"
-            value={editPin}
-            onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            placeholder="New PIN (4 digits)"
-            className="w-full px-3 py-2 bg-background border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-            maxLength={4}
-            autoFocus
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            placeholder="Worker name"
+            className="w-full px-3 py-2 bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
+
+          <div className="flex gap-2">
+            {(['WORKER', 'OWNER'] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setEditRole(r)}
+                className={`flex-1 py-2 text-sm font-medium border transition-colors ${
+                  editRole === r
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-transparent text-foreground border-border hover:border-foreground'
+                }`}
+              >
+                {r.charAt(0) + r.slice(1).toLowerCase()}
+              </button>
+            ))}
+          </div>
+
+          <div className="pt-2 border-t border-border">
+            <label className="text-xs text-muted-foreground block mb-2">Change PIN</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={editPin}
+                onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="New PIN (4 digits)"
+                className="flex-1 px-3 py-2 bg-background border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                maxLength={4}
+              />
+              <button
+                onClick={handleUpdatePin}
+                disabled={loading || editPin.length !== 4}
+                className="px-3 py-2 bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
+              >
+                Set PIN
+              </button>
+            </div>
+          </div>
+
           {error && (
             <div className="p-2 bg-destructive/10 border border-destructive">
               <p className="text-destructive text-xs">{error}</p>
             </div>
           )}
+
           <button
-            onClick={handleUpdatePin}
-            disabled={loading || editPin.length !== 4}
-            className="w-full py-2 bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40"
+            onClick={handleUpdateWorker}
+            disabled={loading || !editName.trim()}
+            className="w-full py-2 bg-foreground text-background font-medium text-sm hover:bg-foreground/90 active:scale-[0.98] transition-all disabled:opacity-40"
           >
-            {loading ? 'Updating...' : 'Update PIN'}
+            {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       )}
 
-      {/* Worker List with Edit */}
+      {/* Worker List */}
       <div>
-        <h2 className="text-sm font-medium text-muted-foreground mb-3">Team</h2>
+        <h2 className="text-sm font-medium text-muted-foreground mb-3">Team ({workers.length})</h2>
         <div className="space-y-2">
           {workers.map((worker) => (
             <div key={worker.id} className="bg-card border border-border p-3 flex items-center justify-between">
@@ -203,12 +300,20 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => { setEditingWorker(worker); setEditPin(''); setError('') }}
-                className="px-3 py-1.5 text-xs border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-              >
-                Set PIN
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => openEditModal(worker)}
+                  className="px-3 py-1.5 text-xs border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteWorker(worker)}
+                  className="px-3 py-1.5 text-xs border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>
