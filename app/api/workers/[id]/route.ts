@@ -10,8 +10,42 @@ export async function PATCH(
   try {
     await requireOwner()
     const { id } = await params
-    const { name, role } = await request.json()
+    const { name, role, pin } = await request.json()
 
+    // Handle PIN update
+    if (pin !== undefined) {
+      if (!/^\d{4}$/.test(pin)) {
+        return NextResponse.json(
+          { error: 'PIN must be exactly 4 digits' },
+          { status: 400 }
+        )
+      }
+      // Check if PIN is already in use by another worker
+      const existingWorker = await prisma.worker.findUnique({
+        where: { pin },
+      })
+      if (existingWorker && existingWorker.id !== id) {
+        return NextResponse.json(
+          { error: 'PIN is already in use' },
+          { status: 400 }
+        )
+      }
+
+      const worker = await prisma.worker.update({
+        where: { id },
+        data: { pin },
+        select: {
+          id: true,
+          name: true,
+          pin: true,
+          role: true,
+          createdAt: true,
+        },
+      })
+      return NextResponse.json({ worker })
+    }
+
+    // Handle name/role update
     const updateData: { name?: string; role?: Role } = {}
     if (name) updateData.name = name
     if (role && ['WORKER', 'OWNER'].includes(role)) updateData.role = role as Role

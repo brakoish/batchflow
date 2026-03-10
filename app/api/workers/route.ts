@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   try {
     await requireOwner()
 
-    const { name, role } = await request.json()
+    const { name, role, pin: customPin } = await request.json()
 
     if (!name || !role) {
       return NextResponse.json(
@@ -53,17 +53,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate unique PIN
-    let pin = generatePin()
-    let existingWorker = await prisma.worker.findUnique({
-      where: { pin },
-    })
-
-    while (existingWorker) {
+    // Validate custom PIN if provided
+    let pin: string
+    if (customPin) {
+      if (!/^\d{4}$/.test(customPin)) {
+        return NextResponse.json(
+          { error: 'PIN must be exactly 4 digits' },
+          { status: 400 }
+        )
+      }
+      // Check if PIN is already in use
+      const existingWorker = await prisma.worker.findUnique({
+        where: { pin: customPin },
+      })
+      if (existingWorker) {
+        return NextResponse.json(
+          { error: 'PIN is already in use' },
+          { status: 400 }
+        )
+      }
+      pin = customPin
+    } else {
+      // Generate unique PIN
       pin = generatePin()
-      existingWorker = await prisma.worker.findUnique({
+      let existingWorker = await prisma.worker.findUnique({
         where: { pin },
       })
+      while (existingWorker) {
+        pin = generatePin()
+        existingWorker = await prisma.worker.findUnique({
+          where: { pin },
+        })
+      }
     }
 
     const worker = await prisma.worker.create({
