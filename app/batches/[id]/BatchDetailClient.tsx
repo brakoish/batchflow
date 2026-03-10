@@ -457,15 +457,15 @@ export default function BatchDetailClient({
 
                 {/* Materials needed for this step */}
                 {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && !isLocked && (
-                  <div className="mt-3 pt-3 border-t border">
-                    <span className="text-[10px] text-foreground font-medium uppercase tracking-wider">Materials Needed</span>
-                    <div className="mt-1.5 space-y-1">
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <span className="text-xs text-muted-foreground font-medium">Materials Needed</span>
+                    <div className="mt-2 space-y-1.5">
                       {step.recipeStep.materials.map((mat, idx) => {
                         const total = (mat.quantityPerUnit * step.targetQuantity).toLocaleString()
                         return (
-                          <div key={idx} className="text-[11px] text-muted-foreground">
-                            <span className="text-foreground/80">{mat.name}:</span>{' '}
-                            1 {step.unitLabel.slice(0, -1)} is {mat.quantityPerUnit}{mat.unit} → Total: {total}{mat.unit}
+                          <div key={idx} className="text-sm text-muted-foreground">
+                            <span className="text-foreground">{mat.name}</span>
+                            <span className="text-muted-foreground/60"> · {total}{mat.unit}</span>
                           </div>
                         )
                       })}
