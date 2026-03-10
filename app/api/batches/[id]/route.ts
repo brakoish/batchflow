@@ -156,3 +156,55 @@ export async function PATCH(
     )
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireOwner()
+    const { id } = await params
+
+    // Check if batch exists and is cancelled
+    const batch = await prisma.batch.findUnique({
+      where: { id },
+      select: { status: true }
+    })
+
+    if (!batch) {
+      return NextResponse.json(
+        { error: 'Batch not found' },
+        { status: 404 }
+      )
+    }
+
+    if (batch.status !== 'CANCELLED') {
+      return NextResponse.json(
+        { error: 'Only cancelled batches can be deleted' },
+        { status: 400 }
+      )
+    }
+
+    // Delete related records first (cascade)
+    await prisma.progressLog.deleteMany({
+      where: { batchStep: { batchId: id } }
+    })
+    await prisma.batchStep.deleteMany({
+      where: { batchId: id }
+    })
+    await prisma.batchAssignment.deleteMany({
+      where: { batchId: id }
+    })
+    await prisma.batch.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Delete batch error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

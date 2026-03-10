@@ -153,6 +153,16 @@ export default function BatchDetailClient({
     } catch { setError('Connection error') }
   }
 
+  const handleDeleteBatch = async () => {
+    if (!confirm('Permanently delete this cancelled batch? This cannot be undone.')) return
+    try {
+      const res = await fetch(`/api/batches/${batch.id}`, { method: 'DELETE' })
+      if (!res.ok) { setError((await res.json()).error); return }
+      showToast('Batch deleted')
+      router.push('/dashboard')
+    } catch { setError('Connection error') }
+  }
+
   const handleDeleteLog = async (logId: string, stepId: string, qty: number) => {
     if (!confirm(`Delete this log entry (+${qty})?`)) return
     try {
@@ -343,10 +353,18 @@ export default function BatchDetailClient({
             </div>
           )}
           {session.role === 'OWNER' && batch.status !== 'ACTIVE' && (
-            <button onClick={() => handleStatusChange('ACTIVE')}
-              className="mt-3 px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-blue-600 dark:text-blue-400 text-xs font-medium transition-all">
-              Reopen Batch
-            </button>
+            <div className="flex items-center gap-2 mt-3">
+              <button onClick={() => handleStatusChange('ACTIVE')}
+                className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-blue-600 dark:text-blue-400 text-xs font-medium transition-all">
+                Reopen Batch
+              </button>
+              {batch.status === 'CANCELLED' && (
+                <button onClick={handleDeleteBatch}
+                  className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 active:scale-[0.96] text-red-500 dark:text-red-400 text-xs font-medium transition-all">
+                  Delete Batch
+                </button>
+              )}
+            </div>
           )}
         </div>
 
