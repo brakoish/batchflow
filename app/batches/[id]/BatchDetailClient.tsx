@@ -141,33 +141,52 @@ export default function BatchDetailClient({
   const handleStatusChange = async (status: string) => {
     const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
     if (!confirm(`Are you sure you want to ${labels[status] || status} this batch?`)) return
+    setError('')
     try {
       const res = await fetch(`/api/batches/${batch.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       })
-      if (!res.ok) { setError((await res.json()).error); return }
+      if (!res.ok) { 
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to update batch')
+        return 
+      }
       setBatch(prev => ({ ...prev, status }))
       showToast(`Batch ${labels[status]}d`)
-    } catch { setError('Connection error') }
+    } catch (err) { 
+      setError('Network error. Please check your connection.')
+    }
   }
 
   const handleDeleteBatch = async () => {
     if (!confirm('Permanently delete this cancelled batch? This cannot be undone.')) return
+    setError('')
     try {
       const res = await fetch(`/api/batches/${batch.id}`, { method: 'DELETE' })
-      if (!res.ok) { setError((await res.json()).error); return }
+      if (!res.ok) { 
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to delete batch')
+        return 
+      }
       showToast('Batch deleted')
       router.push('/dashboard')
-    } catch { setError('Connection error') }
+    } catch (err) { 
+      setError('Network error. Please check your connection.')
+    }
   }
 
   const handleDeleteLog = async (logId: string, stepId: string, qty: number) => {
     if (!confirm(`Delete this log entry (+${qty})?`)) return
+    setError('')
     try {
       const res = await fetch(`/api/logs/${logId}`, { method: 'DELETE' })
-      if (!res.ok) { const d = await res.json(); setError(d.error); return }
+      if (!res.ok) { 
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to delete log')
+        return 
+      }
       // Optimistically update
       setBatch(prev => ({
         ...prev,
@@ -183,18 +202,25 @@ export default function BatchDetailClient({
         }),
       }))
       showToast('Log entry deleted')
-    } catch { setError('Connection error') }
+    } catch (err) { 
+      setError('Network error. Please check your connection.')
+    }
   }
 
   const handleCheckComplete = async (step: BatchStep) => {
     setLoading(true)
+    setError('')
     try {
       const res = await fetch(`/api/batches/${batch.id}/steps/${step.id}/log`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quantity: step.targetQuantity }),
       })
-      if (!res.ok) { setError((await res.json()).error); return }
+      if (!res.ok) { 
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to complete step')
+        return 
+      }
 
       setBatch(prev => ({
         ...prev,
@@ -205,12 +231,15 @@ export default function BatchDetailClient({
         }),
       }))
       showToast(`${step.name} complete`)
-    } catch { setError('Connection error') }
+    } catch (err) { 
+      setError('Network error. Please check your connection.')
+    }
     finally { setLoading(false) }
   }
 
   const handleEditSave = async () => {
     setLoading(true)
+    setError('')
     try {
       const res = await fetch(`/api/batches/${batch.id}`, {
         method: 'PATCH',
@@ -226,12 +255,18 @@ export default function BatchDetailClient({
           packageTag: editPackageTag || undefined,
         }),
       })
-      if (!res.ok) { setError((await res.json()).error); return }
+      if (!res.ok) { 
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to save changes')
+        return 
+      }
       const data = await res.json()
       setBatch(data.batch)
       setShowEditModal(false)
       showToast('Batch updated')
-    } catch { setError('Connection error') }
+    } catch (err) { 
+      setError('Network error. Please check your connection.')
+    }
     finally { setLoading(false) }
   }
 
@@ -265,7 +300,9 @@ export default function BatchDetailClient({
 
       showToast(`Logged ${qty} units`)
       setSelectedStep(null); setQuantity(''); setNote('')
-    } catch { setError('Connection error') }
+    } catch (err) { 
+      setError('Network error. Please check your connection.')
+    }
     finally { setLoading(false) }
   }
 

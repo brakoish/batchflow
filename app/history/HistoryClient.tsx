@@ -32,7 +32,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                 ? f === 'CANCELLED' ? 'bg-red-500/15 text-red-400 border border-red-500/30'
                   : f === 'COMPLETED' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                   : 'bg-muted text-foreground border border-input'
-                : 'text-foreground0 hover:text-muted-foreground'
+                : 'text-foreground hover:text-muted-foreground'
             }`}
           >
             {f === 'ALL' ? `All (${initialBatches.length})` : `${f.charAt(0) + f.slice(1).toLowerCase()} (${initialBatches.filter(b => b.status === f).length})`}
@@ -66,7 +66,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                     )}
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">{batch.name}</h3>
-                      <p className="text-xs text-foreground0 mt-0.5">{batch.recipe.name} · {batch.targetQuantity} {batch.baseUnit}</p>
+                      <p className="text-xs text-foreground mt-0.5">{batch.recipe.name} · {batch.targetQuantity} {batch.baseUnit}</p>
                     </div>
                   </div>
                   <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0 ml-2">{date}</span>
@@ -79,7 +79,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-foreground0 tabular-nums">{completedSteps}/{batch.steps.length} steps · {pct}%</span>
+                  <span className="text-[10px] text-foreground tabular-nums">{completedSteps}/{batch.steps.length} steps · {pct}%</span>
                 </div>
               </Link>
             )
