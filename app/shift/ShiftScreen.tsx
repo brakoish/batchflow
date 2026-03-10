@@ -49,7 +49,9 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
   }, [shift])
 
   const updateElapsed = (startedAt: string) => {
-    const ms = Date.now() - new Date(startedAt).getTime()
+    const start = new Date(startedAt)
+    const now = new Date()
+    const ms = Math.max(0, now.getTime() - start.getTime())
     const hrs = Math.floor(ms / 3600000)
     const mins = Math.floor((ms % 3600000) / 60000)
     setElapsed(`${hrs}h ${mins.toString().padStart(2, '0')}m`)

@@ -52,7 +52,9 @@ export default function BatchListClient({
       if (res.ok) {
         const data = await res.json()
         if (data.activeShift) {
-          const ms = Date.now() - new Date(data.activeShift.startedAt).getTime()
+          const start = new Date(data.activeShift.startedAt)
+          const now = new Date()
+          const ms = Math.max(0, now.getTime() - start.getTime())
           const hrs = Math.floor(ms / 3600000)
           const mins = Math.floor((ms % 3600000) / 60000)
           setElapsed(`${hrs}h ${mins.toString().padStart(2, '0')}m`)
