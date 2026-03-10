@@ -115,13 +115,13 @@ export default function LoginPage() {
       )}
 
       {/* Numpad - Giant buttons */}
-      <div className="grid grid-cols-3 gap-4 w-full max-w-xs">
+      <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
           <button
             key={num}
             onClick={() => handleNumberClick(num.toString())}
             disabled={loading}
-            className="h-20 rounded-xl bg-card border border-border text-foreground text-2xl font-semibold hover:bg-muted active:scale-[0.95] active:bg-muted transition-all duration-150 disabled:opacity-40"
+            className="h-20 rounded-2xl bg-muted text-foreground text-2xl font-medium hover:bg-muted/80 active:scale-[0.95] transition-all duration-150 disabled:opacity-40"
           >
             {num}
           </button>
@@ -129,18 +129,18 @@ export default function LoginPage() {
         <button
           onClick={handleBackspace}
           disabled={loading || pin.length === 0}
-          className="h-20 rounded-xl bg-card border border-border text-muted-foreground hover:bg-muted active:scale-[0.95] transition-all duration-150 disabled:opacity-20 flex items-center justify-center"
+          className="h-20 rounded-2xl bg-muted text-muted-foreground hover:bg-muted/80 active:scale-[0.95] transition-all duration-150 disabled:opacity-20 flex items-center justify-center"
         >
-          <ArrowLeftIcon className="w-7 h-7" />
+          <ArrowLeftIcon className="w-6 h-6" />
         </button>
         <button
           onClick={() => handleNumberClick('0')}
           disabled={loading}
-          className="h-20 rounded-xl bg-card border border-border text-foreground text-2xl font-semibold hover:bg-muted active:scale-[0.95] transition-all duration-150 disabled:opacity-40"
+          className="h-20 rounded-2xl bg-muted text-foreground text-2xl font-medium hover:bg-muted/80 active:scale-[0.95] transition-all duration-150 disabled:opacity-40"
         >
           0
         </button>
-        <div className="h-20 rounded-xl bg-transparent" />
+        <div className="h-20" />
       </div>
 
       {loading && (
