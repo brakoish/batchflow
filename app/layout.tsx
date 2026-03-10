@@ -5,6 +5,11 @@ import { ThemeProvider } from './components/ThemeProvider'
 export const metadata: Metadata = {
   title: 'BatchFlow',
   description: 'Production workflow tracker',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 }
 
 export const viewport: Viewport = {

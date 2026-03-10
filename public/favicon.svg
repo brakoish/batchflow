@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- BatchFlow Favicon - Simplified 2x2 grid -->
+  <rect x="2" y="2" width="12" height="12" fill="currentColor"/>
+  <rect x="18" y="2" width="12" height="12" fill="currentColor"/>
+  <rect x="2" y="18" width="12" height="12" fill="currentColor"/>
+  <rect x="18" y="18" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"/>
+</svg>

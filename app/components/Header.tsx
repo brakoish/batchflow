@@ -74,9 +74,12 @@ export default function Header({ session }: HeaderProps) {
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link href={isOwner ? '/dashboard' : '/batches'} className="flex items-center gap-2">
-          <div className="w-7 h-7 border-2 border-foreground flex items-center justify-center">
-            <div className="w-3 h-3 bg-foreground" />
-          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-7 h-7 text-foreground">
+            <rect x="10" y="10" width="35" height="35" fill="currentColor"/>
+            <rect x="55" y="10" width="35" height="35" fill="currentColor"/>
+            <rect x="10" y="55" width="35" height="35" fill="currentColor"/>
+            <rect x="55" y="55" width="35" height="35" fill="none" stroke="currentColor" strokeWidth="8"/>
+          </svg>
           <span className="text-base font-bold text-foreground tracking-tight">BatchFlow</span>
         </Link>
 
