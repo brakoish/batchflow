@@ -70,7 +70,7 @@ export default function Header({ session }: HeaderProps) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
-    <header className="sticky top-0 z-40 bg-background border-b-2 border-border">
+    <header className="sticky top-0 z-40 bg-background border-b border-border">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link href={isOwner ? '/dashboard' : '/batches'} className="flex items-center gap-2">
@@ -81,19 +81,19 @@ export default function Header({ session }: HeaderProps) {
             <path d="M64 56h16a8 8 0 0 1 8 8v16a8 8 0 0 1-8 8H64a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8z"/>
             <path d="M72 72h8" strokeWidth="3"/>
           </svg>
-          <span className="text-base font-bold text-foreground tracking-tight">BatchFlow</span>
+          <span className="text-base font-semibold text-foreground tracking-tight">BatchFlow</span>
         </Link>
 
-        {/* Desktop Nav */}
+        {/* Desktop Nav - Skinny rounded pills */}
         <nav className="hidden sm:flex items-center gap-1">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-2 text-sm font-bold border-2 transition-colors ${
+              className={`px-4 py-1.5 text-sm font-medium rounded-full border transition-all ${
                 isActive(item.href)
                   ? 'bg-foreground text-background border-foreground'
-                  : 'bg-transparent text-foreground border-transparent hover:border-foreground'
+                  : 'bg-transparent text-foreground border-border hover:border-foreground'
               }`}
             >
               {item.label}
@@ -109,47 +109,48 @@ export default function Header({ session }: HeaderProps) {
             onShift ? (
               <button
                 onClick={handleClockOut}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-destructive text-destructive-foreground text-sm font-bold border-2 border-destructive"
+                className="hidden sm:flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-full border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
               >
-                <StopIcon className="w-4 h-4" /> OUT
+                <StopIcon className="w-4 h-4" /> Out
               </button>
             ) : (
               <button
                 onClick={handleClockIn}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-success text-success-foreground text-sm font-bold border-2 border-success"
+                className="hidden sm:flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-full border border-success text-success hover:bg-success hover:text-success-foreground transition-all"
               >
-                <PlayIcon className="w-4 h-4" /> IN
+                <PlayIcon className="w-4 h-4" /> In
               </button>
             )
           )}
 
-          <span className="hidden sm:block text-sm font-bold text-muted-foreground">{session.name}</span>
+          <span className="hidden sm:block text-sm font-medium text-muted-foreground">{session.name}</span>
           <button
             onClick={handleLogout}
-            className="hidden sm:flex items-center p-2 text-foreground border-2 border-transparent hover:border-foreground transition-colors"
+            className="hidden sm:flex items-center p-2 text-foreground hover:text-muted-foreground transition-colors"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </button>
 
+          {/* Mobile menu button */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="sm:hidden p-2 text-foreground border-2 border-border"
+            className="sm:hidden p-2 text-foreground"
           >
             {menuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu - Rounded cards */}
       {menuOpen && (
-        <div className="sm:hidden border-t-2 border-border bg-background">
-          <div className="px-4 py-2 space-y-1">
+        <div className="sm:hidden border-t border-border bg-background">
+          <div className="px-4 py-3 space-y-2">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
-                className={`block px-3 py-3 text-base font-bold border-2 ${
+                className={`block px-4 py-3 text-base font-medium rounded-xl border ${
                   isActive(item.href)
                     ? 'bg-foreground text-background border-foreground'
                     : 'bg-transparent text-foreground border-border'
@@ -163,14 +164,14 @@ export default function Header({ session }: HeaderProps) {
               onShift ? (
                 <button
                   onClick={() => { handleClockOut(); setMenuOpen(false) }}
-                  className="w-full text-left px-3 py-3 text-base font-bold bg-destructive text-destructive-foreground border-2 border-destructive flex items-center gap-2"
+                  className="w-full text-left px-4 py-3 text-base font-medium rounded-xl border border-destructive text-destructive flex items-center gap-2"
                 >
                   <StopIcon className="w-5 h-5" /> Clock Out
                 </button>
               ) : (
                 <button
                   onClick={() => { handleClockIn(); setMenuOpen(false) }}
-                  className="w-full text-left px-3 py-3 text-base font-bold bg-success text-success-foreground border-2 border-success flex items-center gap-2"
+                  className="w-full text-left px-4 py-3 text-base font-medium rounded-xl border border-success text-success flex items-center gap-2"
                 >
                   <PlayIcon className="w-5 h-5" /> Clock In
                 </button>
@@ -179,7 +180,7 @@ export default function Header({ session }: HeaderProps) {
 
             <button
               onClick={() => { handleLogout(); setMenuOpen(false) }}
-              className="w-full text-left px-3 py-3 text-base font-bold text-foreground border-2 border-border"
+              className="w-full text-left px-4 py-3 text-base font-medium rounded-xl border border-border text-foreground"
             >
               Log out
             </button>
