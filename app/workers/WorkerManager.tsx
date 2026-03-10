@@ -127,94 +127,86 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
     setShowEditModal(true)
   }
 
-  const openPinModal = (worker: Worker) => {
-    setEditingWorker(worker)
-    setEditPin('')
-    setError('')
-    setShowEditModal(false)
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Add Worker */}
-      <div>
-        <h2 className="text-sm font-medium text-muted-foreground mb-3">Add Worker</h2>
-        <div className="bg-card border border-border p-4 space-y-3">
+      <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+        <h2 className="text-sm font-medium text-foreground">Add Worker</h2>
+        
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Worker name"
+          className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+          disabled={loading}
+        />
+
+        <div className="flex gap-2">
           <input
             type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Worker name"
-            className="w-full px-3 py-2 bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            placeholder="PIN (4 digits)"
+            className="flex-1 px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
             disabled={loading}
+            maxLength={4}
           />
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="PIN (4 digits)"
-              className="flex-1 px-3 py-2 bg-background border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              disabled={loading}
-              maxLength={4}
-            />
-            <button
-              onClick={generatePin}
-              disabled={loading}
-              className="px-3 py-2 border border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-            >
-              Random
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            {(['WORKER', 'OWNER'] as const).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                disabled={loading}
-                className={`flex-1 py-2 text-sm font-medium border transition-colors ${
-                  role === r
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'bg-transparent text-foreground border-border hover:border-foreground'
-                }`}
-              >
-                {r.charAt(0) + r.slice(1).toLowerCase()}
-              </button>
-            ))}
-          </div>
-
-          {error && (
-            <div className="p-2 bg-destructive/10 border border-destructive">
-              <p className="text-destructive text-xs">{error}</p>
-            </div>
-          )}
-          {success && (
-            <div className="p-2 bg-success/10 border border-success">
-              <p className="text-success text-xs font-medium">{success}</p>
-            </div>
-          )}
-
           <button
-            onClick={handleSubmit}
+            onClick={generatePin}
             disabled={loading}
-            className="w-full py-2 bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40"
+            className="px-4 py-2.5 border border-border rounded-md text-sm text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
           >
-            {loading ? 'Creating...' : 'Create Worker'}
+            Random
           </button>
-          <p className="text-xs text-muted-foreground text-center">Leave PIN blank for auto-generation</p>
         </div>
+
+        <div className="flex gap-2">
+          {(['WORKER', 'OWNER'] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRole(r)}
+              disabled={loading}
+              className={`flex-1 py-2.5 text-sm font-medium rounded-md border transition-all duration-150 ${
+                role === r
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-transparent text-foreground border-border hover:border-foreground'
+              }`}
+            >
+              {r.charAt(0) + r.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="p-3 rounded-md bg-destructive-subtle border border-destructive/20">
+            <p className="text-destructive text-sm">{error}</p>
+          </div>
+        )}
+        {success && (
+          <div className="p-3 rounded-md bg-success-subtle border border-success/20">
+            <p className="text-success text-sm font-medium">{success}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full py-2.5 bg-primary text-primary-foreground font-medium text-sm rounded-md hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
+        >
+          {loading ? 'Creating...' : 'Create Worker'}
+        </button>
+        <p className="text-xs text-muted-foreground text-center">Leave PIN blank for auto-generation</p>
       </div>
 
       {/* Edit Worker Modal */}
       {showEditModal && editingWorker && (
-        <div className="bg-card border border-border p-4 space-y-3">
+        <div className="bg-card border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Edit Worker</h3>
+            <h3 className="text-sm font-medium text-foreground">Edit Worker</h3>
             <button
               onClick={() => { setShowEditModal(false); setEditingWorker(null); setError('') }}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               ✕
             </button>
@@ -225,7 +217,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             placeholder="Worker name"
-            className="w-full px-3 py-2 bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
 
           <div className="flex gap-2">
@@ -233,7 +225,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
               <button
                 key={r}
                 onClick={() => setEditRole(r)}
-                className={`flex-1 py-2 text-sm font-medium border transition-colors ${
+                className={`flex-1 py-2.5 text-sm font-medium rounded-md border transition-all duration-150 ${
                   editRole === r
                     ? 'bg-foreground text-background border-foreground'
                     : 'bg-transparent text-foreground border-border hover:border-foreground'
@@ -244,7 +236,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             ))}
           </div>
 
-          <div className="pt-2 border-t border-border">
+          <div className="pt-3 border-t border-border">
             <label className="text-xs text-muted-foreground block mb-2">Change PIN</label>
             <div className="flex gap-2">
               <input
@@ -252,13 +244,13 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
                 value={editPin}
                 onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="New PIN (4 digits)"
-                className="flex-1 px-3 py-2 bg-background border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="flex-1 px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 maxLength={4}
               />
               <button
                 onClick={handleUpdatePin}
                 disabled={loading || editPin.length !== 4}
-                className="px-3 py-2 bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
+                className="px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-40"
               >
                 Set PIN
               </button>
@@ -266,15 +258,15 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           </div>
 
           {error && (
-            <div className="p-2 bg-destructive/10 border border-destructive">
-              <p className="text-destructive text-xs">{error}</p>
+            <div className="p-3 rounded-md bg-destructive-subtle border border-destructive/20">
+              <p className="text-destructive text-sm">{error}</p>
             </div>
           )}
 
           <button
             onClick={handleUpdateWorker}
             disabled={loading || !editName.trim()}
-            className="w-full py-2 bg-foreground text-background font-medium text-sm hover:bg-foreground/90 active:scale-[0.98] transition-all disabled:opacity-40"
+            className="w-full py-2.5 bg-foreground text-background font-medium text-sm rounded-md hover:bg-foreground/90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
@@ -282,41 +274,39 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       )}
 
       {/* Worker List */}
-      <div>
-        <h2 className="text-sm font-medium text-muted-foreground mb-3">Team ({workers.length})</h2>
-        <div className="space-y-2">
-          {workers.map((worker) => (
-            <div key={worker.id} className="bg-card border border-border p-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">{worker.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-muted-foreground font-mono">PIN: {worker.pin}</span>
-                  <span className={`text-xs px-2 py-0.5 border ${
-                    worker.role === 'OWNER'
-                      ? 'bg-purple-500/10 text-purple-500 border-purple-500/30'
-                      : 'bg-primary/10 text-primary border-primary/30'
-                  }`}>
-                    {worker.role}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => openEditModal(worker)}
-                  className="px-3 py-1.5 text-xs border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteWorker(worker)}
-                  className="px-3 py-1.5 text-xs border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                >
-                  Delete
-                </button>
+      <div className="space-y-3">
+        <h2 className="text-sm font-medium text-foreground">Team ({workers.length})</h2>
+        {workers.map((worker) => (
+          <div key={worker.id} className="bg-card border border-border rounded-lg p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">{worker.name}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-muted-foreground font-mono">PIN: {worker.pin}</span>
+                <span className={`text-xs px-2 py-0.5 rounded border ${
+                  worker.role === 'OWNER'
+                    ? 'bg-purple-500/10 text-purple-500 border-purple-500/20'
+                    : 'bg-primary/10 text-primary border-primary/20'
+                }`}>
+                  {worker.role}
+                </span>
               </div>
             </div>
-          ))}
-        </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => openEditModal(worker)}
+                className="px-3 py-2 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDeleteWorker(worker)}
+                className="px-3 py-2 text-xs font-medium rounded-md border border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

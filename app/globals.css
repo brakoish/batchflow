@@ -1,112 +1,139 @@
 @import "tailwindcss";
 
 /*
- * Factory-First Design System
+ * BatchFlow Design System
  * 
  * Principles:
- * - High contrast for bright factory lighting
- * - Large touch targets (48px minimum)
- * - Flat design, no shadows (better visibility)
- * - Sharp corners (space efficient)
- * - Dense layout (less scrolling)
- * - Dark mode default (battery life on AMOLED)
- * - Clear status colors (green=done, blue=active, gray=locked)
+ * - Clean, minimal aesthetic
+ * - Consistent 8px grid
+ * - Rounded corners (8px standard, 4px small, 16px large)
+ * - 1px borders with subtle colors
+ * - Clear hierarchy with font weights
+ * - Smooth transitions (150ms)
+ * - Accessible focus states
  */
 
 @theme {
-  /* Light Mode - High contrast for bright environments */
+  /* Colors - Clean & Minimal */
   --color-background: #ffffff;
-  --color-foreground: #000000;
+  --color-foreground: #111111;
   
-  /* Cards - subtle separation */
   --color-card: #ffffff;
-  --color-card-foreground: #000000;
+  --color-card-foreground: #111111;
   
-  /* Secondary surfaces */
-  --color-muted: #f5f5f5;
+  --color-muted: #f8f8f8;
   --color-muted-foreground: #666666;
   
-  /* Borders - visible separation */
-  --color-border: #000000;
-  --color-input: #000000;
+  --color-border: #e5e5e5;
+  --color-border-strong: #111111;
+  --color-input: #e5e5e5;
   
-  /* Primary - high visibility blue */
+  /* Primary - Soft Blue */
   --color-primary: #0066ff;
   --color-primary-foreground: #ffffff;
+  --color-primary-subtle: #0066ff10;
   
-  /* Success - clear green */
-  --color-success: #00aa00;
+  /* Success - Soft Green */
+  --color-success: #00b894;
   --color-success-foreground: #ffffff;
+  --color-success-subtle: #00b89410;
   
-  /* Destructive - clear red */
-  --color-destructive: #dd0000;
+  /* Destructive - Soft Red */
+  --color-destructive: #ff6b6b;
   --color-destructive-foreground: #ffffff;
+  --color-destructive-subtle: #ff6b6b10;
   
-  /* Warning - amber */
-  --color-warning: #ff8800;
-  --color-warning-foreground: #000000;
+  /* Warning - Soft Amber */
+  --color-warning: #fdcb6e;
+  --color-warning-foreground: #111111;
   
-  /* Status colors */
+  /* Status Colors */
   --color-status-active: #0066ff;
-  --color-status-completed: #00aa00;
+  --color-status-completed: #00b894;
+  --color-status-pending: #fdcb6e;
   --color-status-locked: #999999;
   
-  /* Focus ring */
+  /* Focus */
   --color-ring: #0066ff;
+  
+  /* Spacing - 8px grid */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
 }
 
 .dark {
-  /* Dark Mode - AMOLED friendly, battery saving */
-  --color-background: #000000;
-  --color-foreground: #ffffff;
+  --color-background: #0a0a0a;
+  --color-foreground: #fafafa;
   
-  /* Cards - slight elevation */
-  --color-card: #111111;
-  --color-card-foreground: #ffffff;
+  --color-card: #141414;
+  --color-card-foreground: #fafafa;
   
-  /* Secondary surfaces */
   --color-muted: #1a1a1a;
   --color-muted-foreground: #888888;
   
-  /* Borders - visible in dark */
-  --color-border: #333333;
-  --color-input: #333333;
+  --color-border: #2a2a2a;
+  --color-border-strong: #fafafa;
+  --color-input: #2a2a2a;
   
-  /* Primary - bright blue */
-  --color-primary: #3388ff;
-  --color-primary-foreground: #000000;
+  --color-primary: #4d9fff;
+  --color-primary-foreground: #0a0a0a;
+  --color-primary-subtle: #4d9fff20;
   
-  /* Success - bright green */
-  --color-success: #00cc00;
-  --color-success-foreground: #000000;
+  --color-success: #00d9a5;
+  --color-success-foreground: #0a0a0a;
+  --color-success-subtle: #00d9a520;
   
-  /* Destructive - bright red */
-  --color-destructive: #ff3333;
-  --color-destructive-foreground: #000000;
+  --color-destructive: #ff8585;
+  --color-destructive-foreground: #0a0a0a;
+  --color-destructive-subtle: #ff858520;
   
-  /* Warning - bright amber */
-  --color-warning: #ffaa00;
-  --color-warning-foreground: #000000;
+  --color-warning: #ffe082;
+  --color-warning-foreground: #0a0a0a;
   
-  /* Status colors */
-  --color-status-active: #3388ff;
-  --color-status-completed: #00cc00;
+  --color-status-active: #4d9fff;
+  --color-status-completed: #00d9a5;
+  --color-status-pending: #ffe082;
   --color-status-locked: #666666;
   
-  /* Focus ring */
-  --color-ring: #3388ff;
+  --color-ring: #4d9fff;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   color: var(--color-foreground);
   background: var(--color-background);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Form Elements */
+input, button, select, textarea {
+  font-family: inherit;
+}
+
+input::placeholder {
+  color: var(--color-muted-foreground);
 }
 
 /* Number inputs without spinners */
@@ -127,15 +154,23 @@ input[type="number"] {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* High contrast focus states */
+/* Focus States */
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
 a:focus-visible {
-  outline: 3px solid var(--color-ring);
+  outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
 
-/* Reduced motion support */
+/* Selection */
+::selection {
+  background: var(--color-primary-subtle);
+  color: var(--color-foreground);
+}
+
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -144,4 +179,23 @@ a:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
 }

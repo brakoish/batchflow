@@ -63,7 +63,7 @@ export default function Header({ session }: HeaderProps) {
         { href: '/history', label: 'History' },
         { href: '/timesheet', label: 'Timesheet' },
         { href: '/recipes', label: 'Recipes' },
-        { href: '/workers', label: 'Team' },
+        { href: '/workers', label: 'Workers' },
       ]
     : [{ href: '/batches', label: 'Batches' }]
 
@@ -74,26 +74,25 @@ export default function Header({ session }: HeaderProps) {
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link href={isOwner ? '/dashboard' : '/batches'} className="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-7 h-7 text-foreground" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="12" y="12" width="32" height="32" rx="8" fill="currentColor" stroke="none"/>
-            <rect x="56" y="12" width="32" height="32" rx="8"/>
-            <rect x="12" y="56" width="32" height="32" rx="8"/>
-            <path d="M64 56h16a8 8 0 0 1 8 8v16a8 8 0 0 1-8 8H64a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8z"/>
-            <path d="M72 72h8" strokeWidth="3"/>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-7 h-7 text-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="12" y="12" width="32" height="32" rx="6" fill="currentColor" stroke="none"/>
+            <rect x="56" y="12" width="32" height="32" rx="6"/>
+            <rect x="12" y="56" width="32" height="32" rx="6"/>
+            <path d="M64 56h16a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H64a6 6 0 0 1-6-6V62a6 6 0 0 1 6-6z"/>
           </svg>
-          <span className="text-base font-semibold text-foreground tracking-tight">BatchFlow</span>
+          <span className="text-base font-semibold text-foreground">BatchFlow</span>
         </Link>
 
-        {/* Desktop Nav - Skinny rounded pills */}
+        {/* Desktop Nav */}
         <nav className="hidden sm:flex items-center gap-1">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`px-4 py-1.5 text-sm font-medium rounded-full border transition-all ${
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150 ${
                 isActive(item.href)
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'bg-transparent text-foreground border-border hover:border-foreground'
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
             >
               {item.label}
@@ -109,24 +108,25 @@ export default function Header({ session }: HeaderProps) {
             onShift ? (
               <button
                 onClick={handleClockOut}
-                className="hidden sm:flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-full border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-destructive-subtle text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-150"
               >
-                <StopIcon className="w-4 h-4" /> Out
+                <StopIcon className="w-4 h-4" /> Clock Out
               </button>
             ) : (
               <button
                 onClick={handleClockIn}
-                className="hidden sm:flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-full border border-success text-success hover:bg-success hover:text-success-foreground transition-all"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-success-subtle text-success hover:bg-success hover:text-success-foreground transition-all duration-150"
               >
-                <PlayIcon className="w-4 h-4" /> In
+                <PlayIcon className="w-4 h-4" /> Clock In
               </button>
             )
           )}
 
-          <span className="hidden sm:block text-sm font-medium text-muted-foreground">{session.name}</span>
+          <span className="hidden sm:block text-sm text-muted-foreground">{session.name}</span>
+          
           <button
             onClick={handleLogout}
-            className="hidden sm:flex items-center p-2 text-foreground hover:text-muted-foreground transition-colors"
+            className="hidden sm:flex items-center p-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </button>
@@ -134,26 +134,26 @@ export default function Header({ session }: HeaderProps) {
           {/* Mobile menu button */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="sm:hidden p-2 text-foreground"
+            className="sm:hidden p-2 text-foreground rounded-md hover:bg-muted transition-colors"
           >
-            {menuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+            {menuOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu - Rounded cards */}
+      {/* Mobile menu */}
       {menuOpen && (
         <div className="sm:hidden border-t border-border bg-background">
-          <div className="px-4 py-3 space-y-2">
+          <div className="px-4 py-3 space-y-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
-                className={`block px-4 py-3 text-base font-medium rounded-xl border ${
+                className={`block px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
                   isActive(item.href)
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'bg-transparent text-foreground border-border'
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
                 {item.label}
@@ -164,23 +164,23 @@ export default function Header({ session }: HeaderProps) {
               onShift ? (
                 <button
                   onClick={() => { handleClockOut(); setMenuOpen(false) }}
-                  className="w-full text-left px-4 py-3 text-base font-medium rounded-xl border border-destructive text-destructive flex items-center gap-2"
+                  className="w-full text-left px-3 py-2.5 text-sm font-medium rounded-md bg-destructive-subtle text-destructive flex items-center gap-2"
                 >
-                  <StopIcon className="w-5 h-5" /> Clock Out
+                  <StopIcon className="w-4 h-4" /> Clock Out
                 </button>
               ) : (
                 <button
                   onClick={() => { handleClockIn(); setMenuOpen(false) }}
-                  className="w-full text-left px-4 py-3 text-base font-medium rounded-xl border border-success text-success flex items-center gap-2"
+                  className="w-full text-left px-3 py-2.5 text-sm font-medium rounded-md bg-success-subtle text-success flex items-center gap-2"
                 >
-                  <PlayIcon className="w-5 h-5" /> Clock In
+                  <PlayIcon className="w-4 h-4" /> Clock In
                 </button>
               )
             )}
 
             <button
               onClick={() => { handleLogout(); setMenuOpen(false) }}
-              className="w-full text-left px-4 py-3 text-base font-medium rounded-xl border border-border text-foreground"
+              className="w-full text-left px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
             >
               Log out
             </button>

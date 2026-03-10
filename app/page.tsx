@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeftIcon } from '@heroicons/react/24/solid'
+import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { haptic } from '@/lib/haptic'
 
 export default function LoginPage() {
@@ -81,29 +81,28 @@ export default function LoginPage() {
     <div className="min-h-dvh bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-xs">
         {/* Brand */}
-        <div className="text-center mb-8">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-16 h-16 mx-auto mb-4 text-foreground" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="12" y="12" width="32" height="32" rx="8" fill="currentColor" stroke="none"/>
-            <rect x="56" y="12" width="32" height="32" rx="8"/>
-            <rect x="12" y="56" width="32" height="32" rx="8"/>
-            <path d="M64 56h16a8 8 0 0 1 8 8v16a8 8 0 0 1-8 8H64a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8z"/>
-            <path d="M72 72h8" strokeWidth="3"/>
+        <div className="text-center mb-10">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-16 h-16 mx-auto mb-4 text-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="12" y="12" width="32" height="32" rx="6" fill="currentColor" stroke="none"/>
+            <rect x="56" y="12" width="32" height="32" rx="6"/>
+            <rect x="12" y="56" width="32" height="32" rx="6"/>
+            <path d="M64 56h16a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H64a6 6 0 0 1-6-6V62a6 6 0 0 1 6-6z"/>
           </svg>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">BatchFlow</h1>
-          <p className="text-sm text-muted-foreground mt-1">Enter PIN</p>
+          <h1 className="text-2xl font-semibold text-foreground">BatchFlow</h1>
+          <p className="text-sm text-muted-foreground mt-2">Enter your PIN</p>
         </div>
 
         {/* PIN Dots */}
-        <div className="flex justify-center gap-4 mb-8">
+        <div className="flex justify-center gap-3 mb-8">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className={`w-4 h-4 border-2 transition-all duration-150 ${
+              className={`w-3 h-3 rounded-full transition-all duration-150 ${
                 success
-                  ? 'bg-success border-success'
+                  ? 'bg-success scale-110'
                   : pin[i]
-                  ? 'bg-foreground border-foreground'
-                  : 'bg-transparent border-muted-foreground'
+                  ? 'bg-foreground'
+                  : 'bg-muted'
               }`}
             />
           ))}
@@ -111,19 +110,19 @@ export default function LoginPage() {
 
         {/* Error */}
         {error && (
-          <p className="text-destructive text-center text-sm font-bold mb-4">
+          <p className="text-destructive text-center text-sm mb-6">
             {error}
           </p>
         )}
 
         {/* Numpad */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
             <button
               key={num}
               onClick={() => handleNumberClick(num.toString())}
               disabled={loading}
-              className="h-16 bg-card border-2 border-border text-foreground text-2xl font-bold active:bg-muted active:scale-[0.98] transition-all duration-100 disabled:opacity-40 select-none"
+              className="h-16 rounded-lg bg-card border border-border text-foreground text-xl font-medium hover:bg-muted active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
             >
               {num}
             </button>
@@ -132,22 +131,22 @@ export default function LoginPage() {
           <button
             onClick={() => handleNumberClick('0')}
             disabled={loading}
-            className="h-16 bg-card border-2 border-border text-foreground text-2xl font-bold active:bg-muted active:scale-[0.98] transition-all duration-100 disabled:opacity-40 select-none"
+            className="h-16 rounded-lg bg-card border border-border text-foreground text-xl font-medium hover:bg-muted active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
           >
             0
           </button>
           <button
             onClick={handleBackspace}
             disabled={loading || pin.length === 0}
-            className="h-16 bg-card border-2 border-border text-muted-foreground active:bg-muted active:scale-[0.98] transition-all duration-100 disabled:opacity-20 select-none flex items-center justify-center"
+            className="h-16 rounded-lg bg-card border border-border text-muted-foreground hover:bg-muted active:scale-[0.98] transition-all duration-150 disabled:opacity-20 flex items-center justify-center"
           >
-            <ArrowLeftIcon className="w-6 h-6" />
+            <ArrowLeftIcon className="w-5 h-5" />
           </button>
         </div>
 
         {loading && (
-          <div className="flex justify-center mt-6">
-            <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground animate-spin" />
+          <div className="flex justify-center mt-8">
+            <div className="w-5 h-5 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
           </div>
         )}
       </div>

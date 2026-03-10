@@ -66,7 +66,7 @@ export default function BatchListClient({
 
   const handleClockOut = async () => {
     haptic('medium')
-    if (!confirm('Clock out?')) return
+    if (!confirm('Clock out and end your shift?')) return
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
       if (res.ok) {
@@ -78,18 +78,16 @@ export default function BatchListClient({
 
   return (
     <AppShell session={session}>
-      <main className="max-w-2xl mx-auto px-4 py-4 pb-24">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Batches</h1>
-            <p className="text-sm text-muted-foreground">{batches.length} active</p>
-          </div>
+      <main className="max-w-2xl mx-auto px-4 py-6 pb-24">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-foreground">Active Batches</h1>
+          <p className="text-sm text-muted-foreground mt-1">{batches.length} batch{batches.length !== 1 ? 'es' : ''}</p>
         </div>
 
         {batches.length === 0 ? (
-          <EmptyState icon="inbox" title="No batches" description="Start a new production run." />
+          <EmptyState icon="inbox" title="No active batches" description="Batches will appear here when production starts." />
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {batches.map((batch) => {
               const firstIncomplete = batch.steps.find((s) => s.status !== 'COMPLETED')
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
@@ -99,14 +97,14 @@ export default function BatchListClient({
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className="block bg-card border-2 border-border p-3 active:bg-muted active:scale-[0.99] transition-all"
+                  className="block bg-card border border-border rounded-lg p-4 hover:border-foreground/20 active:scale-[0.99] transition-all duration-150"
                 >
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h2 className="text-base font-bold text-foreground truncate">{batch.name}</h2>
+                        <h2 className="text-base font-medium text-foreground truncate">{batch.name}</h2>
                         {batch.strain && (
-                          <span className="text-xs px-2 py-0.5 bg-muted text-muted-foreground font-bold border border-border">
+                          <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
                             {batch.strain}
                           </span>
                         )}
@@ -114,14 +112,14 @@ export default function BatchListClient({
                       <p className="text-sm text-muted-foreground">{batch.recipe.name}</p>
                     </div>
                     <div className="text-right ml-4 shrink-0">
-                      <span className="text-xl font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
+                      <span className="text-lg font-semibold tabular-nums text-foreground">{batch.targetQuantity}</span>
                     </div>
                   </div>
 
-                  <div className="mb-2">
-                    <div className="h-3 bg-muted border border-border">
+                  <div className="mb-3">
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-success transition-all duration-300" 
+                        className="h-full bg-success rounded-full transition-all duration-500" 
                         style={{ width: `${pct}%` }} 
                       />
                     </div>
@@ -130,7 +128,7 @@ export default function BatchListClient({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">{completedSteps}/{batch.steps.length} steps · {pct}%</span>
                     {firstIncomplete && (
-                      <span className="font-bold text-primary">
+                      <span className="font-medium text-primary">
                         {firstIncomplete.name}: {firstIncomplete.completedQuantity}/{firstIncomplete.targetQuantity}
                       </span>
                     )}
@@ -143,20 +141,20 @@ export default function BatchListClient({
 
         {/* Floating Clock Out Bar */}
         {onShift && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t-2 border-border safe-bottom">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-bottom">
             <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="w-3 h-3 bg-success animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 <div>
-                  <p className="text-sm font-bold text-foreground">ON SHIFT</p>
+                  <p className="text-sm font-medium text-foreground">On Shift</p>
                   <p className="text-xs text-muted-foreground tabular-nums">{elapsed}</p>
                 </div>
               </div>
               <button
                 onClick={handleClockOut}
-                className="flex items-center gap-1.5 px-4 py-2 bg-destructive text-destructive-foreground text-sm font-bold border-2 border-destructive"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-destructive-subtle text-destructive text-sm font-medium hover:bg-destructive hover:text-destructive-foreground transition-all duration-150"
               >
-                <StopIcon className="w-4 h-4" /> CLOCK OUT
+                <StopIcon className="w-4 h-4" /> Clock Out
               </button>
             </div>
           </div>
