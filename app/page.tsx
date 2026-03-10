@@ -81,25 +81,25 @@ export default function LoginPage() {
     <div className="min-h-dvh bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-xs">
         {/* Brand */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
-            <div className="w-6 h-6 rounded-lg bg-primary" />
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 border-2 border-foreground mb-4">
+            <div className="w-5 h-5 bg-foreground" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">BatchFlow</h1>
-          <p className="text-sm text-muted-foreground mt-1">Enter your PIN to continue</p>
+          <p className="text-sm text-muted-foreground mt-1">Enter PIN</p>
         </div>
 
         {/* PIN Dots */}
-        <div className="flex justify-center gap-3 mb-8">
+        <div className="flex justify-center gap-4 mb-8">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className={`w-3 h-3 rounded-full transition-all duration-200 ${
+              className={`w-4 h-4 border-2 transition-all duration-150 ${
                 success
-                  ? 'bg-success scale-110'
+                  ? 'bg-success border-success'
                   : pin[i]
-                  ? 'bg-foreground scale-110'
-                  : 'bg-muted border border-input'
+                  ? 'bg-foreground border-foreground'
+                  : 'bg-transparent border-muted-foreground'
               }`}
             />
           ))}
@@ -107,19 +107,19 @@ export default function LoginPage() {
 
         {/* Error */}
         {error && (
-          <p className="text-destructive text-center text-sm font-medium mb-4">
+          <p className="text-destructive text-center text-sm font-bold mb-4">
             {error}
           </p>
         )}
 
         {/* Numpad */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
             <button
               key={num}
               onClick={() => handleNumberClick(num.toString())}
               disabled={loading}
-              className="h-16 rounded-2xl bg-card text-foreground text-2xl font-medium shadow-sm active:scale-[0.95] active:shadow-none transition-all duration-100 disabled:opacity-40 select-none"
+              className="h-16 bg-card border-2 border-border text-foreground text-2xl font-bold active:bg-muted active:scale-[0.98] transition-all duration-100 disabled:opacity-40 select-none"
             >
               {num}
             </button>
@@ -128,14 +128,14 @@ export default function LoginPage() {
           <button
             onClick={() => handleNumberClick('0')}
             disabled={loading}
-            className="h-16 rounded-2xl bg-card text-foreground text-2xl font-medium shadow-sm active:scale-[0.95] active:shadow-none transition-all duration-100 disabled:opacity-40 select-none"
+            className="h-16 bg-card border-2 border-border text-foreground text-2xl font-bold active:bg-muted active:scale-[0.98] transition-all duration-100 disabled:opacity-40 select-none"
           >
             0
           </button>
           <button
             onClick={handleBackspace}
             disabled={loading || pin.length === 0}
-            className="h-16 rounded-2xl bg-card text-muted-foreground shadow-sm active:scale-[0.95] active:shadow-none transition-all duration-100 disabled:opacity-20 select-none flex items-center justify-center"
+            className="h-16 bg-card border-2 border-border text-muted-foreground active:bg-muted active:scale-[0.98] transition-all duration-100 disabled:opacity-20 select-none flex items-center justify-center"
           >
             <ArrowLeftIcon className="w-6 h-6" />
           </button>
@@ -143,7 +143,7 @@ export default function LoginPage() {
 
         {loading && (
           <div className="flex justify-center mt-6">
-            <div className="w-5 h-5 border-2 border-input border-t-primary rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground animate-spin" />
           </div>
         )}
       </div>

@@ -30,7 +30,6 @@ export default function Header({ session }: HeaderProps) {
 
   useEffect(() => {
     if (isOwner) return
-    // Check shift status
     fetch('/api/shifts')
       .then(r => r.json())
       .then(d => setOnShift(!!d.activeShift))
@@ -40,7 +39,7 @@ export default function Header({ session }: HeaderProps) {
   const handleLogout = async () => {
     haptic('light')
     await fetch('/api/auth/logout', { method: 'POST' })
-    window.location.href = '/' // hard refresh to clear state
+    window.location.href = '/'
   }
 
   const handleClockOut = async () => {
@@ -64,21 +63,21 @@ export default function Header({ session }: HeaderProps) {
         { href: '/history', label: 'History' },
         { href: '/timesheet', label: 'Timesheet' },
         { href: '/recipes', label: 'Recipes' },
-        { href: '/workers', label: 'Workers' },
+        { href: '/workers', label: 'Team' },
       ]
     : [{ href: '/batches', label: 'Batches' }]
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
-    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
+    <header className="sticky top-0 z-40 bg-background border-b-2 border-border">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
-        <Link href={isOwner ? '/dashboard' : '/batches'} className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-            <div className="w-4 h-4 rounded-md bg-primary-foreground" />
+        <Link href={isOwner ? '/dashboard' : '/batches'} className="flex items-center gap-2">
+          <div className="w-7 h-7 border-2 border-foreground flex items-center justify-center">
+            <div className="w-3 h-3 bg-foreground" />
           </div>
-          <span className="text-base font-semibold text-foreground tracking-tight">BatchFlow</span>
+          <span className="text-base font-bold text-foreground tracking-tight">BatchFlow</span>
         </Link>
 
         {/* Desktop Nav */}
@@ -87,10 +86,10 @@ export default function Header({ session }: HeaderProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-2 text-sm font-bold border-2 transition-colors ${
                 isActive(item.href)
-                  ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-transparent text-foreground border-transparent hover:border-foreground'
               }`}
             >
               {item.label}
@@ -100,40 +99,37 @@ export default function Header({ session }: HeaderProps) {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
-          {/* Theme toggle */}
           <ThemeToggle />
 
-          {/* Clock In/Out button */}
           {!isOwner && (
             onShift ? (
               <button
                 onClick={handleClockOut}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive text-sm font-medium transition-colors"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-destructive text-destructive-foreground text-sm font-bold border-2 border-destructive"
               >
-                <StopIcon className="w-4 h-4" /> Clock Out
+                <StopIcon className="w-4 h-4" /> OUT
               </button>
             ) : (
               <button
                 onClick={handleClockIn}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 text-success dark:text-success-foreground text-sm font-medium transition-colors"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-success text-success-foreground text-sm font-bold border-2 border-success"
               >
-                <PlayIcon className="w-4 h-4" /> Clock In
+                <PlayIcon className="w-4 h-4" /> IN
               </button>
             )
           )}
 
-          <span className="hidden sm:block text-sm text-muted-foreground">{session.name}</span>
+          <span className="hidden sm:block text-sm font-bold text-muted-foreground">{session.name}</span>
           <button
             onClick={handleLogout}
-            className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors p-2 rounded-lg hover:bg-muted"
+            className="hidden sm:flex items-center p-2 text-foreground border-2 border-transparent hover:border-foreground transition-colors"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </button>
 
-          {/* Mobile menu toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="sm:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="sm:hidden p-2 text-foreground border-2 border-border"
           >
             {menuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
           </button>
@@ -142,36 +138,35 @@ export default function Header({ session }: HeaderProps) {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="sm:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
-          <div className="px-4 py-3 space-y-1">
+        <div className="sm:hidden border-t-2 border-border bg-background">
+          <div className="px-4 py-2 space-y-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
-                className={`block px-3 py-2.5 rounded-lg text-base font-medium transition-colors ${
+                className={`block px-3 py-3 text-base font-bold border-2 ${
                   isActive(item.href)
-                    ? 'bg-muted text-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-transparent text-foreground border-border'
                 }`}
               >
                 {item.label}
               </Link>
             ))}
 
-            {/* Mobile clock in/out */}
             {!isOwner && (
               onShift ? (
                 <button
                   onClick={() => { handleClockOut(); setMenuOpen(false) }}
-                  className="w-full text-left px-3 py-2.5 rounded-lg text-base font-medium text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
+                  className="w-full text-left px-3 py-3 text-base font-bold bg-destructive text-destructive-foreground border-2 border-destructive flex items-center gap-2"
                 >
                   <StopIcon className="w-5 h-5" /> Clock Out
                 </button>
               ) : (
                 <button
                   onClick={() => { handleClockIn(); setMenuOpen(false) }}
-                  className="w-full text-left px-3 py-2.5 rounded-lg text-base font-medium text-success dark:text-success-foreground hover:bg-success/10 transition-colors flex items-center gap-2"
+                  className="w-full text-left px-3 py-3 text-base font-bold bg-success text-success-foreground border-2 border-success flex items-center gap-2"
                 >
                   <PlayIcon className="w-5 h-5" /> Clock In
                 </button>
@@ -180,7 +175,7 @@ export default function Header({ session }: HeaderProps) {
 
             <button
               onClick={() => { handleLogout(); setMenuOpen(false) }}
-              className="w-full text-left px-3 py-2.5 rounded-lg text-base font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="w-full text-left px-3 py-3 text-base font-bold text-foreground border-2 border-border"
             >
               Log out
             </button>
