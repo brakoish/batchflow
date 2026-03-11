@@ -7,12 +7,21 @@ import { haptic } from '@/lib/haptic'
 
 type Shift = { id: string; startedAt: string }
 type TodayStats = { batches: number; units: number }
+type WorkerStats = {
+  totalUnits: number
+  totalShifts: number
+  totalHours: number
+  unitsPerHour: number
+  streak: number
+}
 
 export default function ShiftScreen({ worker }: { worker: { id: string; name: string; role: string } }) {
   const [shift, setShift] = useState<Shift | null>(null)
   const [elapsed, setElapsed] = useState('0h 00m')
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState<TodayStats>({ batches: 0, units: 0 })
+  const [workerStats, setWorkerStats] = useState<WorkerStats | null>(null)
+  const [showStats, setShowStats] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -37,6 +46,14 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
             setStats({ batches: me.batches?.length || 0, units: me.todayUnits || 0 })
           }
         }
+      })
+      .catch(() => {})
+
+    // Fetch worker stats
+    fetch('/api/workers/stats')
+      .then(r => r.json())
+      .then(d => {
+        if (d.stats) setWorkerStats(d.stats)
       })
       .catch(() => {})
   }, [worker.id])
@@ -114,7 +131,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
         </div>
 
         {/* Today's Stats */}
-        <div className="flex gap-6 mb-10">
+        <div className="flex gap-6 mb-6">
           <div className="flex items-center gap-2 text-muted-foreground">
             <CubeIcon className="w-5 h-5" />
             <span className="text-sm">{stats.batches} batches</span>
@@ -124,6 +141,40 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
             <span className="text-sm">{stats.units} units</span>
           </div>
         </div>
+
+        {/* My Stats Button */}
+        {workerStats && (
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+          >
+            {showStats ? 'Hide' : 'Show'} My Stats
+          </button>
+        )}
+
+        {/* Worker Stats */}
+        {showStats && workerStats && (
+          <div className="w-full max-w-xs bg-card border border-border rounded-xl p-4 mb-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{workerStats.totalUnits}</p>
+                <p className="text-xs text-muted-foreground">Total Units</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{workerStats.unitsPerHour}</p>
+                <p className="text-xs text-muted-foreground">Units/Hour</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{workerStats.totalShifts}</p>
+                <p className="text-xs text-muted-foreground">Shifts</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-success">{workerStats.streak}</p>
+                <p className="text-xs text-muted-foreground">Day Streak</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Action */}

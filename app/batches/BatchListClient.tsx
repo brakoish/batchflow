@@ -22,28 +22,51 @@ export default function BatchListClient({
   const [batches, setBatches] = useState(initialBatches)
   const [onShift, setOnShift] = useState(false)
   const [elapsed, setElapsed] = useState('0h 00m')
+  const [refreshing, setRefreshing] = useState(false)
+  const [touchStart, setTouchStart] = useState(0)
+
+  const fetchData = async (showLoading = false) => {
+    if (showLoading) setRefreshing(true)
+    try {
+      const [bRes, sRes] = await Promise.all([
+        fetch('/api/batches'),
+        fetch('/api/shifts'),
+      ])
+      if (bRes.ok) {
+        const data = await bRes.json()
+        if (data.batches) setBatches(data.batches)
+      }
+      if (sRes.ok) {
+        const data = await sRes.json()
+        setOnShift(!!data.activeShift)
+      }
+    } catch {}
+    if (showLoading) setRefreshing(false)
+  }
 
   useEffect(() => {
-    const poll = async () => {
-      try {
-        const [bRes, sRes] = await Promise.all([
-          fetch('/api/batches'),
-          fetch('/api/shifts'),
-        ])
-        if (bRes.ok) {
-          const data = await bRes.json()
-          if (data.batches) setBatches(data.batches)
-        }
-        if (sRes.ok) {
-          const data = await sRes.json()
-          setOnShift(!!data.activeShift)
-        }
-      } catch {}
-    }
-    poll()
-    const id = setInterval(poll, 5000)
+    fetchData()
+    const id = setInterval(() => fetchData(), 5000)
     return () => clearInterval(id)
   }, [])
+
+  // Pull to refresh handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      setTouchStart(e.touches[0].clientY)
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStart > 0 && window.scrollY === 0) {
+      const pullDistance = e.touches[0].clientY - touchStart
+      if (pullDistance > 100) {
+        haptic('light')
+        fetchData(true)
+        setTouchStart(0)
+      }
+    }
+  }
 
   useEffect(() => {
     if (!onShift) return
@@ -80,7 +103,18 @@ export default function BatchListClient({
 
   return (
     <AppShell session={session}>
-      <main className="max-w-2xl mx-auto px-4 py-6 pb-32">
+      <main 
+        className="max-w-2xl mx-auto px-4 py-6 pb-32"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+      >
+        {/* Pull to refresh indicator */}
+        {refreshing && (
+          <div className="flex justify-center py-4">
+            <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
+          </div>
+        )}
+        
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Your Batches</h1>

@@ -37,6 +37,7 @@ export default function DashboardClient({
   const [activity, setActivity] = useState(initialActivity)
   const [workerSummary, setWorkerSummary] = useState<{ id: string; name: string; todayLogs: number; todayUnits: number; batches: string[]; onShift?: boolean; lastActivity?: string }[]>([])
   const [activeWorkers, setActiveWorkers] = useState(0)
+  const [showCompleted, setShowCompleted] = useState(false)
 
   useEffect(() => {
     const poll = async () => {
@@ -72,7 +73,7 @@ export default function DashboardClient({
         <div className="flex items-center gap-4 mb-5 text-xs text-muted-foreground">
           <span className="text-foreground font-semibold text-lg tracking-tight">Dashboard</span>
           <span className="text-border">|</span>
-          <span>{batches.length} active</span>
+          <span>{batches.filter(b => b.status === 'ACTIVE').length} active</span>
           <span className="text-border">·</span>
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -80,15 +81,21 @@ export default function DashboardClient({
           </span>
           <span className="text-border">·</span>
           <span>{totalUnits.toLocaleString()} units</span>
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showCompleted ? 'Hide Completed' : 'Show Completed'}
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Batches */}
           <div className="lg:col-span-2 space-y-2.5">
-            {batches.length === 0 ? (
-              <EmptyState icon="clipboard" title="No active batches" description="Start your first production run" actionLabel="Create Batch" actionHref="/batches/new" />
+            {batches.filter(b => showCompleted || b.status === 'ACTIVE').length === 0 ? (
+              <EmptyState icon="clipboard" title={showCompleted ? "No batches" : "No active batches"} description={showCompleted ? "No batches found." : "Start your first production run"} actionLabel={!showCompleted ? "Create Batch" : undefined} actionHref="/batches/new" />
             ) : (
-              batches.map((batch) => {
+              batches.filter(b => showCompleted || b.status === 'ACTIVE').map((batch) => {
                 const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
 
                 return (
