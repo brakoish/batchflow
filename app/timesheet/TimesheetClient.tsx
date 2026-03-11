@@ -58,6 +58,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   }
 
   const openEditModal = (shift: Shift) => {
+    haptic('light')
     setEditingShift(shift)
     // Format dates for datetime-local input
     const start = new Date(shift.startedAt)
@@ -135,33 +136,35 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
+      {/* Filters - Stack on mobile */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <select
           value={filterWorker}
           onChange={(e) => setFilterWorker(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+          className="px-3 py-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
         >
           <option value="">All Workers</option>
           {workers.map((w) => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
         </select>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
-        />
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
-        />
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="flex-1 px-3 py-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="flex-1 px-3 py-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+          />
+        </div>
         <button
           onClick={handleExport}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           Export CSV
         </button>
@@ -188,94 +191,104 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Modal - Full screen on mobile */}
       {editingShift && (
-        <div className="bg-card border border-border rounded-lg p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-foreground">Edit Shift - {editingShift.worker.name}</h3>
-            <button
-              onClick={() => setEditingShift(null)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Start Time</label>
-              <input
-                type="datetime-local"
-                value={editStart}
-                onChange={(e) => setEditStart(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:border-primary"
-              />
+        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl p-5 w-full max-w-md space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-medium text-foreground">Edit Shift</h3>
+              <button
+                onClick={() => setEditingShift(null)}
+                className="text-muted-foreground hover:text-foreground p-2"
+              >
+                ✕
+              </button>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">End Time (leave blank if still on shift)</label>
-              <input
-                type="datetime-local"
-                value={editEnd}
-                onChange={(e) => setEditEnd(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:border-primary"
-              />
+            
+            <div className="text-sm text-muted-foreground mb-2">
+              {editingShift.worker.name}
             </div>
-          </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Start Time</label>
+                <input
+                  type="datetime-local"
+                  value={editStart}
+                  onChange={(e) => setEditStart(e.target.value)}
+                  className="w-full px-3 py-3 bg-background border border-border rounded-lg text-foreground text-base focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">End Time</label>
+                <input
+                  type="datetime-local"
+                  value={editEnd}
+                  onChange={(e) => setEditEnd(e.target.value)}
+                  className="w-full px-3 py-3 bg-background border border-border rounded-lg text-foreground text-base focus:outline-none focus:border-primary"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Leave blank if still on shift</p>
+              </div>
+            </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={handleUpdateShift}
-              disabled={loading}
-              className="flex-1 py-2 bg-primary text-primary-foreground font-medium text-sm rounded-md hover:bg-primary/90 transition-colors disabled:opacity-40"
-            >
-              {loading ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button
-              onClick={() => handleDeleteShift(editingShift)}
-              disabled={loading}
-              className="px-4 py-2 border border-destructive text-destructive text-sm font-medium rounded-md hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-40"
-            >
-              Delete
-            </button>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleUpdateShift}
+                disabled={loading}
+                className="flex-1 py-3 bg-primary text-primary-foreground font-medium text-sm rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40"
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => handleDeleteShift(editingShift)}
+                disabled={loading}
+                className="px-4 py-3 border border-destructive text-destructive text-sm font-medium rounded-lg hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-40"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Shifts list */}
-      <div className="rounded-lg border border-border bg-card divide-y divide-border">
+      {/* Shifts list - Mobile optimized */}
+      <div className="space-y-2">
         {shifts.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">No shifts found</p>
         ) : (
           shifts.map((shift) => (
-            <div key={shift.id} className="px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-primary">{shift.worker.name.charAt(0)}</span>
+            <div key={shift.id} className="bg-card border border-border rounded-lg p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-primary">{shift.worker.name.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{shift.worker.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(shift.startedAt).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {shift.endedAt && ` - ${new Date(shift.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{shift.worker.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(shift.startedAt).toLocaleDateString()} · {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    {shift.endedAt && ` - ${new Date(shift.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <p className={`text-sm font-semibold tabular-nums ${shift.status === 'ACTIVE' ? 'text-success' : 'text-foreground'}`}>
+                  <p className={`text-base font-semibold tabular-nums ${shift.status === 'ACTIVE' ? 'text-success' : 'text-foreground'}`}>
                     {shift.hours.toFixed(2)}h
                   </p>
                   {shift.status === 'ACTIVE' && (
                     <span className="text-xs text-success">On shift</span>
                   )}
                 </div>
-                <button
-                  onClick={() => openEditModal(shift)}
-                  className="px-3 py-1.5 text-xs border border-border text-muted-foreground hover:text-foreground hover:border-foreground rounded-md transition-colors"
-                >
-                  Edit
-                </button>
               </div>
+              <button
+                onClick={() => openEditModal(shift)}
+                className="w-full mt-3 py-2.5 text-sm font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+              >
+                Edit Shift
+              </button>
             </div>
           ))
         )}
