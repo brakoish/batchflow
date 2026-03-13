@@ -97,6 +97,7 @@ export default function BatchDetailClient({
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [toastType, setToastType] = useState<'success' | 'warning'>('success')
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
   const quantityRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -585,27 +586,52 @@ export default function BatchDetailClient({
                   </div>
                 )}
 
-                {/* Recent logs */}
+                {/* Logs */}
                 {step.progressLogs && step.progressLogs.length > 0 && !isLocked && (
                   <div className="mt-3 space-y-1">
-                    {step.progressLogs.slice(0, 3).map((log) => {
-                      const canEdit = session.role === 'OWNER' || session.id === log.worker.id
+                    {(() => {
+                      const isExpanded = expandedSteps.has(step.id)
+                      const logs = isExpanded ? step.progressLogs : step.progressLogs.slice(0, 3)
+                      const hasMore = step.progressLogs.length > 3
                       return (
-                        <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground">
-                          <button
-                            onClick={() => canEdit && handleEditLog(log, step.id)}
-                            disabled={!canEdit}
-                            className={`flex items-center gap-1.5 text-left ${canEdit ? 'hover:bg-muted/30 active:scale-[0.98] rounded px-1 -mx-1 py-0.5 transition-all' : ''}`}
-                          >
-                            <span className="text-muted-foreground font-medium">{log.worker.name}</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
-                            {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
-                            <span className="text-muted-foreground/30">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            {log.editedAt && <span className="text-muted-foreground/50 italic">(edited)</span>}
-                          </button>
-                        </div>
+                        <>
+                          {logs.map((log) => {
+                            const canEdit = session.role === 'OWNER' || session.id === log.worker.id
+                            return (
+                              <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground">
+                                <button
+                                  onClick={() => canEdit && handleEditLog(log, step.id)}
+                                  disabled={!canEdit}
+                                  className={`flex items-center gap-1.5 text-left ${canEdit ? 'hover:bg-muted/30 active:scale-[0.98] rounded px-1 -mx-1 py-0.5 transition-all' : ''}`}
+                                >
+                                  <span className="text-muted-foreground font-medium">{log.worker.name}</span>
+                                  <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
+                                  {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
+                                  <span className="text-muted-foreground/30">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  {log.editedAt && <span className="text-muted-foreground/50 italic">(edited)</span>}
+                                </button>
+                              </div>
+                            )
+                          })}
+                          {hasMore && (
+                            <button
+                              onClick={() => {
+                                haptic('light')
+                                setExpandedSteps(prev => {
+                                  const next = new Set(prev)
+                                  if (next.has(step.id)) next.delete(step.id)
+                                  else next.add(step.id)
+                                  return next
+                                })
+                              }}
+                              className="text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-500 active:scale-[0.98] py-1 transition-all"
+                            >
+                              {isExpanded ? 'Show less' : `Show all ${step.progressLogs.length} entries`}
+                            </button>
+                          )}
+                        </>
                       )
-                    })}
+                    })()}
                   </div>
                 )}
               </div>
