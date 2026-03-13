@@ -13,7 +13,15 @@ type Batch = {
   recipe: { name: string }; steps: Step[]
 }
 type ActivityLog = {
-  id: string; quantity: number; note: string | null; createdAt: string
+  id: string
+  type: 'log' | 'edit' | 'delete'
+  quantity?: number
+  note?: string | null
+  oldQuantity?: number | null
+  newQuantity?: number | null
+  oldNote?: string | null
+  newNote?: string | null
+  createdAt: string
   worker: { id: string; name: string }
   batchStep: { name: string; batch: { id: string; name: string } }
 }
@@ -34,7 +42,7 @@ export default function DashboardClient({
   initialBatches: Batch[]; initialActivity: ActivityLog[]; session: Session
 }) {
   const [batches, setBatches] = useState(initialBatches)
-  const [activity, setActivity] = useState(initialActivity)
+  const [activity, setActivity] = useState<ActivityLog[]>(initialActivity)
   const [workerSummary, setWorkerSummary] = useState<{ id: string; name: string; todayLogs: number; todayUnits: number; batches: string[]; onShift?: boolean; lastActivity?: string }[]>([])
   const [activeWorkers, setActiveWorkers] = useState(0)
   const [showCompleted, setShowCompleted] = useState(false)
@@ -48,7 +56,7 @@ export default function DashboardClient({
           fetch('/api/workers/activity'),
         ])
         if (bRes.ok) { const d = await bRes.json(); if (d.batches) setBatches(d.batches) }
-        if (aRes.ok) { const d = await aRes.json(); if (d.logs) setActivity(d.logs) }
+        if (aRes.ok) { const d = await aRes.json(); if (d.activities) setActivity(d.activities) }
         if (wRes.ok) { 
           const d = await wRes.json(); 
           if (d.workers) {
@@ -63,7 +71,7 @@ export default function DashboardClient({
     return () => clearInterval(id)
   }, [])
 
-  const totalUnits = activity.reduce((sum, l) => sum + l.quantity, 0)
+  const totalUnits = activity.reduce((sum, l) => sum + (l.type === 'log' ? (l.quantity || 0) : 0), 0)
 
   return (
     <AppShell session={session}>
@@ -185,25 +193,58 @@ export default function DashboardClient({
               {activity.length === 0 ? (
                 <p className="text-xs text-muted-foreground/60 text-center py-8">No activity yet</p>
               ) : (
-                activity.slice(0, 10).map((log) => (
-                  <div key={log.id} className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{log.worker.name.charAt(0)}</span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-foreground/80">
-                          <span className="font-medium text-foreground">{log.worker.name}</span>
-                          {' '}logged{' '}
-                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">+{log.quantity}</span>
-                        </p>
-                        <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
-                          {log.batchStep.batch.name} · {log.batchStep.name} · {timeAgo(log.createdAt)}
-                        </p>
+                activity.slice(0, 10).map((item) => {
+                  const isLog = item.type === 'log'
+                  const isEdit = item.type === 'edit'
+                  const isDelete = item.type === 'delete'
+
+                  return (
+                    <div key={item.id} className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                          isLog ? 'bg-emerald-500/10' : 'bg-muted'
+                        }`}>
+                          {isLog ? (
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{item.worker.name.charAt(0)}</span>
+                          ) : isEdit ? (
+                            <span className="text-[10px]">✏️</span>
+                          ) : (
+                            <span className="text-[10px]">🗑</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-foreground/80">
+                            <span className="font-medium text-foreground">{item.worker.name}</span>
+                            {isLog && (
+                              <>
+                                {' '}logged{' '}
+                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">+{item.quantity}</span>
+                              </>
+                            )}
+                            {isEdit && (
+                              <>
+                                {' '}edited {item.batchStep.name}:{' '}
+                                <span className="text-muted-foreground/70 tabular-nums">{item.oldQuantity}</span>
+                                {' → '}
+                                <span className="text-blue-600 dark:text-blue-400 font-semibold tabular-nums">{item.newQuantity}</span>
+                              </>
+                            )}
+                            {isDelete && (
+                              <>
+                                {' '}deleted{' '}
+                                <span className="text-red-500 dark:text-red-400 font-semibold tabular-nums">+{item.oldQuantity}</span>
+                                {' '}from {item.batchStep.name}
+                              </>
+                            )}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
+                            {item.batchStep.batch.name} · {timeAgo(item.createdAt)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
 

@@ -14,7 +14,7 @@ import { haptic } from '@/lib/haptic'
 
 type Worker = { id: string; name: string }
 type ProgressLog = {
-  id: string; quantity: number; note: string | null; createdAt: string; worker: Worker
+  id: string; quantity: number; note: string | null; createdAt: string; editedAt?: string; worker: Worker
 }
 type StepMaterial = { name: string; quantityPerUnit: number; unit: string }
 type BatchStep = {
@@ -96,8 +96,14 @@ export default function BatchDetailClient({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
+  const [toastType, setToastType] = useState<'success' | 'warning'>('success')
   const quantityRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Edit log modal state
+  const [editingLog, setEditingLog] = useState<ProgressLog | null>(null)
+  const [editQuantity, setEditQuantity] = useState('')
+  const [editNote, setEditNote] = useState('')
   
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
@@ -133,9 +139,10 @@ export default function BatchDetailClient({
     }
   }, [selectedStep])
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, type: 'success' | 'warning' = 'success') => {
     setToast(msg)
-    setTimeout(() => setToast(''), 2000)
+    setToastType(type)
+    setTimeout(() => setToast(''), 3000)
   }
 
   const handleStatusChange = async (status: string) => {
@@ -177,15 +184,73 @@ export default function BatchDetailClient({
     }
   }
 
+  const handleEditLog = (log: ProgressLog, stepId: string) => {
+    setEditingLog({ ...log, stepId } as any)
+    setEditQuantity(log.quantity.toString())
+    setEditNote(log.note || '')
+    setError('')
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingLog || !editQuantity || parseInt(editQuantity) <= 0) {
+      setError('Enter a valid quantity')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/logs/${editingLog.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quantity: parseInt(editQuantity),
+          note: editNote || null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to update log')
+        return
+      }
+      const data = await res.json()
+      // Update batch with new data
+      setBatch(prev => ({
+        ...prev,
+        steps: prev.steps.map(s => {
+          if (s.id === data.step.id) {
+            return {
+              ...s,
+              completedQuantity: data.step.completedQuantity,
+              status: data.step.status,
+              progressLogs: s.progressLogs.map(l =>
+                l.id === editingLog.id
+                  ? { ...l, quantity: data.log.quantity, note: data.log.note, editedAt: data.log.editedAt }
+                  : l
+              ),
+            }
+          }
+          return s
+        }),
+      }))
+      setEditingLog(null)
+      showToast('Log updated')
+    } catch (err) {
+      setError('Network error. Please check your connection.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDeleteLog = async (logId: string, stepId: string, qty: number) => {
     if (!confirm(`Delete this log entry (+${qty})?`)) return
     setError('')
+    setLoading(true)
     try {
       const res = await fetch(`/api/logs/${logId}`, { method: 'DELETE' })
-      if (!res.ok) { 
+      if (!res.ok) {
         const data = await res.json().catch(() => ({ error: 'Server error' }))
         setError(data.error || 'Failed to delete log')
-        return 
+        return
       }
       // Optimistically update
       setBatch(prev => ({
@@ -201,9 +266,12 @@ export default function BatchDetailClient({
           return s
         }),
       }))
+      setEditingLog(null)
       showToast('Log entry deleted')
-    } catch (err) { 
+    } catch (err) {
       setError('Network error. Please check your connection.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -285,6 +353,7 @@ export default function BatchDetailClient({
       })
       if (!res.ok) { setError((await res.json()).error); return }
 
+      const data = await res.json()
       const qty = parseInt(quantity)
       setBatch(prev => ({
         ...prev,
@@ -298,9 +367,13 @@ export default function BatchDetailClient({
         }),
       }))
 
-      showToast(`Logged ${qty} units`)
+      if (data.warning) {
+        showToast(data.warning, 'warning')
+      } else {
+        showToast(`Logged ${qty} units`)
+      }
       setSelectedStep(null); setQuantity(''); setNote('')
-    } catch (err) { 
+    } catch (err) {
       setError('Network error. Please check your connection.')
     }
     finally { setLoading(false) }
@@ -322,7 +395,9 @@ export default function BatchDetailClient({
       {/* Toast */}
       {toast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium shadow-lg">
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white text-sm font-medium shadow-lg ${
+            toastType === 'warning' ? 'bg-yellow-500' : 'bg-emerald-500'
+          }`}>
             <CheckCircleIcon className="w-4 h-4" />
             {toast}
           </div>
@@ -513,25 +588,24 @@ export default function BatchDetailClient({
                 {/* Recent logs */}
                 {step.progressLogs && step.progressLogs.length > 0 && !isLocked && (
                   <div className="mt-3 space-y-1">
-                    {step.progressLogs.slice(0, 3).map((log) => (
-                      <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-muted-foreground font-medium">{log.worker.name}</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
-                          {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
-                          <span className="text-muted-foreground/30">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                        {(session.role === 'OWNER' || session.id === log.worker.id) && (
+                    {step.progressLogs.slice(0, 3).map((log) => {
+                      const canEdit = session.role === 'OWNER' || session.id === log.worker.id
+                      return (
+                        <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground">
                           <button
-                            onClick={() => handleDeleteLog(log.id, step.id, log.quantity)}
-                            className="flex items-center justify-center w-8 h-8 min-w-[32px] rounded-lg text-muted-foreground/70 hover:text-red-500 dark:text-red-400 hover:bg-muted/50 transition-colors"
-                            title="Delete this log"
+                            onClick={() => canEdit && handleEditLog(log, step.id)}
+                            disabled={!canEdit}
+                            className={`flex items-center gap-1.5 text-left ${canEdit ? 'hover:bg-muted/30 active:scale-[0.98] rounded px-1 -mx-1 py-0.5 transition-all' : ''}`}
                           >
-                            <XMarkIcon className="w-4 h-4" />
+                            <span className="text-muted-foreground font-medium">{log.worker.name}</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
+                            {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
+                            <span className="text-muted-foreground/30">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {log.editedAt && <span className="text-muted-foreground/50 italic">(edited)</span>}
                           </button>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -602,6 +676,73 @@ export default function BatchDetailClient({
               >
                 {loading ? 'Saving...' : 'Submit'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Log Modal */}
+      {editingLog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-sm font-semibold text-foreground">Edit Log Entry</p>
+                <button
+                  onClick={() => { setEditingLog(null); setError('') }}
+                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Quantity</label>
+                  <input
+                    type="number"
+                    value={editQuantity}
+                    onChange={(e) => setEditQuantity(e.target.value)}
+                    className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-xl font-semibold tabular-nums placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Note (optional)</label>
+                  <input
+                    type="text"
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    placeholder="Note (optional)"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+
+                {error && <p className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
+
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={loading || !editQuantity || parseInt(editQuantity) <= 0}
+                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+
+                <button
+                  onClick={() => handleDeleteLog(editingLog.id, (editingLog as any).stepId, editingLog.quantity)}
+                  disabled={loading}
+                  className="w-full py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 active:scale-[0.98] text-red-500 dark:text-red-400 font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+                >
+                  Delete Entry
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -55,19 +55,19 @@ export async function POST(
 
     // Calculate ceiling (normalize across different unit ratios)
     const newTotal = step.completedQuantity + quantity
+    let warning = ''
+
     if (previousStep) {
       // Convert previous step's completed qty to base units, then to this step's units
       const prevBaseUnits = (previousStep as any).completedQuantity * ((previousStep as any).unitRatio || 1)
       const ceiling = Math.floor(prevBaseUnits / ((step as any).unitRatio || 1))
 
       if (newTotal > ceiling) {
-        return NextResponse.json(
-          { error: `Cannot exceed ${ceiling} ${(step as any).unitLabel || 'units'} (limited by ${(previousStep as any).name})` },
-          { status: 400 }
-        )
+        const excess = newTotal - ceiling
+        warning = `Exceeds ${(previousStep as any).name} count by ${excess}`
       }
     } else {
-      // First step: ceiling is the step's own target
+      // First step: ceiling is the step's own target - keep this as a hard stop
       if (newTotal > step.targetQuantity) {
         return NextResponse.json(
           { error: `Cannot exceed target of ${step.targetQuantity}` },
@@ -91,6 +91,18 @@ export async function POST(
             name: true,
           },
         },
+      },
+    })
+
+    // Create audit log for this creation
+    await prisma.logAudit.create({
+      data: {
+        progressLogId: progressLog.id,
+        batchStepId: stepId,
+        workerId: session.id,
+        action: 'create',
+        newQuantity: quantity,
+        newNote: note,
       },
     })
 
@@ -141,6 +153,7 @@ export async function POST(
     return NextResponse.json({
       progressLog,
       step: updatedStep,
+      ...(warning && { warning }),
     })
   } catch (error) {
     console.error('Log progress error:', error)
