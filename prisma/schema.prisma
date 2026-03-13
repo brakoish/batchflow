@@ -39,6 +39,7 @@ model Worker {
   assignments BatchAssignment[]
   shifts      Shift[]
   logAudits   LogAudit[]
+  batchMessages BatchMessage[]
 }
 
 model Recipe {
@@ -105,7 +106,7 @@ model Batch {
   dueDate         DateTime?
   completedDate   DateTime?
   createdAt       DateTime      @default(now())
-  
+
   // METRC prep fields
   metrcBatchId    String?
   lotNumber       String?
@@ -113,6 +114,7 @@ model Batch {
   packageTag      String?
   steps           BatchStep[]
   assignments     BatchAssignment[]
+  messages        BatchMessage[]
 
   @@index([recipeId])
   @@index([status])
@@ -204,5 +206,18 @@ model LogAudit {
 
   @@index([batchStepId])
   @@index([workerId])
+  @@index([createdAt])
+}
+
+model BatchMessage {
+  id        String   @id @default(cuid())
+  batchId   String
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  workerId  String
+  worker    Worker   @relation(fields: [workerId], references: [id])
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([batchId])
   @@index([createdAt])
 }

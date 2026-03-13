@@ -35,6 +35,12 @@ type Batch = {
   assignments?: { worker: Worker }[]
 }
 type Session = { id: string; name: string; role: string }
+type BatchMessage = {
+  id: string
+  message: string
+  createdAt: string
+  worker: Worker
+}
 
 // Smart increment buttons that adapt to remaining quantity
 function QuickAddButtons({ remaining, current, onAdd }: { remaining: number; current: number; onAdd: (val: number) => void }) {
@@ -101,6 +107,12 @@ export default function BatchDetailClient({
   const quantityRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Chat state
+  const [messages, setMessages] = useState<BatchMessage[]>([])
+  const [newMessage, setNewMessage] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+
   // Edit log modal state
   const [editingLog, setEditingLog] = useState<ProgressLog | null>(null)
   const [editQuantity, setEditQuantity] = useState('')
@@ -129,7 +141,24 @@ export default function BatchDetailClient({
       } catch {}
     }
 
-    pollRef.current = setInterval(fetchBatch, 5000)
+    const fetchMessages = async () => {
+      try {
+        const res = await fetch(`/api/batches/${batch.id}/chat`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.messages) setMessages(data.messages)
+        }
+      } catch {}
+    }
+
+    // Initial fetch
+    fetchMessages()
+
+    // Poll both batch and messages
+    pollRef.current = setInterval(() => {
+      fetchBatch()
+      fetchMessages()
+    }, 5000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [batch.id])
   const router = useRouter()
@@ -139,6 +168,13 @@ export default function BatchDetailClient({
       quantityRef.current.focus()
     }
   }, [selectedStep])
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+    }
+  }, [messages])
 
   const showToast = (msg: string, type: 'success' | 'warning' = 'success') => {
     setToast(msg)
@@ -385,9 +421,69 @@ export default function BatchDetailClient({
     return batch.steps.find((s) => s.order === order - 1)?.completedQuantity || 0
   }
 
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const trimmed = newMessage.trim()
+    if (!trimmed || sendingMessage) return
+
+    setSendingMessage(true)
+    setError('')
+
+    // Optimistic update
+    const optimisticMessage: BatchMessage = {
+      id: `temp-${Date.now()}`,
+      message: trimmed,
+      createdAt: new Date().toISOString(),
+      worker: { id: session.id, name: session.name },
+    }
+    setMessages(prev => [...prev, optimisticMessage])
+    setNewMessage('')
+
+    try {
+      const res = await fetch(`/api/batches/${batch.id}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: trimmed }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to send message')
+        // Remove optimistic message on error
+        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id))
+        setNewMessage(trimmed)
+        return
+      }
+
+      const data = await res.json()
+      // Replace optimistic message with real one
+      setMessages(prev => prev.map(m => m.id === optimisticMessage.id ? data.message : m))
+    } catch (err) {
+      setError('Network error. Please check your connection.')
+      setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id))
+      setNewMessage(trimmed)
+    } finally {
+      setSendingMessage(false)
+    }
+  }
+
   const overallPct = Math.round(
     (batch.steps.filter(s => s.status === 'COMPLETED').length / batch.steps.length) * 100
   )
+
+  const formatRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+
+    if (diffMins < 1) return 'just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    const diffHours = Math.floor(diffMins / 60)
+    if (diffHours < 24) return `${diffHours}h ago`
+    const diffDays = Math.floor(diffHours / 24)
+    return `${diffDays}d ago`
+  }
 
   return (
     <AppShell session={session}>
@@ -637,6 +733,75 @@ export default function BatchDetailClient({
               </div>
             )
           })}
+        </div>
+
+        {/* Chat Section */}
+        <div className="mt-8 pt-8 border-t border-border/50">
+          <h2 className="text-sm font-semibold text-foreground mb-4">💬 Team Chat</h2>
+
+          <div className="rounded-xl border bg-card p-4">
+            {/* Message list */}
+            <div
+              ref={chatContainerRef}
+              className="space-y-3 max-h-[300px] overflow-y-auto mb-4"
+            >
+              {messages.length === 0 ? (
+                <p className="text-xs text-muted-foreground/70 text-center py-4">No messages yet</p>
+              ) : (
+                messages.map((msg) => {
+                  const isCurrentUser = msg.worker.id === session.id
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}
+                    >
+                      <span className="text-[10px] text-muted-foreground font-medium mb-1 px-1">
+                        {msg.worker.name}
+                      </span>
+                      <div
+                        className={`px-3 py-2 rounded-lg max-w-[85%] ${
+                          isCurrentUser
+                            ? 'bg-emerald-600/10 border border-emerald-500/20'
+                            : 'bg-muted/50 border border-border/50'
+                        }`}
+                      >
+                        <p className="text-sm text-foreground break-words">{msg.message}</p>
+                        <span className="text-[10px] text-muted-foreground/50 mt-1 block">
+                          {formatRelativeTime(msg.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Input area */}
+            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                placeholder="Message the team..."
+                disabled={sendingMessage}
+                maxLength={500}
+                className="flex-1 px-3.5 py-2.5 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || sendingMessage}
+                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-medium transition-all duration-150 disabled:opacity-40 disabled:bg-muted disabled:cursor-not-allowed"
+              >
+                {sendingMessage ? 'Sending...' : 'Send'}
+              </button>
+            </form>
+          </div>
         </div>
       </main>
 
