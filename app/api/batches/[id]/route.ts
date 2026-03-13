@@ -76,15 +76,30 @@ export async function PATCH(
         return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
       }
       
-      const batch = await prisma.batch.update({
+      await prisma.batch.update({
         where: { id },
         data: {
           status,
           completedDate: status === 'COMPLETED' ? new Date() : null,
         },
+      })
+      const batch = await prisma.batch.findUnique({
+        where: { id },
         include: {
           recipe: true,
-          steps: { orderBy: { order: 'asc' } },
+          steps: {
+            orderBy: { order: 'asc' },
+            include: {
+              recipeStep: {
+                select: { notes: true, materials: true },
+              },
+              progressLogs: {
+                include: { worker: { select: { id: true, name: true } } },
+                orderBy: { createdAt: 'desc' },
+              },
+            },
+          },
+          assignments: { include: { worker: { select: { id: true, name: true } } } },
         },
       })
       return NextResponse.json({ batch })
@@ -137,12 +152,40 @@ export async function PATCH(
       }
     }
     
-    const batch = await prisma.batch.update({
+    // Re-fetch the full batch with all nested data (matching GET shape)
+    await prisma.batch.update({
       where: { id },
       data: updateData,
+    })
+
+    const batch = await prisma.batch.findUnique({
+      where: { id },
       include: {
         recipe: true,
-        steps: { orderBy: { order: 'asc' } },
+        steps: {
+          orderBy: { order: 'asc' },
+          include: {
+            recipeStep: {
+              select: {
+                notes: true,
+                materials: true,
+              },
+            },
+            progressLogs: {
+              include: {
+                worker: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+            },
+          },
+        },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
       },
     })
