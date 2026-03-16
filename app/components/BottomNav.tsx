@@ -9,6 +9,7 @@ import {
   BeakerIcon,
   UsersIcon,
   QueueListIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline'
 import {
   HomeIcon as HomeIconSolid,
@@ -17,6 +18,7 @@ import {
   BeakerIcon as BeakerIconSolid,
   UsersIcon as UsersIconSolid,
   QueueListIcon as QueueListIconSolid,
+  ChartBarIcon as ChartBarIconSolid,
 } from '@heroicons/react/24/solid'
 
 type Props = { role: string }
@@ -35,12 +37,11 @@ export default function BottomNav({ role }: Props) {
 
   const workerItems = [
     { href: '/batches', label: 'Batches', Icon: QueueListIcon, IconActive: QueueListIconSolid },
+    { href: '/shift', label: 'Shift', Icon: ClockIcon, IconActive: ClockIconSolid },
+    { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
   ]
 
   const items = role === 'OWNER' ? ownerItems : workerItems
-
-  // Don't show for workers (only 1 item)
-  if (items.length <= 1) return null
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 

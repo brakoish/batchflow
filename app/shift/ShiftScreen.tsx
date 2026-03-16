@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlayIcon, StopIcon, ClockIcon, CubeIcon } from '@heroicons/react/24/solid'
+import Link from 'next/link'
+import { PlayIcon, StopIcon, ClockIcon, CubeIcon, QueueListIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
+import { formatDuration } from '@/lib/format'
 
 type Shift = { id: string; startedAt: string }
 type TodayStats = { batches: number; units: number }
@@ -69,9 +71,8 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
     const start = new Date(startedAt)
     const now = new Date()
     const ms = Math.max(0, now.getTime() - start.getTime())
-    const hrs = Math.floor(ms / 3600000)
-    const mins = Math.floor((ms % 3600000) / 60000)
-    setElapsed(`${hrs}h ${mins.toString().padStart(2, '0')}m`)
+    const hours = ms / 3600000
+    setElapsed(formatDuration(hours))
   }
 
   const handleClockIn = async () => {
@@ -97,11 +98,6 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
       if (res.ok) setShift(null)
     } catch {}
     setLoading(false)
-  }
-
-  const goToWork = () => {
-    haptic('light')
-    router.push('/batches')
   }
 
   // Owners skip this screen
@@ -178,15 +174,15 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
       </div>
 
       {/* Bottom Action */}
-      <div className="px-6 pb-8 safe-bottom">
+      <div className="px-6 pb-8 safe-bottom space-y-3">
         {shift ? (
-          <div className="space-y-3">
-            <button
-              onClick={goToWork}
-              className="w-full py-4 rounded-xl bg-primary text-primary-foreground text-lg font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
+          <>
+            <Link
+              href="/batches"
+              className="block w-full py-4 rounded-xl bg-primary text-primary-foreground text-lg font-semibold text-center hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
             >
-              Start Working
-            </button>
+              View Batches
+            </Link>
             <button
               onClick={handleClockOut}
               disabled={loading}
@@ -194,15 +190,23 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
             >
               <StopIcon className="w-5 h-5" /> Clock Out
             </button>
-          </div>
+          </>
         ) : (
-          <button
-            onClick={handleClockIn}
-            disabled={loading}
-            className="w-full py-5 rounded-xl bg-success text-success-foreground text-xl font-bold hover:bg-success/90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40 flex items-center justify-center gap-3"
-          >
-            <PlayIcon className="w-6 h-6" /> Clock In
-          </button>
+          <>
+            <button
+              onClick={handleClockIn}
+              disabled={loading}
+              className="w-full py-5 rounded-xl bg-success text-success-foreground text-xl font-bold hover:bg-success/90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40 flex items-center justify-center gap-3"
+            >
+              <PlayIcon className="w-6 h-6" /> Clock In
+            </button>
+            <Link
+              href="/batches"
+              className="block w-full py-3 rounded-xl border border-border text-muted-foreground text-base font-medium text-center hover:text-foreground hover:border-foreground active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2"
+            >
+              <QueueListIcon className="w-5 h-5" /> View Batches
+            </Link>
+          </>
         )}
       </div>
     </div>

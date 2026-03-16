@@ -56,7 +56,7 @@ export default function LoginPage() {
       haptic('medium')
       setSuccess(true)
       setTimeout(() => {
-        router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/shift')
+        router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/batches')
       }, 300)
     } catch (err) {
       haptic('heavy')

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { haptic } from '@/lib/haptic'
+import { formatDuration } from '@/lib/format'
 
 type Worker = { id: string; name: string }
 type Shift = {
@@ -173,8 +174,8 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
       {/* Summary */}
       <div className="text-sm">
         <span className="text-muted-foreground">Total: </span>
-        <span className="text-foreground font-semibold tabular-nums">{totalHours.toFixed(2)}</span>
-        <span className="text-muted-foreground"> hours · </span>
+        <span className="text-foreground font-semibold tabular-nums">{formatDuration(totalHours)}</span>
+        <span className="text-muted-foreground"> · </span>
         <span className="text-foreground font-semibold tabular-nums">{shifts.length}</span>
         <span className="text-muted-foreground"> shifts</span>
       </div>
@@ -256,41 +257,54 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
         {shifts.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">No shifts found</p>
         ) : (
-          shifts.map((shift) => (
-            <div key={shift.id} className="bg-card border border-border rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-sm font-bold text-primary">{shift.worker.name.charAt(0)}</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{shift.worker.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(shift.startedAt).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {shift.endedAt && ` - ${new Date(shift.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={`text-base font-semibold tabular-nums ${shift.status === 'ACTIVE' ? 'text-success' : 'text-foreground'}`}>
-                    {shift.hours.toFixed(2)}h
-                  </p>
-                  {shift.status === 'ACTIVE' && (
-                    <span className="text-xs text-success">On shift</span>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => openEditModal(shift)}
-                className="w-full mt-3 py-2.5 text-sm font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+          shifts.map((shift) => {
+            const isZeroLength = shift.hours < (1 / 60) // Less than 1 minute
+            return (
+              <div
+                key={shift.id}
+                className={`bg-card border border-border rounded-lg p-4 ${isZeroLength ? 'opacity-50' : ''}`}
               >
-                Edit Shift
-              </button>
-            </div>
-          ))
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-primary">{shift.worker.name.charAt(0)}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{shift.worker.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(shift.startedAt).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {shift.endedAt && ` - ${new Date(shift.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-2">
+                      <p className={`text-base font-semibold tabular-nums ${shift.status === 'ACTIVE' ? 'text-success' : 'text-foreground'}`}>
+                        {formatDuration(shift.hours)}
+                      </p>
+                      {isZeroLength && (
+                        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          login only
+                        </span>
+                      )}
+                    </div>
+                    {shift.status === 'ACTIVE' && (
+                      <span className="text-xs text-success">On shift</span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => openEditModal(shift)}
+                  className="w-full mt-3 py-2.5 text-sm font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+                >
+                  Edit Shift
+                </button>
+              </div>
+            )
+          })
         )}
       </div>
     </div>
