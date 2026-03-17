@@ -171,9 +171,21 @@ export default function DashboardClient({
                         </div>
                         <p className="text-xs text-muted-foreground">{batch.recipe.name}</p>
                       </div>
-                      <div className="text-right ml-4 shrink-0">
-                        <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
-                        <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
+                      <div className="flex items-start gap-2 ml-4 shrink-0">
+                        <div className="text-right">
+                          <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
+                          <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
+                        </div>
+                        <Link
+                          href={`/batches/${batch.id}?edit=1`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                          title="Edit batch"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                          </svg>
+                        </Link>
                       </div>
                     </div>
 
