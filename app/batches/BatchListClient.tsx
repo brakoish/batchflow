@@ -21,6 +21,9 @@ export default function BatchListClient({
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [onShift, setOnShift] = useState(false)
+  const [shiftChecked, setShiftChecked] = useState(false)
+  const [nudgeDismissed, setNudgeDismissed] = useState(false)
+  const [clockingIn, setClockingIn] = useState(false)
   const [elapsed, setElapsed] = useState('0h 00m')
   const [refreshing, setRefreshing] = useState(false)
   const [touchStart, setTouchStart] = useState(0)
@@ -39,6 +42,7 @@ export default function BatchListClient({
       if (sRes.ok) {
         const data = await sRes.json()
         setOnShift(!!data.activeShift)
+        setShiftChecked(true)
       }
     } catch {}
     if (showLoading) setRefreshing(false)
@@ -89,6 +93,27 @@ export default function BatchListClient({
     return () => clearInterval(id)
   }, [onShift])
 
+  const handleQuickClockIn = async () => {
+    haptic('medium')
+    setClockingIn(true)
+    try {
+      const res = await fetch('/api/shifts', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setOnShift(true)
+        if (data.shift) {
+          const start = new Date(data.shift.startedAt)
+          const now = new Date()
+          const ms = Math.max(0, now.getTime() - start.getTime())
+          const hrs = Math.floor(ms / 3600000)
+          const mins = Math.floor((ms % 3600000) / 60000)
+          setElapsed(`${hrs}h ${mins.toString().padStart(2, '0')}m`)
+        }
+      }
+    } catch {}
+    setClockingIn(false)
+  }
+
   const handleClockOut = async () => {
     haptic('medium')
     if (!confirm('Clock out?')) return
@@ -115,6 +140,33 @@ export default function BatchListClient({
           </div>
         )}
         
+        {/* Clock-in nudge banner */}
+        {shiftChecked && !onShift && !nudgeDismissed && session.role === 'WORKER' && (
+          <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-lg shrink-0">👋</span>
+              <p className="text-sm text-foreground">You&apos;re not clocked in</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleQuickClockIn}
+                disabled={clockingIn}
+                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50"
+              >
+                {clockingIn ? 'Starting...' : 'Clock In'}
+              </button>
+              <button
+                onClick={() => { haptic('light'); setNudgeDismissed(true) }}
+                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Your Batches</h1>
