@@ -10,7 +10,7 @@ type Session = { id: string; name: string; role: string }
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number }
 type Batch = {
   id: string; name: string; targetQuantity: number; status: string; strain?: string; dueDate?: string
-  recipe: { name: string }; steps: Step[]
+  recipe: { name: string }; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
 }
 type ActivityLog = {
   id: string
@@ -236,6 +236,23 @@ export default function DashboardClient({
                             </p>
                           )
                         })()}
+                        {batch.assignments && batch.assignments.length > 0 && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <div className="flex -space-x-1">
+                              {batch.assignments.slice(0, 4).map((a) => (
+                                <div key={a.worker.id} className="w-5 h-5 rounded-full bg-muted border border-card flex items-center justify-center" title={a.worker.name}>
+                                  <span className="text-[8px] font-semibold text-muted-foreground">{a.worker.name.charAt(0)}</span>
+                                </div>
+                              ))}
+                              {batch.assignments.length > 4 && (
+                                <div className="w-5 h-5 rounded-full bg-muted border border-card flex items-center justify-center">
+                                  <span className="text-[8px] font-semibold text-muted-foreground">+{batch.assignments.length - 4}</span>
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground/60">{batch.assignments.map(a => a.worker.name.split(' ')[0]).join(', ')}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-start gap-2 ml-4 shrink-0">
                         <div className="text-right">
