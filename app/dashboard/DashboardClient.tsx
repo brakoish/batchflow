@@ -55,6 +55,15 @@ export default function DashboardClient({
   const [editStrain, setEditStrain] = useState('')
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
+  const [editWorkerIds, setEditWorkerIds] = useState<string[]>([])
+  const [allWorkers, setAllWorkers] = useState<{ id: string; name: string }[]>([])
+
+  useEffect(() => {
+    // Fetch workers list for assignment
+    fetch('/api/workers').then(r => r.json()).then(d => {
+      if (d.workers) setAllWorkers(d.workers.filter((w: any) => w.role === 'WORKER'))
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (editingBatch) {
@@ -62,6 +71,7 @@ export default function DashboardClient({
       setEditTargetQty(editingBatch.targetQuantity.toString())
       setEditDueDate(editingBatch.dueDate?.split('T')[0] || '')
       setEditStrain(editingBatch.strain || '')
+      setEditWorkerIds(editingBatch.assignments?.map(a => a.worker.id) || [])
       setEditError('')
     }
   }, [editingBatch])
@@ -79,6 +89,7 @@ export default function DashboardClient({
           targetQuantity: parseInt(editTargetQty),
           dueDate: editDueDate || undefined,
           strain: editStrain || undefined,
+          workerIds: editWorkerIds,
         }),
       })
       if (!res.ok) {
@@ -470,6 +481,28 @@ export default function DashboardClient({
                   <input type="text" value={editStrain} onChange={(e) => setEditStrain(e.target.value)} placeholder="Optional"
                     className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
                 </div>
+
+                {allWorkers.length > 0 && (
+                  <div>
+                    <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1.5">Assigned Workers</label>
+                    <div className="flex flex-wrap gap-2">
+                      {allWorkers.map((w) => {
+                        const selected = editWorkerIds.includes(w.id)
+                        return (
+                          <button key={w.id} type="button"
+                            onClick={() => setEditWorkerIds(prev => selected ? prev.filter(id => id !== w.id) : [...prev, w.id])}
+                            className={`px-3 py-2 min-h-[44px] rounded-lg text-sm font-medium transition-all active:scale-[0.96] ${
+                              selected
+                                ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                                : 'bg-muted text-muted-foreground border border-input hover:border-foreground/20'
+                            }`}>
+                            {w.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {editError && <p className="text-red-500 dark:text-red-400 text-xs text-center">{editError}</p>}
 
