@@ -66,11 +66,11 @@ function QuickAddButtons({ remaining, current, onAdd }: { remaining: number; cur
       return [50, 100, 250].filter(n => n < remaining).concat([remaining])
     }
     // Very large batch: > 500
-    return [100, 250, 500]
+    return [100, 250, 500].filter(n => n < remaining).concat([remaining])
   })()
 
-  // Remove duplicates and sort
-  const unique = Array.from(new Set(increments)).sort((a, b) => a - b).slice(0, 3)
+  // Remove duplicates, sort, and take last 3 (biggest increments + Rest)
+  const unique = Array.from(new Set(increments)).sort((a, b) => a - b).slice(-3)
 
   return (
     <div className="grid grid-cols-3 gap-2 mt-3">
