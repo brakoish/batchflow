@@ -57,6 +57,7 @@ export default function DashboardClient({
   const [editError, setEditError] = useState('')
   const [editWorkerIds, setEditWorkerIds] = useState<string[]>([])
   const [allWorkers, setAllWorkers] = useState<{ id: string; name: string }[]>([])
+  const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null)
 
   useEffect(() => {
     // Fetch workers list for assignment
@@ -205,17 +206,22 @@ export default function DashboardClient({
 
                 return filteredBatches.map((batch) => {
                 const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
+                const totalSteps = batch.steps.length
+                const overallPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
+                const nextStep = batch.steps.find((s) => s.status !== 'COMPLETED')
+                const isExpanded = expandedBatchId === batch.id
 
                 return (
                   <Link
                     key={batch.id}
                     href={`/batches/${batch.id}`}
-                    className="block rounded-xl border border-border bg-card p-4 hover:border-input hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
+                    className="block rounded-xl border border-border bg-card p-5 hover:border-input hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-sm font-semibold text-foreground truncate">{batch.name}</h3>
+                          <h3 className="text-base font-semibold text-foreground truncate">{batch.name}</h3>
                           {batch.strain && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
                               {batch.strain}
@@ -236,7 +242,7 @@ export default function DashboardClient({
                           const isOverdue = batch.status === 'ACTIVE' && daysLeft < 0
                           const isSoon = batch.status === 'ACTIVE' && daysLeft >= 0 && daysLeft <= 2
                           return (
-                            <p className={`text-[10px] font-medium ${
+                            <p className={`text-[10px] font-medium mt-1 ${
                               isOverdue ? 'text-red-500 dark:text-red-400' :
                               isSoon ? 'text-amber-500 dark:text-amber-400' :
                               'text-muted-foreground/60'
@@ -248,7 +254,7 @@ export default function DashboardClient({
                           )
                         })()}
                         {batch.assignments && batch.assignments.length > 0 && (
-                          <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex items-center gap-1.5 mt-2">
                             <div className="flex -space-x-1">
                               {batch.assignments.slice(0, 4).map((a) => (
                                 <div key={a.worker.id} className="w-5 h-5 rounded-full bg-muted border border-card flex items-center justify-center" title={a.worker.name}>
@@ -267,7 +273,7 @@ export default function DashboardClient({
                       </div>
                       <div className="flex items-start gap-2 ml-4 shrink-0">
                         <div className="text-right">
-                          <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
+                          <span className="text-2xl font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
                           <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
                         </div>
                         <button
@@ -282,56 +288,98 @@ export default function DashboardClient({
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      {batch.steps.map((step) => {
-                        const stepPct = (step.completedQuantity / step.targetQuantity) * 100
-                        const isLocked = step.status === 'LOCKED'
-                        const isCompleted = step.status === 'COMPLETED'
-                        const isCheck = step.type === 'CHECK'
+                    {/* Progress Summary */}
+                    <div className="mb-4">
+                      <div className="h-3 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                          style={{ width: `${overallPct}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {completedSteps}/{totalSteps} steps complete · {overallPct}%
+                      </p>
+                    </div>
 
-                        return (
-                          <div key={step.id} className="flex items-center gap-3">
-                            <div className="w-6 flex justify-center shrink-0">
-                              {isCompleted ? (
-                                <CheckCircleIcon className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                              ) : isLocked ? (
-                                <LockClosedIcon className="w-4 h-4 text-muted-foreground/30" />
-                              ) : (
-                                <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                              )}
-                            </div>
-                            <span className={`text-sm w-28 truncate shrink-0 ${
-                              isLocked ? 'text-muted-foreground/40' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground/80'
-                            }`}>
-                              {step.name}
+                    {/* Next Step (always visible) */}
+                    {nextStep && (
+                      <div className="mb-3 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                          <span className="text-sm font-medium text-foreground">
+                            Next: {nextStep.name}
+                          </span>
+                          {nextStep.type !== 'CHECK' && (
+                            <span className="text-sm text-muted-foreground tabular-nums ml-auto">
+                              {nextStep.completedQuantity}/{nextStep.targetQuantity}
                             </span>
-                            <div className="flex-1">
-                              {isCheck ? (
-                                <span className={`text-xs ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : isLocked ? 'text-muted-foreground/30' : 'text-muted-foreground'}`}>
-                                  {isCompleted ? 'Done' : 'Pending'}
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Expand/Collapse Button */}
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedBatchId(isExpanded ? null : batch.id) }}
+                      className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
+                    >
+                      {isExpanded ? `Hide all ${totalSteps} steps` : `Show all ${totalSteps} steps`}
+                    </button>
+
+                    {/* Step List (collapsed by default) */}
+                    {isExpanded && (
+                      <div className="space-y-3 pt-3 border-t border-border">
+                        {batch.steps.map((step) => {
+                          const stepPct = (step.completedQuantity / step.targetQuantity) * 100
+                          const isLocked = step.status === 'LOCKED'
+                          const isCompleted = step.status === 'COMPLETED'
+                          const isCheck = step.type === 'CHECK'
+
+                          return (
+                            <div key={step.id} className="space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 flex justify-center shrink-0">
+                                  {isCompleted ? (
+                                    <CheckCircleIcon className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                                  ) : isLocked ? (
+                                    <LockClosedIcon className="w-4 h-4 text-muted-foreground/30" />
+                                  ) : (
+                                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                                  )}
+                                </div>
+                                <span className={`text-sm font-medium ${
+                                  isLocked ? 'text-muted-foreground/40' : isCompleted ? 'text-emerald-600 dark:text-emerald-400 line-through' : 'text-foreground'
+                                }`}>
+                                  {step.name}
                                 </span>
-                              ) : (
-                                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                {!isCheck && (
+                                  <span className={`text-sm tabular-nums ml-auto ${
+                                    isLocked ? 'text-muted-foreground/30' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                                  }`}>
+                                    {step.completedQuantity}/{step.targetQuantity} {isCompleted && '✓'}
+                                  </span>
+                                )}
+                                {isCheck && (
+                                  <span className={`text-sm ml-auto ${
+                                    isCompleted ? 'text-emerald-600 dark:text-emerald-400' : isLocked ? 'text-muted-foreground/30' : 'text-muted-foreground'
+                                  }`}>
+                                    {isCompleted ? '✓' : 'Pending'}
+                                  </span>
+                                )}
+                              </div>
+                              {!isCheck && !isCompleted && !isLocked && stepPct > 0 && (
+                                <div className="h-2.5 rounded-full bg-muted overflow-hidden ml-7">
                                   <div
-                                    className={`h-full rounded-full transition-all duration-500 ${
-                                      isCompleted ? 'bg-emerald-500' : isLocked ? 'bg-muted' : 'bg-blue-500'
-                                    }`}
+                                    className="h-full rounded-full bg-blue-500 transition-all duration-500"
                                     style={{ width: `${Math.min(stepPct, 100)}%` }}
                                   />
                                 </div>
                               )}
                             </div>
-                            {!isCheck && (
-                              <span className={`text-xs tabular-nums shrink-0 ${
-                                isLocked ? 'text-muted-foreground/30' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
-                              }`}>
-                                {step.completedQuantity}/{step.targetQuantity}
-                              </span>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </Link>
                 )
               })
