@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
 import {
   LockClosedIcon,
@@ -121,8 +121,7 @@ export default function BatchDetailClient({
   const [editNote, setEditNote] = useState('')
   
   // Edit modal state
-  const searchParams = useSearchParams()
-  const [showEditModal, setShowEditModal] = useState(searchParams.get('edit') === '1' && session.role === 'OWNER')
+  const [showEditModal, setShowEditModal] = useState(false)
   const [editName, setEditName] = useState(batch.name)
   const [editTargetQty, setEditTargetQty] = useState(batch.targetQuantity.toString())
   const [editDueDate, setEditDueDate] = useState(batch.dueDate?.split('T')[0] || '')
