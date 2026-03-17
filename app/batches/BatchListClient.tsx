@@ -244,7 +244,7 @@ export default function BatchListClient({
                       <h2 className="text-lg font-semibold text-foreground truncate">{batch.name}</h2>
                       <p className="text-sm text-muted-foreground">{batch.recipe.name}</p>
                       {batch.dueDate && (() => {
-                        const due = new Date(batch.dueDate + 'T00:00:00')
+                        const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
                         const now = new Date()
                         now.setHours(0, 0, 0, 0)
                         const daysLeft = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))

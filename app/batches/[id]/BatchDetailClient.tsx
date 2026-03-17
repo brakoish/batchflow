@@ -546,7 +546,7 @@ export default function BatchDetailClient({
             <span className="text-muted-foreground/30">·</span>
             <span className="text-xs text-foreground">{batch.targetQuantity} {batch.baseUnit}</span>
             {batch.dueDate && (() => {
-              const dueDate = new Date(batch.dueDate + 'T00:00:00')
+              const dueDate = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
               const today = new Date(); today.setHours(0, 0, 0, 0)
               const isOverdue = batch.status === 'ACTIVE' && dueDate < today
               return (
