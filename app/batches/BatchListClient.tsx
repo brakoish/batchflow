@@ -10,7 +10,7 @@ import { haptic } from '@/lib/haptic'
 type Session = { id: string; name: string; role: string }
 type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number }
 type Batch = {
-  id: string; name: string; targetQuantity: number; status: string; strain?: string
+  id: string; name: string; targetQuantity: number; status: string; strain?: string; dueDate?: string
   recipe: { name: string }; steps: Step[]
 }
 
@@ -255,6 +255,11 @@ export default function BatchListClient({
                     {batch.strain && (
                       <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs">
                         {batch.strain}
+                      </span>
+                    )}
+                    {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (
+                      <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
+                        OVERDUE
                       </span>
                     )}
                   </div>

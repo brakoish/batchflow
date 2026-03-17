@@ -545,12 +545,17 @@ export default function BatchDetailClient({
             <span className="text-xs text-foreground">{batch.recipe.name}</span>
             <span className="text-muted-foreground/30">·</span>
             <span className="text-xs text-foreground">{batch.targetQuantity} {batch.baseUnit}</span>
-            {batch.dueDate && (
-              <>
-                <span className="text-muted-foreground/30">·</span>
-                <span className="text-xs text-foreground">Due: {new Date(batch.dueDate).toLocaleDateString()}</span>
-              </>
-            )}
+            {batch.dueDate && (() => {
+              const isOverdue = batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date()
+              return (
+                <>
+                  <span className="text-muted-foreground/30">·</span>
+                  <span className={`text-xs font-medium ${isOverdue ? 'text-red-500 dark:text-red-400' : 'text-foreground'}`}>
+                    {isOverdue ? '⚠️ OVERDUE' : `Due: ${new Date(batch.dueDate).toLocaleDateString()}`}
+                  </span>
+                </>
+              )
+            })()}
             <span className="text-muted-foreground/30">·</span>
             <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{overallPct}%</span>
             {batch.status !== 'ACTIVE' && (

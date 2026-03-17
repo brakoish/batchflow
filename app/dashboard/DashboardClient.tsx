@@ -9,7 +9,7 @@ import EmptyState from '@/app/components/EmptyState'
 type Session = { id: string; name: string; role: string }
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number }
 type Batch = {
-  id: string; name: string; targetQuantity: number; status: string; strain?: string
+  id: string; name: string; targetQuantity: number; status: string; strain?: string; dueDate?: string
   recipe: { name: string }; steps: Step[]
 }
 type ActivityLog = {
@@ -161,6 +161,11 @@ export default function DashboardClient({
                           {batch.strain && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
                               {batch.strain}
+                            </span>
+                          )}
+                          {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 font-semibold shrink-0">
+                              OVERDUE
                             </span>
                           )}
                         </div>
