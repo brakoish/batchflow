@@ -9,9 +9,10 @@ import { haptic } from '@/lib/haptic'
 
 type Session = { id: string; name: string; role: string }
 type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number }
+type Assignment = { worker: { id: string; name: string } }
 type Batch = {
   id: string; name: string; targetQuantity: number; status: string; strain?: string; dueDate?: string
-  recipe: { name: string }; steps: Step[]
+  recipe: { name: string }; steps: Step[]; assignments?: Assignment[]
 }
 
 export default function BatchListClient({
@@ -218,9 +219,14 @@ export default function BatchListClient({
               )
             }
 
-            return (
-          <div className="space-y-4">
-            {filteredBatches.map((batch) => {
+            const myBatches = session.role === 'WORKER'
+              ? filteredBatches.filter(b => b.assignments?.some(a => a.worker.id === session.id))
+              : filteredBatches
+            const otherBatches = session.role === 'WORKER'
+              ? filteredBatches.filter(b => !b.assignments?.some(a => a.worker.id === session.id))
+              : []
+
+            const renderBatch = (batch: Batch) => {
               const firstIncomplete = batch.steps.find((s) => s.status !== 'COMPLETED')
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const pct = Math.round((completedSteps / batch.steps.length) * 100)
@@ -310,8 +316,29 @@ export default function BatchListClient({
                   </div>
                 </Link>
               )
-            })}
-          </div>
+            }
+
+            return (
+              <div className="space-y-4">
+                {myBatches.length > 0 && (
+                  <>
+                    {session.role === 'WORKER' && otherBatches.length > 0 && (
+                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Batches</h2>
+                    )}
+                    {myBatches.map(renderBatch)}
+                  </>
+                )}
+                {otherBatches.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-3 mt-2">
+                      <div className="flex-1 h-px bg-border" />
+                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Other Batches</h2>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    {otherBatches.map(renderBatch)}
+                  </>
+                )}
+              </div>
             )
         })()}
 

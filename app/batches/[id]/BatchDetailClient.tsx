@@ -567,6 +567,27 @@ export default function BatchDetailClient({
             )}
           </div>
           
+          {/* Team */}
+          {batch.assignments && batch.assignments.length > 0 && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] text-muted-foreground font-medium">Team:</span>
+              <div className="flex items-center -space-x-1">
+                {batch.assignments.map((a, i) => (
+                  <div
+                    key={a.worker.id}
+                    className="w-6 h-6 rounded-full bg-muted border-2 border-card flex items-center justify-center"
+                    title={a.worker.name}
+                  >
+                    <span className="text-[9px] font-semibold text-foreground">{a.worker.name.charAt(0)}</span>
+                  </div>
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {batch.assignments.map(a => a.worker.name).join(', ')}
+              </span>
+            </div>
+          )}
+
           {/* METRC Fields Display */}
           {(batch.metrcBatchId || batch.lotNumber || batch.strain || batch.packageTag) && (
             <div className="flex flex-wrap gap-1.5 mt-2">

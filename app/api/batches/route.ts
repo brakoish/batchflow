@@ -25,7 +25,7 @@ export async function GET() {
       include: {
         recipe: true,
         steps: { orderBy: { order: 'asc' } },
-        assignments: session.role === 'OWNER' ? { include: { worker: { select: { id: true, name: true } } } } : false,
+        assignments: { include: { worker: { select: { id: true, name: true } } } },
       },
       orderBy: { startDate: 'desc' },
     })
