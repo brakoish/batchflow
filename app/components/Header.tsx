@@ -30,10 +30,16 @@ export default function Header({ session }: HeaderProps) {
 
   useEffect(() => {
     if (isOwner) return
-    fetch('/api/shifts')
-      .then(r => r.json())
-      .then(d => setOnShift(!!d.activeShift))
-      .catch(() => {})
+    const checkShift = () => {
+      fetch('/api/shifts')
+        .then(r => r.json())
+        .then(d => setOnShift(!!d.activeShift))
+        .catch(() => {})
+    }
+    checkShift()
+    // Listen for clock-in/out events from other components
+    window.addEventListener('shift-changed', checkShift)
+    return () => window.removeEventListener('shift-changed', checkShift)
   }, [isOwner, pathname])
 
   const handleLogout = async () => {

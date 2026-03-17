@@ -101,6 +101,7 @@ export default function BatchListClient({
       if (res.ok) {
         const data = await res.json()
         setOnShift(true)
+        window.dispatchEvent(new Event('shift-changed'))
         if (data.shift) {
           const start = new Date(data.shift.startedAt)
           const now = new Date()
@@ -121,7 +122,7 @@ export default function BatchListClient({
       const res = await fetch('/api/shifts', { method: 'PATCH' })
       if (res.ok) {
         setOnShift(false)
-        window.location.reload()
+        window.dispatchEvent(new Event('shift-changed'))
       }
     } catch {}
   }
