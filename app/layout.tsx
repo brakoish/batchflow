@@ -4,11 +4,17 @@ import { ThemeProvider } from './components/ThemeProvider'
 
 export const metadata: Metadata = {
   title: 'BatchFlow',
-  description: 'Production workflow tracker',
+  description: 'Production workflow tracker for cannabis processing teams',
+  manifest: '/manifest.json',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
+    apple: '/icon-192x192.svg',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'BatchFlow',
   },
 }
 
@@ -17,7 +23,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: 'cover',
-  themeColor: '#F2F2F7',
+  themeColor: '#0A0A0F',
 }
 
 export default function RootLayout({
