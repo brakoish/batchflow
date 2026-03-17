@@ -268,25 +268,34 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                     </button>
                   </div>
                   {step.materials.length === 0 ? (
-                    <p className="text-[10px] text-muted-foreground/70 italic">No materials</p>
+                    <p className="text-[10px] text-muted-foreground/70 italic">No materials added</p>
                   ) : (
                     <div className="space-y-1.5">
+                      {step.materials.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground/60 uppercase tracking-wider font-medium">
+                          <span className="flex-1 min-w-[80px]">Name</span>
+                          <span className="w-16 text-center">Per unit</span>
+                          <span className="w-14">Measure</span>
+                          <span className="w-3" />
+                        </div>
+                      )}
                       {step.materials.map((mat, mi) => (
                         <div key={mi} className="flex items-center gap-1.5">
                           <input type="text" value={mat.name} onChange={(e) => updateMaterial(i, mi, 'name', e.target.value)}
-                            placeholder="Material name" disabled={loading}
+                            placeholder="e.g. Rolling Paper" disabled={loading}
                             className="flex-1 min-w-[80px] px-2 py-1 rounded bg-muted border border-input text-foreground text-[11px] placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
                           <input type="number" value={mat.quantityPerUnit} onChange={(e) => updateMaterial(i, mi, 'quantityPerUnit', parseFloat(e.target.value) || 0)}
-                            placeholder="Qty" disabled={loading} step="0.01"
+                            placeholder="1" disabled={loading} step="0.01"
                             className="w-16 px-2 py-1 rounded bg-muted border border-input text-foreground text-[11px] tabular-nums text-center focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
                           <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, mi, 'unit', e.target.value)}
-                            placeholder="Unit" disabled={loading}
+                            placeholder="each" disabled={loading}
                             className="w-14 px-2 py-1 rounded bg-muted border border-input text-foreground text-[11px] placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
                           <button onClick={() => removeMaterial(i, mi)} className="p-0.5 text-foreground hover:text-red-500 dark:text-red-400 transition-colors">
                             <XMarkIcon className="w-3 h-3" />
                           </button>
                         </div>
                       ))}
+                      <p className="text-[9px] text-muted-foreground/50 italic">How many of each material needed per 1 unit produced</p>
                     </div>
                   )}
                 </div>
