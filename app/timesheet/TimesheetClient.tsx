@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import ConfirmModal from '@/app/components/ConfirmModal'
 import { haptic } from '@/lib/haptic'
 import { formatDuration } from '@/lib/format'
 
@@ -25,6 +26,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const [editEnd, setEditEnd] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [confirmAction, setConfirmAction] = useState<{title:string; message?:string; label:string; style?:'danger'|'primary'; action:()=>void}|null>(null)
 
   const fetchShifts = async () => {
     setLoading(true)
@@ -114,9 +116,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
     }
   }
 
-  const handleDeleteShift = async (shift: Shift) => {
-    if (!confirm(`Delete this shift for ${shift.worker.name}?`)) return
-    
+  const doDeleteShift = async (shift: Shift) => {
     setLoading(true)
     try {
       const res = await fetch(`/api/shifts/${shift.id}`, { method: 'DELETE' })
@@ -133,6 +133,15 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDeleteShift = (shift: Shift) => {
+    setConfirmAction({
+      title: `Delete this shift for ${shift.worker.name}?`,
+      label: 'Delete',
+      style: 'danger',
+      action: () => doDeleteShift(shift)
+    })
   }
 
   return (
@@ -307,6 +316,19 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
           })
         )}
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.label}
+        confirmStyle={confirmAction?.style}
+        onConfirm={() => {
+          confirmAction?.action()
+          setConfirmAction(null)
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

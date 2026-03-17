@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
+import ConfirmModal from '@/app/components/ConfirmModal'
 import { StopIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
@@ -30,6 +31,7 @@ export default function BatchListClient({
   const [touchStart, setTouchStart] = useState(0)
   const [loading, setLoading] = useState(!initialBatches.length)
   const [searchQuery, setSearchQuery] = useState('')
+  const [confirmAction, setConfirmAction] = useState<{title:string; message?:string; label:string; style?:'danger'|'primary'; action:()=>void}|null>(null)
 
   const fetchData = async (showLoading = false) => {
     if (showLoading) setRefreshing(true)
@@ -121,9 +123,7 @@ export default function BatchListClient({
     setClockingIn(false)
   }
 
-  const handleClockOut = async () => {
-    haptic('medium')
-    if (!confirm('Clock out?')) return
+  const doClockOut = async () => {
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
       if (res.ok) {
@@ -131,6 +131,16 @@ export default function BatchListClient({
         window.dispatchEvent(new Event('shift-changed'))
       }
     } catch {}
+  }
+
+  const handleClockOut = () => {
+    haptic('medium')
+    setConfirmAction({
+      title: 'Clock out?',
+      label: 'Clock Out',
+      style: 'danger',
+      action: doClockOut
+    })
   }
 
   return (
@@ -354,6 +364,19 @@ export default function BatchListClient({
           </div>
         )}
       </main>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.label}
+        confirmStyle={confirmAction?.style}
+        onConfirm={() => {
+          confirmAction?.action()
+          setConfirmAction(null)
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </AppShell>
   )
 }

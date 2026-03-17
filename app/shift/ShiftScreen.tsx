@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import ConfirmModal from '@/app/components/ConfirmModal'
 import { PlayIcon, StopIcon, ClockIcon, CubeIcon, QueueListIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { formatDuration } from '@/lib/format'
@@ -24,6 +25,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
   const [stats, setStats] = useState<TodayStats>({ batches: 0, units: 0 })
   const [workerStats, setWorkerStats] = useState<WorkerStats | null>(null)
   const [showStats, setShowStats] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<{title:string; message?:string; label:string; style?:'danger'|'primary'; action:()=>void}|null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -89,15 +91,23 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
     setLoading(false)
   }
 
-  const handleClockOut = async () => {
-    haptic('medium')
-    if (!confirm('End your shift?')) return
+  const doClockOut = async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
       if (res.ok) setShift(null)
     } catch {}
     setLoading(false)
+  }
+
+  const handleClockOut = () => {
+    haptic('medium')
+    setConfirmAction({
+      title: 'End your shift?',
+      label: 'Clock Out',
+      style: 'danger',
+      action: doClockOut
+    })
   }
 
   // Owners skip this screen
@@ -209,6 +219,19 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
           </>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.label}
+        confirmStyle={confirmAction?.style}
+        onConfirm={() => {
+          confirmAction?.action()
+          setConfirmAction(null)
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

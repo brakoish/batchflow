@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ConfirmModal from '@/app/components/ConfirmModal'
 import { haptic } from '@/lib/haptic'
 
 type Worker = {
@@ -24,6 +25,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [editRole, setEditRole] = useState<'WORKER' | 'OWNER'>('WORKER')
   const [showEditModal, setShowEditModal] = useState(false)
   const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
+  const [confirmAction, setConfirmAction] = useState<{title:string; message?:string; label:string; style?:'danger'|'primary'; action:()=>void}|null>(null)
   const router = useRouter()
 
   const generatePin = () => {
@@ -101,13 +103,12 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
     finally { setLoading(false) }
   }
 
-  const handleDeleteWorker = async (worker: Worker) => {
-    if (!confirm(`Delete ${worker.name}? This cannot be undone.`)) return
+  const doDeleteWorker = async (worker: Worker) => {
     setLoading(true)
 
     try {
       const res = await fetch(`/api/workers/${worker.id}`, { method: 'DELETE' })
-      if (!res.ok) { 
+      if (!res.ok) {
         const data = await res.json()
         setError(data.error || 'Failed to delete')
         return
@@ -117,6 +118,16 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       setTimeout(() => setSuccess(''), 5000)
     } catch { setError('Connection error') }
     finally { setLoading(false) }
+  }
+
+  const handleDeleteWorker = (worker: Worker) => {
+    setConfirmAction({
+      title: `Delete ${worker.name}?`,
+      message: 'This cannot be undone.',
+      label: 'Delete',
+      style: 'danger',
+      action: () => doDeleteWorker(worker)
+    })
   }
 
   const openEditModal = (worker: Worker) => {
@@ -323,6 +334,19 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           </div>
         ))}
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.label}
+        confirmStyle={confirmAction?.style}
+        onConfirm={() => {
+          confirmAction?.action()
+          setConfirmAction(null)
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }
