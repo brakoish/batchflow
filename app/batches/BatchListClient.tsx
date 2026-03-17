@@ -243,6 +243,24 @@ export default function BatchListClient({
                     <div className="min-w-0 flex-1">
                       <h2 className="text-lg font-semibold text-foreground truncate">{batch.name}</h2>
                       <p className="text-sm text-muted-foreground">{batch.recipe.name}</p>
+                      {batch.dueDate && (() => {
+                        const due = new Date(batch.dueDate)
+                        const now = new Date()
+                        const daysLeft = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                        const isOverdue = batch.status === 'ACTIVE' && daysLeft < 0
+                        const isSoon = batch.status === 'ACTIVE' && daysLeft >= 0 && daysLeft <= 2
+                        return (
+                          <p className={`text-xs font-medium ${
+                            isOverdue ? 'text-red-500 dark:text-red-400' :
+                            isSoon ? 'text-amber-500 dark:text-amber-400' :
+                            'text-muted-foreground/60'
+                          }`}>
+                            {isOverdue ? `⚠️ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${Math.abs(daysLeft)}d overdue)` :
+                             isSoon ? `⏰ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `${daysLeft}d`})` :
+                             `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                          </p>
+                        )
+                      })()}
                     </div>
                     <ChevronRightIcon className="w-5 h-5 text-muted-foreground shrink-0 ml-2" />
                   </div>

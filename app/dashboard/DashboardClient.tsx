@@ -217,6 +217,24 @@ export default function DashboardClient({
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">{batch.recipe.name}</p>
+                        {batch.dueDate && (() => {
+                          const due = new Date(batch.dueDate)
+                          const now = new Date()
+                          const daysLeft = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                          const isOverdue = batch.status === 'ACTIVE' && daysLeft < 0
+                          const isSoon = batch.status === 'ACTIVE' && daysLeft >= 0 && daysLeft <= 2
+                          return (
+                            <p className={`text-[10px] font-medium ${
+                              isOverdue ? 'text-red-500 dark:text-red-400' :
+                              isSoon ? 'text-amber-500 dark:text-amber-400' :
+                              'text-muted-foreground/60'
+                            }`}>
+                              {isOverdue ? `⚠️ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${Math.abs(daysLeft)}d overdue)` :
+                               isSoon ? `⏰ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `${daysLeft}d`})` :
+                               `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                            </p>
+                          )
+                        })()}
                       </div>
                       <div className="flex items-start gap-2 ml-4 shrink-0">
                         <div className="text-right">
