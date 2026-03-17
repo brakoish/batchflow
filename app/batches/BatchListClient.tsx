@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
-import { StopIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
+import { StopIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
 type Session = { id: string; name: string; role: string }
@@ -236,45 +236,43 @@ export default function BatchListClient({
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className="block bg-card border border-border rounded-xl p-5 hover:border-primary/30 active:scale-[0.99] transition-all duration-150"
+                  className={`block bg-card border border-border rounded-xl p-5 hover:border-primary/30 active:scale-[0.99] transition-all duration-150 ${
+                    isMyTurn ? 'border-l-4 border-l-emerald-500' : ''
+                  }`}
                 >
-                  {/* Top Row */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="min-w-0 flex-1">
-                      <h2 className="text-lg font-semibold text-foreground truncate">{batch.name}</h2>
-                      <p className="text-sm text-muted-foreground">{batch.recipe.name}</p>
-                      {batch.dueDate && (() => {
-                        const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
-                        const now = new Date()
-                        now.setHours(0, 0, 0, 0)
-                        const daysLeft = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-                        const isOverdue = batch.status === 'ACTIVE' && daysLeft < 0
-                        const isSoon = batch.status === 'ACTIVE' && daysLeft >= 0 && daysLeft <= 2
-                        return (
-                          <p className={`text-xs font-medium ${
-                            isOverdue ? 'text-red-500 dark:text-red-400' :
-                            isSoon ? 'text-amber-500 dark:text-amber-400' :
-                            'text-muted-foreground/60'
-                          }`}>
-                            {isOverdue ? `⚠️ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${Math.abs(daysLeft)}d overdue)` :
-                             isSoon ? `⏰ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `${daysLeft}d`})` :
-                             `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                          </p>
-                        )
-                      })()}
+                  {/* Row 1: Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <h2 className="text-lg font-semibold text-foreground truncate flex-1 min-w-0">{batch.name}</h2>
+                    <div className="text-right shrink-0 ml-4">
+                      <p className="text-2xl font-bold text-foreground">{batch.targetQuantity}</p>
+                      <p className="text-xs text-muted-foreground">units</p>
                     </div>
-                    <ChevronRightIcon className="w-5 h-5 text-muted-foreground shrink-0 ml-2" />
                   </div>
 
-                  {/* Status Badge */}
+                  {/* Row 2: Status line */}
                   <div className="flex items-center gap-2 mb-4">
-                    {isMyTurn ? (
-                      <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                        YOUR TURN
-                      </span>
-                    ) : (
-                      <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold">
-                        WAITING
+                    {batch.dueDate && (() => {
+                      const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
+                      const now = new Date()
+                      now.setHours(0, 0, 0, 0)
+                      const daysLeft = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                      const isOverdue = batch.status === 'ACTIVE' && daysLeft < 0
+                      const isSoon = batch.status === 'ACTIVE' && daysLeft >= 0 && daysLeft <= 2
+                      return (
+                        <span className={`text-sm font-medium ${
+                          isOverdue ? 'text-red-500 dark:text-red-400' :
+                          isSoon ? 'text-amber-500 dark:text-amber-400' :
+                          'text-muted-foreground/60'
+                        }`}>
+                          {isOverdue ? `⚠️ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${Math.abs(daysLeft)}d overdue)` :
+                           isSoon ? `⏰ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `${daysLeft}d`})` :
+                           `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                        </span>
+                      )
+                    })()}
+                    {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (
+                      <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
+                        OVERDUE
                       </span>
                     )}
                     {batch.strain && (
@@ -282,55 +280,29 @@ export default function BatchListClient({
                         {batch.strain}
                       </span>
                     )}
-                    {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (
-                      <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
-                        OVERDUE
-                      </span>
-                    )}
                   </div>
 
-                  {/* Progress */}
-                  <div className="flex items-center gap-4">
-                    {/* Circular Progress */}
-                    <div className="relative w-12 h-12 shrink-0">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                        <path
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          className="text-muted"
-                        />
-                        <path
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeDasharray={`${pct}, 100`}
-                          className="text-success"
-                        />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
-                        {pct}%
+                  {/* Row 3: Progress + Next Action */}
+                  <div className="space-y-2">
+                    {/* Fat progress bar */}
+                    <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+
+                    {/* Progress text and next step */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-foreground font-medium">
+                        {completedSteps}/{batch.steps.length} steps · {pct}%
                       </span>
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground">
-                        {completedSteps}/{batch.steps.length} steps complete
-                      </p>
                       {firstIncomplete && (
-                        <p className="text-sm text-muted-foreground truncate">
+                        <span className="text-muted-foreground truncate ml-2">
                           Next: {firstIncomplete.name}
-                        </p>
+                          {isMyTurn && <span className="text-emerald-500 ml-1">→</span>}
+                        </span>
                       )}
-                    </div>
-
-                    {/* Target */}
-                    <div className="text-right shrink-0">
-                      <p className="text-xl font-bold text-foreground">{batch.targetQuantity}</p>
-                      <p className="text-xs text-muted-foreground">units</p>
                     </div>
                   </div>
                 </Link>
