@@ -27,6 +27,8 @@ export default function BatchListClient({
   const [elapsed, setElapsed] = useState('0h 00m')
   const [refreshing, setRefreshing] = useState(false)
   const [touchStart, setTouchStart] = useState(0)
+  const [loading, setLoading] = useState(!initialBatches.length)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const fetchData = async (showLoading = false) => {
     if (showLoading) setRefreshing(true)
@@ -37,7 +39,10 @@ export default function BatchListClient({
       ])
       if (bRes.ok) {
         const data = await bRes.json()
-        if (data.batches) setBatches(data.batches)
+        if (data.batches) {
+          setBatches(data.batches)
+          setLoading(false)
+        }
       }
       if (sRes.ok) {
         const data = await sRes.json()
@@ -172,14 +177,50 @@ export default function BatchListClient({
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Your Batches</h1>
           <p className="text-muted-foreground mt-1">{batches.length} available</p>
+
+          {/* Search */}
+          <div className="relative mt-4">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search batches..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            />
+          </div>
         </div>
 
         {/* Batch Cards */}
-        {batches.length === 0 ? (
-          <EmptyState icon="inbox" title="No batches" description="Check back later for new work." />
-        ) : (
+        {loading ? (
           <div className="space-y-4">
-            {batches.map((batch) => {
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : (() => {
+            const filteredBatches = batches.filter((b) => {
+              const query = searchQuery.toLowerCase()
+              return (
+                b.name.toLowerCase().includes(query) ||
+                b.recipe.name.toLowerCase().includes(query) ||
+                (b.strain && b.strain.toLowerCase().includes(query))
+              )
+            })
+
+            if (filteredBatches.length === 0) {
+              return searchQuery ? (
+                <EmptyState icon="inbox" title="No batches match" description="Try a different search term." />
+              ) : (
+                <EmptyState icon="inbox" title="No batches" description="Check back later for new work." />
+              )
+            }
+
+            return (
+          <div className="space-y-4">
+            {filteredBatches.map((batch) => {
               const firstIncomplete = batch.steps.find((s) => s.status !== 'COMPLETED')
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const pct = Math.round((completedSteps / batch.steps.length) * 100)
@@ -266,7 +307,8 @@ export default function BatchListClient({
               )
             })}
           </div>
-        )}
+            )
+        })()}
 
         {/* Floating Clock Out Bar */}
         {onShift && (

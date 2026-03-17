@@ -46,6 +46,8 @@ export default function DashboardClient({
   const [workerSummary, setWorkerSummary] = useState<{ id: string; name: string; todayLogs: number; todayUnits: number; batches: string[]; onShift?: boolean; lastActivity?: string }[]>([])
   const [activeWorkers, setActiveWorkers] = useState(0)
   const [showCompleted, setShowCompleted] = useState(false)
+  const [loading, setLoading] = useState(!initialBatches.length && !initialActivity.length)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     const poll = async () => {
@@ -55,10 +57,10 @@ export default function DashboardClient({
           fetch('/api/activity'),
           fetch('/api/workers/activity'),
         ])
-        if (bRes.ok) { const d = await bRes.json(); if (d.batches) setBatches(d.batches) }
+        if (bRes.ok) { const d = await bRes.json(); if (d.batches) { setBatches(d.batches); setLoading(false) } }
         if (aRes.ok) { const d = await aRes.json(); if (d.activities) setActivity(d.activities) }
-        if (wRes.ok) { 
-          const d = await wRes.json(); 
+        if (wRes.ok) {
+          const d = await wRes.json();
           if (d.workers) {
             setWorkerSummary(d.workers)
             setActiveWorkers(d.workers.filter((w: any) => w.onShift).length)
@@ -78,32 +80,72 @@ export default function DashboardClient({
 
       <main className="max-w-5xl mx-auto px-4 py-5">
         {/* Stats */}
-        <div className="flex items-center gap-4 mb-5 text-xs text-muted-foreground">
-          <span className="text-foreground font-semibold text-lg tracking-tight">Dashboard</span>
-          <span className="text-border">|</span>
-          <span>{batches.filter(b => b.status === 'ACTIVE').length} active</span>
-          <span className="text-border">·</span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            {activeWorkers} working
-          </span>
-          <span className="text-border">·</span>
-          <span>{totalUnits.toLocaleString()} units</span>
-          <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showCompleted ? 'Hide Completed' : 'Show Completed'}
-          </button>
+        <div className="mb-5 space-y-3">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="text-foreground font-semibold text-lg tracking-tight">Dashboard</span>
+            <span className="text-border">|</span>
+            <span>{batches.filter(b => b.status === 'ACTIVE').length} active batches</span>
+            <span className="text-border">·</span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {activeWorkers} on shift today
+            </span>
+            <span className="text-border">·</span>
+            <span>{totalUnits.toLocaleString()} units</span>
+            <button
+              onClick={() => setShowCompleted(!showCompleted)}
+              className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showCompleted ? 'Hide Completed' : 'Show Completed'}
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search batches..."
+              className="w-full pl-10 pr-4 py-2 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Batches */}
           <div className="lg:col-span-2 space-y-2.5">
-            {batches.filter(b => showCompleted || b.status === 'ACTIVE').length === 0 ? (
-              <EmptyState icon="clipboard" title={showCompleted ? "No batches" : "No active batches"} description={showCompleted ? "No batches found." : "Start your first production run"} actionLabel={!showCompleted ? "Create Batch" : undefined} actionHref="/batches/new" />
-            ) : (
-              batches.filter(b => showCompleted || b.status === 'ACTIVE').map((batch) => {
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Active Batches</h2>
+            {loading ? (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
+                ))}
+              </>
+            ) : (() => {
+                const filteredBatches = batches
+                  .filter(b => showCompleted || b.status === 'ACTIVE')
+                  .filter((b) => {
+                    const query = searchQuery.toLowerCase()
+                    return (
+                      b.name.toLowerCase().includes(query) ||
+                      b.recipe.name.toLowerCase().includes(query) ||
+                      (b.strain && b.strain.toLowerCase().includes(query))
+                    )
+                  })
+
+                if (filteredBatches.length === 0) {
+                  return searchQuery ? (
+                    <EmptyState icon="clipboard" title="No batches match" description="Try a different search term." />
+                  ) : (
+                    <EmptyState icon="clipboard" title={showCompleted ? "No batches" : "No active batches"} description={showCompleted ? "No batches found." : "Start your first production run"} actionLabel={!showCompleted ? "Create Batch" : undefined} actionHref="/batches/new" />
+                  )
+                }
+
+                return filteredBatches.map((batch) => {
                 const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
 
                 return (
@@ -183,7 +225,7 @@ export default function DashboardClient({
                   </Link>
                 )
               })
-            )}
+            })()}
           </div>
 
           {/* Activity Feed */}

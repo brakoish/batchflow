@@ -9,6 +9,7 @@ import {
   CheckIcon,
   PlusIcon,
   XMarkIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
@@ -104,6 +105,7 @@ export default function BatchDetailClient({
   const [toast, setToast] = useState('')
   const [toastType, setToastType] = useState<'success' | 'warning'>('success')
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
+  const [pageLoading, setPageLoading] = useState(!initialBatch.id)
   const quantityRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -136,7 +138,10 @@ export default function BatchDetailClient({
         const res = await fetch(`/api/batches/${batch.id}`)
         if (res.ok) {
           const data = await res.json()
-          if (data.batch) setBatch(data.batch)
+          if (data.batch) {
+            setBatch(data.batch)
+            setPageLoading(false)
+          }
         }
       } catch {}
     }
@@ -485,6 +490,21 @@ export default function BatchDetailClient({
     return `${diffDays}d ago`
   }
 
+  const formatLogTimestamp = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const isToday = date.toDateString() === now.toDateString()
+
+    const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+
+    if (isToday) {
+      return timeStr
+    } else {
+      const monthDay = date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      return `${monthDay} · ${timeStr}`
+    }
+  }
+
   return (
     <AppShell session={session}>
 
@@ -502,6 +522,22 @@ export default function BatchDetailClient({
       )}
 
       <main className="max-w-2xl mx-auto px-4 py-5">
+        {pageLoading ? (
+          <>
+            {/* Skeleton header */}
+            <div className="mb-5 space-y-2">
+              <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+            </div>
+            {/* Skeleton steps */}
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
         {/* Batch header */}
         <div className="mb-5">
           <h1 className="text-lg font-semibold tracking-tight text-foreground">{batch.name}</h1>
@@ -674,7 +710,7 @@ export default function BatchDetailClient({
                         return (
                           <div key={idx} className="text-sm text-muted-foreground">
                             <span className="text-foreground">{mat.name}</span>
-                            <span className="text-muted-foreground/60"> · {total}{mat.unit}</span>
+                            <span className="text-muted-foreground/60"> · {total} {mat.unit}</span>
                           </div>
                         )
                       })}
@@ -684,13 +720,14 @@ export default function BatchDetailClient({
 
                 {/* Logs */}
                 {step.progressLogs && step.progressLogs.length > 0 && !isLocked && (
-                  <div className="mt-3 space-y-1">
+                  <div className="mt-3">
                     {(() => {
                       const isExpanded = expandedSteps.has(step.id)
                       const logs = isExpanded ? step.progressLogs : step.progressLogs.slice(0, 3)
                       const hasMore = step.progressLogs.length > 3
                       return (
                         <>
+                          <div className="space-y-1 overflow-hidden transition-all duration-300">
                           {logs.map((log) => {
                             const canEdit = session.role === 'OWNER' || session.id === log.worker.id
                             return (
@@ -703,12 +740,13 @@ export default function BatchDetailClient({
                                   <span className="text-muted-foreground font-medium">{log.worker.name}</span>
                                   <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
                                   {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
-                                  <span className="text-muted-foreground/30">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  <span className="text-muted-foreground/30">{formatLogTimestamp(log.createdAt)}</span>
                                   {log.editedAt && <span className="text-muted-foreground/50 italic">(edited)</span>}
                                 </button>
                               </div>
                             )
                           })}
+                          </div>
                           {hasMore && (
                             <button
                               onClick={() => {
@@ -737,7 +775,10 @@ export default function BatchDetailClient({
 
         {/* Chat Section */}
         <div className="mt-8 pt-8 border-t border-border/50">
-          <h2 className="text-sm font-semibold text-foreground mb-4">💬 Team Chat</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
+            Team Chat
+          </h2>
 
           <div className="rounded-xl border bg-card p-4">
             {/* Message list */}
@@ -796,13 +837,21 @@ export default function BatchDetailClient({
               <button
                 type="submit"
                 disabled={!newMessage.trim() || sendingMessage}
-                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-medium transition-all duration-150 disabled:opacity-40 disabled:bg-muted disabled:cursor-not-allowed"
+                className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center transition-all duration-150 active:scale-[0.96] ${
+                  newMessage.trim() && !sendingMessage
+                    ? 'bg-emerald-600 hover:bg-emerald-500'
+                    : 'bg-muted cursor-not-allowed'
+                }`}
               >
-                {sendingMessage ? 'Sending...' : 'Send'}
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+                </svg>
               </button>
             </form>
           </div>
         </div>
+          </>
+        )}
       </main>
 
       {/* Log Modal */}
