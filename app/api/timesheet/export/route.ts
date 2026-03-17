@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/session'
 
+function formatDuration(hours: number): string {
+  if (hours <= 0) return '0m'
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  if (h === 0) return `${m}m`
+  return `${h}h ${m}m`
+}
+
 export async function GET(request: NextRequest) {
   try {
     await requireOwner()
@@ -60,9 +68,10 @@ export async function GET(request: NextRequest) {
     
     const rows = shifts.map((shift) => {
       const stats = workerStats[shift.workerId] || { totalUnits: 0, logCount: 0 }
-      const hours = shift.endedAt
-        ? ((new Date(shift.endedAt).getTime() - new Date(shift.startedAt).getTime()) / (1000 * 60 * 60)).toFixed(2)
-        : 'Active'
+      const rawHours = shift.endedAt
+        ? (new Date(shift.endedAt).getTime() - new Date(shift.startedAt).getTime()) / (1000 * 60 * 60)
+        : 0
+      const hours = shift.endedAt ? formatDuration(rawHours) : 'Active'
       
       return {
         Worker: shift.worker.name,

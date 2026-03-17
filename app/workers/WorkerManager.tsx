@@ -23,6 +23,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [editName, setEditName] = useState('')
   const [editRole, setEditRole] = useState<'WORKER' | 'OWNER'>('WORKER')
   const [showEditModal, setShowEditModal] = useState(false)
+  const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
   const router = useRouter()
 
   const generatePin = () => {
@@ -281,7 +282,21 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             <div>
               <p className="text-sm font-medium text-foreground">{worker.name}</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-muted-foreground font-mono">PIN: {worker.pin}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    haptic('light')
+                    setRevealedPins(prev => {
+                      const next = new Set(prev)
+                      if (next.has(worker.id)) next.delete(worker.id)
+                      else next.add(worker.id)
+                      return next
+                    })
+                  }}
+                  className="text-xs text-muted-foreground font-mono hover:text-foreground transition-colors"
+                >
+                  PIN: {revealedPins.has(worker.id) ? worker.pin : '••••'}
+                </button>
                 <span className={`text-xs px-2 py-0.5 rounded border ${
                   worker.role === 'OWNER'
                     ? 'bg-purple-500/10 text-purple-500 border-purple-500/20'
