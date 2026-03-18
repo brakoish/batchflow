@@ -9,11 +9,11 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
-    apple: '/icon-192x192.svg',
+    apple: '/icon-192x192.png',
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'BatchFlow',
   },
 }
