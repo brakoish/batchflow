@@ -12,7 +12,6 @@ import {
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
-import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Worker = { id: string; name: string }
 type ProgressLog = {
@@ -106,7 +105,6 @@ export default function BatchDetailClient({
   const [toast, setToast] = useState('')
   const [toastType, setToastType] = useState<'success' | 'warning'>('success')
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
-  const [confirmAction, setConfirmAction] = useState<{ title: string; message?: string; label: string; style?: 'danger' | 'primary'; action: () => void } | null>(null)
   const [pageLoading, setPageLoading] = useState(!initialBatch.id)
   const quantityRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -189,18 +187,9 @@ export default function BatchDetailClient({
     setTimeout(() => setToast(''), 3000)
   }
 
-  const statusLabels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
-
-  const handleStatusChange = (status: string) => {
-    setConfirmAction({
-      title: `${statusLabels[status]?.charAt(0).toUpperCase()}${statusLabels[status]?.slice(1)} this batch?`,
-      label: statusLabels[status]?.charAt(0).toUpperCase() + statusLabels[status]?.slice(1) || status,
-      style: status === 'CANCELLED' ? 'danger' : 'primary',
-      action: () => doStatusChange(status),
-    })
-  }
-
-  const doStatusChange = async (status: string) => {
+  const handleStatusChange = async (status: string) => {
+    const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
+    if (!confirm(`Are you sure you want to ${labels[status] || status} this batch?`)) return
     setError('')
     try {
       const res = await fetch(`/api/batches/${batch.id}`, {
@@ -214,23 +203,14 @@ export default function BatchDetailClient({
         return 
       }
       setBatch(prev => ({ ...prev, status }))
-      showToast(`Batch ${statusLabels[status]}d`)
+      showToast(`Batch ${labels[status]}d`)
     } catch (err) { 
       setError('Network error. Please check your connection.')
     }
   }
 
-  const handleDeleteBatch = () => {
-    setConfirmAction({
-      title: 'Delete this batch?',
-      message: 'This cannot be undone.',
-      label: 'Delete',
-      style: 'danger',
-      action: doDeleteBatch,
-    })
-  }
-
-  const doDeleteBatch = async () => {
+  const handleDeleteBatch = async () => {
+    if (!confirm('Permanently delete this cancelled batch? This cannot be undone.')) return
     setError('')
     try {
       const res = await fetch(`/api/batches/${batch.id}`, { method: 'DELETE' })
@@ -303,16 +283,8 @@ export default function BatchDetailClient({
     }
   }
 
-  const handleDeleteLog = (logId: string, stepId: string, qty: number) => {
-    setConfirmAction({
-      title: `Delete this log entry (+${qty})?`,
-      label: 'Delete',
-      style: 'danger',
-      action: () => doDeleteLog(logId, stepId, qty),
-    })
-  }
-
-  const doDeleteLog = async (logId: string, stepId: string, qty: number) => {
+  const handleDeleteLog = async (logId: string, stepId: string, qty: number) => {
+    if (!confirm(`Delete this log entry (+${qty})?`)) return
     setError('')
     setLoading(true)
     try {
@@ -1145,16 +1117,6 @@ export default function BatchDetailClient({
           </div>
         </div>
       )}
-
-      <ConfirmModal
-        open={!!confirmAction}
-        title={confirmAction?.title || ''}
-        message={confirmAction?.message}
-        confirmLabel={confirmAction?.label || 'Confirm'}
-        confirmStyle={confirmAction?.style || 'danger'}
-        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
-        onCancel={() => setConfirmAction(null)}
-      />
     </AppShell>
   )
 }

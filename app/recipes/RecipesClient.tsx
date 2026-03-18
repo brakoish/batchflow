@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
 import RecipeBuilder from './RecipeBuilder'
 import EmptyState from '@/app/components/EmptyState'
-import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
@@ -18,12 +17,12 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
   const [recipes, setRecipes] = useState(initialRecipes)
   const [editId, setEditId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
-  const [confirmAction, setConfirmAction] = useState<{title:string; message?:string; label:string; style?:'danger'|'primary'; action:()=>void}|null>(null)
   const router = useRouter()
 
   const editRecipe = editId ? recipes.find(r => r.id === editId) || null : null
 
-  const doDelete = async (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this recipe?')) return
     setDeleting(id)
     try {
       const res = await fetch(`/api/recipes/${id}`, { method: 'DELETE' })
@@ -34,15 +33,6 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
       }
     } catch { alert('Connection error') }
     finally { setDeleting(null) }
-  }
-
-  const handleDelete = (id: string) => {
-    setConfirmAction({
-      title: 'Delete this recipe?',
-      label: 'Delete',
-      style: 'danger',
-      action: () => doDelete(id)
-    })
   }
 
   return (
@@ -101,19 +91,6 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
         key={editId || 'new'}
         editRecipe={editRecipe}
         onDone={() => { setEditId(null); router.refresh() }}
-      />
-
-      <ConfirmModal
-        open={!!confirmAction}
-        title={confirmAction?.title || ''}
-        message={confirmAction?.message}
-        confirmLabel={confirmAction?.label}
-        confirmStyle={confirmAction?.style}
-        onConfirm={() => {
-          confirmAction?.action()
-          setConfirmAction(null)
-        }}
-        onCancel={() => setConfirmAction(null)}
       />
     </div>
   )
