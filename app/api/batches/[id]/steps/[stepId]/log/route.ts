@@ -127,6 +127,25 @@ export async function POST(
           status: 'IN_PROGRESS',
         },
       })
+
+      // Notify assigned workers about the unlocked step
+      const assignments = await prisma.batchAssignment.findMany({
+        where: { batchId: step.batchId },
+        include: { worker: true },
+      })
+
+      assignments.forEach((assignment) => {
+        fetch(`${request.nextUrl.origin}/api/notifications/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workerId: assignment.workerId,
+            title: `Your turn: ${step.batch.name}`,
+            body: `${nextStep.name} is ready for you`,
+            url: `/batches/${step.batchId}`,
+          }),
+        }).catch((error) => console.error('Failed to send notification:', error))
+      })
     }
 
     // Check if all steps are completed
@@ -147,6 +166,25 @@ export async function POST(
           status: 'COMPLETED',
           completedDate: new Date(),
         },
+      })
+
+      // Notify all assigned workers about batch completion
+      const assignments = await prisma.batchAssignment.findMany({
+        where: { batchId: step.batchId },
+        include: { worker: true },
+      })
+
+      assignments.forEach((assignment) => {
+        fetch(`${request.nextUrl.origin}/api/notifications/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workerId: assignment.workerId,
+            title: `Batch completed: ${step.batch.name}`,
+            body: 'All steps have been completed',
+            url: `/batches/${step.batchId}`,
+          }),
+        }).catch((error) => console.error('Failed to send notification:', error))
       })
     }
 

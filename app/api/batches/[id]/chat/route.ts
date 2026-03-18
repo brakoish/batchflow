@@ -44,6 +44,22 @@ export async function POST(
       return NextResponse.json({ error: 'Message too long (max 500 chars)' }, { status: 400 })
     }
 
+    // Get batch with assignments
+    const batch = await prisma.batch.findUnique({
+      where: { id },
+      include: {
+        assignments: {
+          include: {
+            worker: true,
+          },
+        },
+      },
+    })
+
+    if (!batch) {
+      return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+    }
+
     const batchMessage = await prisma.batchMessage.create({
       data: {
         batchId: id,
@@ -55,6 +71,25 @@ export async function POST(
           select: { id: true, name: true },
         },
       },
+    })
+
+    // Send notifications to all assigned workers except the sender
+    const assignedWorkers = batch.assignments
+      .filter((assignment) => assignment.workerId !== session.id)
+      .map((assignment) => assignment.worker)
+
+    // Send notifications asynchronously (don't wait)
+    assignedWorkers.forEach((worker) => {
+      fetch(`${request.nextUrl.origin}/api/notifications/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workerId: worker.id,
+          title: `New message in ${batch.name}`,
+          body: `${batchMessage.worker.name}: ${message.trim().substring(0, 100)}${message.length > 100 ? '...' : ''}`,
+          url: `/batches/${batch.id}`,
+        }),
+      }).catch((error) => console.error('Failed to send notification:', error))
     })
 
     return NextResponse.json({ message: batchMessage })
