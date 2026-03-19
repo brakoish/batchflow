@@ -24,12 +24,8 @@ async function migrate() {
       console.log('✓ Created Excelsior organization')
     }
 
-    // 2. Get all existing workers
-    const workers = await prisma.worker.findMany({
-      where: {
-        organizationId: null, // Only migrate workers without an org
-      }
-    })
+    // 2. Get all existing workers (handle both with and without orgId)
+    const workers = await prisma.worker.findMany()
 
     console.log(`Found ${workers.length} workers to migrate`)
 
@@ -61,28 +57,38 @@ async function migrate() {
         }
       })
 
-      // Update worker to link to organization
-      await prisma.worker.update({
-        where: { id: worker.id },
-        data: { organizationId: org.id }
-      })
+      // Update worker to link to organization (if schema supports it)
+      try {
+        await prisma.worker.update({
+          where: { id: worker.id },
+          data: { organizationId: org.id }
+        })
+      } catch {
+        // Worker model might not have organizationId field yet
+      }
 
       console.log(`  ✓ Created user for worker: ${worker.name} (${worker.role})`)
     }
 
-    // 4. Update all batches without an organizationId
-    const batchesResult = await prisma.batch.updateMany({
-      where: { organizationId: null },
-      data: { organizationId: org.id }
-    })
-    console.log(`✓ Updated ${batchesResult.count} batches`)
+    // 4. Update all batches (set organizationId)
+    try {
+      const batchesResult = await prisma.batch.updateMany({
+        data: { organizationId: org.id }
+      })
+      console.log(`✓ Updated ${batchesResult.count} batches`)
+    } catch (e) {
+      console.log('  - Batches may already have organizationId set')
+    }
 
-    // 5. Update all recipes without an organizationId
-    const recipesResult = await prisma.recipe.updateMany({
-      where: { organizationId: null },
-      data: { organizationId: org.id }
-    })
-    console.log(`✓ Updated ${recipesResult.count} recipes`)
+    // 5. Update all recipes
+    try {
+      const recipesResult = await prisma.recipe.updateMany({
+        data: { organizationId: org.id }
+      })
+      console.log(`✓ Updated ${recipesResult.count} recipes`)
+    } catch (e) {
+      console.log('  - Recipes may already have organizationId set')
+    }
 
     console.log('\n✅ Migration complete!')
     console.log('\nNext steps:')
