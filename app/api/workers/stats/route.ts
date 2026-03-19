@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession } from '@/lib/auth'
 
 export async function GET() {
   try {
@@ -11,7 +11,7 @@ export async function GET() {
 
     // Get worker's stats
     const worker = await prisma.worker.findUnique({
-      where: { id: session.id },
+      where: { id: session.user.workerId },
       include: {
         progressLogs: {
           orderBy: { createdAt: 'desc' },

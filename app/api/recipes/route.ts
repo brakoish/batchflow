@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession, requireOwner } from '@/lib/session'
+import { requireSession, requireOwner } from '@/lib/auth'
 
 export async function GET() {
   try {
-    await requireSession()
+    const session = await requireSession()
 
     const recipes = await prisma.recipe.findMany({
+      where: {
+        organizationId: session.user.organizationId,
+      },
       include: {
         units: { orderBy: { order: 'asc' } },
         steps: {
@@ -26,7 +29,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
 
     const { name, description, baseUnit, units, steps } = await request.json()
 
@@ -39,6 +42,7 @@ export async function POST(request: NextRequest) {
         name,
         description,
         baseUnit: baseUnit || 'units',
+        organizationId: session.user.organizationId,
         units: {
           create: (units || []).map((u: { name: string; ratio: number }, i: number) => ({
             name: u.name,

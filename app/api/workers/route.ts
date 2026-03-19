@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireOwner } from '@/lib/session'
+import { requireOwner } from '@/lib/auth'
 
 function generatePin(): string {
   return Math.floor(1000 + Math.random() * 9000).toString()
@@ -8,9 +8,12 @@ function generatePin(): string {
 
 export async function GET() {
   try {
-    await requireOwner()
+    const session = await requireOwner()
 
     const workers = await prisma.worker.findMany({
+      where: {
+        organizationId: session.user.organizationId,
+      },
       select: {
         id: true,
         name: true,
@@ -35,7 +38,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
 
     const { name, role, pin: customPin } = await request.json()
 
@@ -46,7 +49,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!['WORKER', 'OWNER'].includes(role)) {
+    if (!['WORKER', 'SUPERVISOR', 'OWNER'].includes(role)) {
       return NextResponse.json(
         { error: 'Invalid role' },
         { status: 400 }
@@ -92,6 +95,7 @@ export async function POST(request: NextRequest) {
         name,
         role,
         pin,
+        organizationId: session.user.organizationId,
       },
       select: {
         id: true,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession } from '@/lib/session'
+import { requireSession } from '@/lib/auth'
 
 export async function PATCH(
   request: NextRequest,
@@ -21,7 +21,7 @@ export async function PATCH(
     }
 
     // Only the worker who made it or an owner can edit
-    if (log.workerId !== session.id && session.role !== 'OWNER') {
+    if (log.workerId !== session.user.workerId && session.user.role !== 'OWNER') {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
@@ -35,7 +35,7 @@ export async function PATCH(
       data: {
         progressLogId: id,
         batchStepId: log.batchStepId,
-        workerId: session.id,
+        workerId: session.user.workerId,
         action: 'edit',
         oldQuantity: log.quantity,
         newQuantity: quantity,
@@ -123,7 +123,7 @@ export async function DELETE(
     }
 
     // Only the worker who made it or an owner can delete
-    if (log.workerId !== session.id && session.role !== 'OWNER') {
+    if (log.workerId !== session.user.workerId && session.user.role !== 'OWNER') {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
@@ -132,7 +132,7 @@ export async function DELETE(
       data: {
         progressLogId: id,
         batchStepId: log.batchStepId,
-        workerId: session.id,
+        workerId: session.user.workerId,
         action: 'delete',
         oldQuantity: log.quantity,
         oldNote: log.note,

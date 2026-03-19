@@ -1,17 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireOwner } from '@/lib/session'
+import { requireOwner } from '@/lib/auth'
 
 export async function GET(request: Request) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
 
     const { searchParams } = new URL(request.url)
     const workerId = searchParams.get('workerId')
     const dateFrom = searchParams.get('from')
     const dateTo = searchParams.get('to')
 
-    const where: any = {}
+    const where: any = {
+      worker: {
+        organizationId: session.user.organizationId,
+      },
+    }
     if (workerId) where.workerId = workerId
     if (dateFrom || dateTo) {
       where.startedAt = {}

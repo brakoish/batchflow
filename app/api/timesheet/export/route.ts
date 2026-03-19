@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireOwner } from '@/lib/session'
+import { requireOwner } from '@/lib/auth'
 
 function formatDuration(hours: number): string {
   if (hours <= 0) return '0m'

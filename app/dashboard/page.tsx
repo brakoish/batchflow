@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { getOrganizationName } from '@/lib/organization'
 import DashboardClient from './DashboardClient'
 
 export default async function DashboardPage() {
@@ -8,8 +9,13 @@ export default async function DashboardPage() {
   if (!session) redirect('/')
   if (session.role !== 'OWNER') redirect('/batches')
 
+  const organizationName = await getOrganizationName(session.organizationId)
+
   const batches = await prisma.batch.findMany({
-    where: { status: 'ACTIVE' },
+    where: {
+      status: 'ACTIVE',
+      organizationId: session.organizationId,
+    },
     include: { recipe: true, steps: { orderBy: { order: 'asc' } } },
     orderBy: { startDate: 'desc' },
   })
@@ -77,6 +83,7 @@ export default async function DashboardPage() {
       initialBatches={JSON.parse(JSON.stringify(batches))}
       initialActivity={JSON.parse(JSON.stringify(allActivities))}
       session={session}
+      organizationName={organizationName || undefined}
     />
   )
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession } from '@/lib/session'
+import { requireSession } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -63,7 +63,7 @@ export async function POST(
     const batchMessage = await prisma.batchMessage.create({
       data: {
         batchId: id,
-        workerId: session.id,
+        workerId: session.user.workerId,
         message: message.trim(),
       },
       include: {
@@ -75,7 +75,7 @@ export async function POST(
 
     // Send notifications to all assigned workers except the sender
     const assignedWorkers = batch.assignments
-      .filter((assignment) => assignment.workerId !== session.id)
+      .filter((assignment) => assignment.workerId !== session.user.workerId)
       .map((assignment) => assignment.worker)
 
     // Send notifications asynchronously (don't wait)

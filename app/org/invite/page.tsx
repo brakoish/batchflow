@@ -1,0 +1,41 @@
+import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/session'
+import { prisma } from '@/lib/prisma'
+import AppShell from '@/app/components/AppShell'
+import OrgInviteManager from './OrgInviteManager'
+
+export default async function OrgInvitePage() {
+  const session = await getSession()
+  if (!session) redirect('/')
+  if (session.role !== 'OWNER') redirect('/batches')
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: session.organizationId },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      workers: {
+        select: { id: true, name: true, role: true, createdAt: true },
+        orderBy: { name: 'asc' },
+      },
+    },
+  })
+
+  if (!organization) {
+    redirect('/org/new')
+  }
+
+  return (
+    <AppShell session={session}>
+      <main className="max-w-2xl mx-auto px-4 py-5">
+        <h1 className="text-xl font-bold text-foreground mb-5">
+          Organization: {organization.name}
+        </h1>
+        <OrgInviteManager
+          organization={JSON.parse(JSON.stringify(organization))}
+        />
+      </main>
+    </AppShell>
+  )
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireOwner } from '@/lib/session'
+import { requireOwner } from '@/lib/auth'
 import { Role } from '@prisma/client'
 
 export async function PATCH(

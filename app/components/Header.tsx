@@ -18,10 +18,12 @@ type HeaderProps = {
     id: string
     name: string
     role: string
+    organizationId?: string
   }
+  organizationName?: string
 }
 
-export default function Header({ session }: HeaderProps) {
+export default function Header({ session, organizationName }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [onShift, setOnShift] = useState(false)
   const pathname = usePathname()
@@ -70,6 +72,7 @@ export default function Header({ session }: HeaderProps) {
         { href: '/timesheet', label: 'Timesheet' },
         { href: '/recipes', label: 'Recipes' },
         { href: '/workers', label: 'Workers' },
+        { href: '/org/invite', label: 'Org' },
       ]
     : [{ href: '/batches', label: 'Batches' }]
 
@@ -86,7 +89,12 @@ export default function Header({ session }: HeaderProps) {
             <rect x="12" y="56" width="32" height="32" rx="6"/>
             <path d="M64 56h16a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H64a6 6 0 0 1-6-6V62a6 6 0 0 1 6-6z"/>
           </svg>
-          <span className="text-base font-semibold text-foreground">BatchFlow</span>
+          <div className="flex flex-col">
+            <span className="text-base font-semibold text-foreground leading-none">BatchFlow</span>
+            {organizationName && (
+              <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{organizationName}</span>
+            )}
+          </div>
         </Link>
 
         {/* Desktop Nav */}

@@ -9,6 +9,7 @@ datasource db {
 
 enum Role {
   WORKER
+  SUPERVISOR
   OWNER
 }
 
@@ -29,29 +30,115 @@ enum StepType {
   COUNT
 }
 
-model Worker {
-  id          String        @id @default(cuid())
+// NextAuth.js Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  // Organization relation
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  role           Role          @default(OWNER)
+
+  // Worker-specific (for PIN login)
+  workerPin      String?   @unique
+  workerId       String?   @unique
+  worker         Worker?   @relation(fields: [workerId], references: [id])
+
+  @@index([organizationId])
+  @@index([workerId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Organization {
+  id          String   @id @default(cuid())
   name        String
-  pin         String        @unique
-  role        Role
-  createdAt   DateTime      @default(now())
-  progressLogs ProgressLog[]
-  assignments BatchAssignment[]
-  shifts      Shift[]
-  logAudits   LogAudit[]
-  batchMessages BatchMessage[]
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users       User[]
+  workers     Worker[]
+  batches     Batch[]
+  recipes     Recipe[]
+
+  @@index([slug])
+}
+
+model Worker {
+  id             String        @id @default(cuid())
+  name           String
+  pin            String        @unique
+  role           Role
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  progressLogs   ProgressLog[]
+  assignments    BatchAssignment[]
+  shifts         Shift[]
+  logAudits      LogAudit[]
+  batchMessages  BatchMessage[]
   pushSubscriptions PushSubscription[]
+  user           User?
+
+  @@index([organizationId])
 }
 
 model Recipe {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
-  baseUnit    String        @default("units")
-  createdAt   DateTime      @default(now())
-  steps       RecipeStep[]
-  batches     Batch[]
-  units       RecipeUnit[]
+  id             String        @id @default(cuid())
+  name           String
+  description    String?
+  baseUnit       String        @default("units")
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  steps          RecipeStep[]
+  batches        Batch[]
+  units          RecipeUnit[]
+
+  @@index([organizationId])
 }
 
 model RecipeUnit {
@@ -103,6 +190,8 @@ model Batch {
   targetQuantity  Int
   baseUnit        String        @default("units")
   status          BatchStatus   @default(ACTIVE)
+  organizationId  String
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   startDate       DateTime      @default(now())
   dueDate         DateTime?
   completedDate   DateTime?
@@ -119,6 +208,7 @@ model Batch {
 
   @@index([recipeId])
   @@index([status])
+  @@index([organizationId])
 }
 
 model BatchAssignment {

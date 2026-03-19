@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession } from '@/lib/session'
+import { requireSession } from '@/lib/auth'
 
 // GET current shift for logged-in worker
 export async function GET() {
@@ -8,13 +8,13 @@ export async function GET() {
     const session = await requireSession()
 
     const activeShift = await prisma.shift.findFirst({
-      where: { workerId: session.id, status: 'ACTIVE' },
+      where: { workerId: session.user.workerId, status: 'ACTIVE' },
       orderBy: { startedAt: 'desc' },
     })
 
     const todayShifts = await prisma.shift.findMany({
       where: {
-        workerId: session.id,
+        workerId: session.user.workerId,
         startedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
       },
       orderBy: { startedAt: 'desc' },
@@ -33,7 +33,7 @@ export async function POST() {
 
     // Check if already clocked in
     const existing = await prisma.shift.findFirst({
-      where: { workerId: session.id, status: 'ACTIVE' },
+      where: { workerId: session.user.workerId, status: 'ACTIVE' },
     })
 
     if (existing) {
@@ -41,7 +41,7 @@ export async function POST() {
     }
 
     const shift = await prisma.shift.create({
-      data: { workerId: session.id },
+      data: { workerId: session.user.workerId },
     })
 
     return NextResponse.json({ shift })
@@ -56,7 +56,7 @@ export async function PATCH() {
     const session = await requireSession()
 
     const activeShift = await prisma.shift.findFirst({
-      where: { workerId: session.id, status: 'ACTIVE' },
+      where: { workerId: session.user.workerId, status: 'ACTIVE' },
     })
 
     if (!activeShift) {

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ThemeProvider } from './components/ThemeProvider'
 import NotificationManager from './components/NotificationManager'
+import { Providers } from './providers'
 
 export const metadata: Metadata = {
   title: 'BatchFlow',
@@ -51,10 +52,12 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-dvh">
-        <ThemeProvider>
-          <NotificationManager />
-          {children}
-        </ThemeProvider>
+        <Providers>
+          <ThemeProvider>
+            <NotificationManager />
+            {children}
+          </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )

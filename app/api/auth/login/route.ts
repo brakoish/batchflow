@@ -19,6 +19,14 @@ export async function POST(request: NextRequest) {
         id: true,
         name: true,
         role: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
       },
     })
 
@@ -37,12 +45,18 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
     })
 
+    // Check if worker has organization
+    const hasOrganization = !!worker.organizationId && worker.organizationId !== 'default-org-id'
+    const needsOrg = !hasOrganization
+
     return NextResponse.json({
       worker: {
         id: worker.id,
         name: worker.name,
         role: worker.role,
+        organizationId: worker.organizationId,
       },
+      needsOrg,
     })
   } catch (error) {
     console.error('Login error:', error)

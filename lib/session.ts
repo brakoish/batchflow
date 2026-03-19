@@ -15,6 +15,7 @@ export async function getSession() {
       id: true,
       name: true,
       role: true,
+      organizationId: true,
     },
   })
 

@@ -6,7 +6,7 @@ import AppShell from '@/app/components/AppShell'
 import { LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
 
-type Session = { id: string; name: string; role: string }
+type Session = { id: string; name: string; role: string; organizationId: string }
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number }
 type Batch = {
   id: string; name: string; targetQuantity: number; status: string; strain?: string; dueDate?: string
@@ -37,9 +37,9 @@ function timeAgo(date: string) {
 }
 
 export default function DashboardClient({
-  initialBatches, initialActivity, session,
+  initialBatches, initialActivity, session, organizationName,
 }: {
-  initialBatches: Batch[]; initialActivity: ActivityLog[]; session: Session
+  initialBatches: Batch[]; initialActivity: ActivityLog[]; session: Session; organizationName?: string
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [activity, setActivity] = useState<ActivityLog[]>(initialActivity)
@@ -134,7 +134,7 @@ export default function DashboardClient({
   const totalUnits = activity.reduce((sum, l) => sum + (l.type === 'log' ? (l.quantity || 0) : 0), 0)
 
   return (
-    <AppShell session={session}>
+    <AppShell session={session} organizationName={organizationName}>
 
       <main className="max-w-5xl mx-auto px-4 py-5">
         {/* Stats */}

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireSession } from '@/lib/session';
+import { requireSession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
     const session = await requireSession();
-    if (!session?.id) {
+    if (!session?.user?.workerId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     // Check if subscription already exists
     const existing = await prisma.pushSubscription.findFirst({
       where: {
-        workerId: session.id,
+        workerId: session.user.workerId,
         endpoint,
       },
     });
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Create new subscription
     await prisma.pushSubscription.create({
       data: {
-        workerId: session.id,
+        workerId: session.user.workerId,
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,

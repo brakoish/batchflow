@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireOwner } from '@/lib/session'
+import { requireOwner } from '@/lib/auth'
 
 export async function GET() {
   try {
-    await requireOwner()
+    const session = await requireOwner()
 
     // Fetch both progress logs and audit logs
     const [progressLogs, auditLogs] = await Promise.all([
@@ -12,6 +12,11 @@ export async function GET() {
         where: {
           createdAt: {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+          },
+          batchStep: {
+            batch: {
+              organizationId: session.user.organizationId,
+            },
           },
         },
         orderBy: {
@@ -43,6 +48,11 @@ export async function GET() {
           },
           action: {
             in: ['edit', 'delete'],
+          },
+          batchStep: {
+            batch: {
+              organizationId: session.user.organizationId,
+            },
           },
         },
         orderBy: {

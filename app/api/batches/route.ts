@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession, requireOwner } from '@/lib/session'
+import { requireSession, requireOwner } from '@/lib/auth'
 
 export async function GET() {
   try {
     const session = await requireSession()
 
     // Build where clause based on role
-    let where: any = { status: 'ACTIVE' }
-    
-    if (session.role === 'WORKER') {
+    let where: any = {
+      status: 'ACTIVE',
+      organizationId: session.user.organizationId,
+    }
+
+    if (session.user.role === 'WORKER' && session.user.workerId) {
       // Workers see: batches with no assignments OR batches they're assigned to
       where = {
         status: 'ACTIVE',
+        organizationId: session.user.organizationId,
         OR: [
           { assignments: { none: {} } },
-          { assignments: { some: { workerId: session.id } } },
+          { assignments: { some: { workerId: session.user.workerId } } },
         ],
       }
     }
@@ -38,7 +42,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
 
     const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag } = await request.json()
 
@@ -47,7 +51,10 @@ export async function POST(request: NextRequest) {
     }
 
     const recipe = await prisma.recipe.findUnique({
-      where: { id: recipeId },
+      where: {
+        id: recipeId,
+        organizationId: session.user.organizationId,
+      },
       include: {
         units: true,
         steps: {
@@ -67,6 +74,7 @@ export async function POST(request: NextRequest) {
         name,
         targetQuantity,
         baseUnit: recipe.baseUnit,
+        organizationId: session.user.organizationId,
         startDate: startDate ? new Date(startDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : undefined,
         metrcBatchId: metrcBatchId || undefined,

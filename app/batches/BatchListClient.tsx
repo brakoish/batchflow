@@ -7,7 +7,7 @@ import EmptyState from '@/app/components/EmptyState'
 import { StopIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
-type Session = { id: string; name: string; role: string }
+type UserSession = { id: string; name: string; role: string; organizationId: string }
 type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number }
 type Assignment = { worker: { id: string; name: string } }
 type Batch = {
@@ -16,9 +16,9 @@ type Batch = {
 }
 
 export default function BatchListClient({
-  initialBatches, session,
+  initialBatches, session, organizationName,
 }: {
-  initialBatches: Batch[]; session: Session
+  initialBatches: Batch[]; session: UserSession; organizationName?: string
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [onShift, setOnShift] = useState(false)
@@ -134,7 +134,7 @@ export default function BatchListClient({
   }
 
   return (
-    <AppShell session={session}>
+    <AppShell session={session} organizationName={organizationName}>
       <main 
         className="max-w-2xl mx-auto px-4 py-6 pb-32"
         onTouchStart={handleTouchStart}

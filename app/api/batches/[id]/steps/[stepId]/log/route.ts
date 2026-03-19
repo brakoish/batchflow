@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession } from '@/lib/session'
+import { requireSession } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
@@ -80,7 +80,7 @@ export async function POST(
     const progressLog = await prisma.progressLog.create({
       data: {
         batchStepId: stepId,
-        workerId: session.id,
+        workerId: session.user.workerId,
         quantity,
         note,
       },
@@ -99,7 +99,7 @@ export async function POST(
       data: {
         progressLogId: progressLog.id,
         batchStepId: stepId,
-        workerId: session.id,
+        workerId: session.user.workerId,
         action: 'create',
         newQuantity: quantity,
         newNote: note,

@@ -1,16 +1,37 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { haptic } from '@/lib/haptic'
 
-export default function LoginPage() {
+export default function JoinOrgPage() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [orgName, setOrgName] = useState<string | null>(null)
   const router = useRouter()
+  const params = useParams()
+  const slug = params.slug as string
+
+  useEffect(() => {
+    // Fetch organization info
+    const fetchOrg = async () => {
+      try {
+        const res = await fetch(`/api/organizations/${slug}`)
+        if (res.ok) {
+          const data = await res.json()
+          setOrgName(data.organization.name)
+        } else {
+          setError('Organization not found')
+        }
+      } catch (err) {
+        setError('Failed to load organization')
+      }
+    }
+    fetchOrg()
+  }, [slug])
 
   const handleNumberClick = (num: string) => {
     if (pin.length < 4 && !loading) {
@@ -38,10 +59,10 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/organizations/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinToSubmit }),
+        body: JSON.stringify({ slug, pin: pinToSubmit }),
       })
 
       const data = await res.json()
@@ -53,15 +74,16 @@ export default function LoginPage() {
         return
       }
 
+      // Set session token in cookie
+      if (data.sessionToken) {
+        document.cookie = `next-auth.session-token=${data.sessionToken}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`
+      }
+
       haptic('medium')
       setSuccess(true)
       setTimeout(() => {
-        // If worker needs to create/join an organization
-        if (data.needsOrg) {
-          router.push('/org/new')
-        } else {
-          router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/batches')
-        }
+        router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/batches')
+        router.refresh()
       }, 300)
     } catch (err) {
       haptic('heavy')
@@ -92,7 +114,9 @@ export default function LoginPage() {
           <rect x="12" y="56" width="32" height="32" rx="6"/>
           <path d="M64 56h16a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H64a6 6 0 0 1-6-6V62a6 6 0 0 1 6-6z"/>
         </svg>
-        <h1 className="text-2xl font-semibold text-foreground">BatchFlow</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {orgName ? `Join ${orgName}` : 'Join Organization'}
+        </h1>
         <p className="text-sm text-muted-foreground mt-2">Enter your PIN</p>
       </div>
 
@@ -153,16 +177,6 @@ export default function LoginPage() {
           <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
         </div>
       )}
-
-      {/* Owner Login Link */}
-      <div className="mt-8 text-center">
-        <p className="text-sm text-muted-foreground">
-          Owner or Admin?{' '}
-          <a href="/login" className="text-foreground font-medium hover:underline">
-            Sign in with email
-          </a>
-        </p>
-      </div>
     </div>
   )
 }

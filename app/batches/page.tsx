@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { getOrganizationName } from '@/lib/organization'
 import BatchListClient from './BatchListClient'
 
 export default async function BatchesPage() {
@@ -8,8 +9,13 @@ export default async function BatchesPage() {
   if (!session) redirect('/')
   if (session.role === 'OWNER') redirect('/dashboard')
 
+  const organizationName = await getOrganizationName(session.organizationId)
+
   const batches = await prisma.batch.findMany({
-    where: { status: 'ACTIVE' },
+    where: {
+      status: 'ACTIVE',
+      organizationId: session.organizationId,
+    },
     include: {
       recipe: true,
       steps: { orderBy: { order: 'asc' } },
@@ -21,6 +27,7 @@ export default async function BatchesPage() {
     <BatchListClient
       initialBatches={JSON.parse(JSON.stringify(batches))}
       session={session}
+      organizationName={organizationName || undefined}
     />
   )
 }
