@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { haptic } from '@/lib/haptic'
 
@@ -39,28 +38,27 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const result = await signIn('credentials', {
-        pin: pinToSubmit,
-        redirect: false,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pinToSubmit }),
       })
 
-      console.log('SignIn result:', result)
+      const data = await res.json()
 
-      if (result?.error) {
+      if (!res.ok) {
         haptic('heavy')
-        setError(result.error === 'CredentialsSignin' ? 'Invalid PIN' : result.error)
+        setError(data.error || 'Invalid PIN')
         setPin('')
         setLoading(false)
         return
       }
 
-      if (result?.ok) {
-        router.push('/batches')
-      }
-
       haptic('medium')
       setSuccess(true)
-      // NextAuth will handle the redirect
+      setTimeout(() => {
+        router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/batches')
+      }, 300)
     } catch (err) {
       haptic('heavy')
       setError('Connection error')
@@ -100,7 +98,7 @@ export default function LoginPage() {
             key={i}
             className={`w-4 h-4 rounded-full transition-all duration-150 ${
               success
-                ? 'bg-success scale-110'
+                ? 'bg-emerald-500 scale-110'
                 : pin[i]
                 ? 'bg-foreground'
                 : 'bg-muted'
@@ -111,7 +109,7 @@ export default function LoginPage() {
 
       {/* Error */}
       {error && (
-        <p className="text-destructive text-center text-base mb-6 font-medium">
+        <p className="text-red-500 dark:text-red-400 text-center text-base mb-6 font-medium">
           {error}
         </p>
       )}
@@ -153,12 +151,9 @@ export default function LoginPage() {
 
       {/* Owner Login Link */}
       <div className="mt-8 text-center">
-        <p className="text-sm text-muted-foreground">
-          Owner or Admin?{' '}
-          <a href="/login" className="text-foreground font-medium hover:underline">
-            Sign in with email
-          </a>
-        </p>
+        <a href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          Sign in with email
+        </a>
       </div>
     </div>
   )
