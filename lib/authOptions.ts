@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import EmailProvider from 'next-auth/providers/email'
 import GoogleProvider from 'next-auth/providers/google'
+import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 
 export const authOptions: NextAuthOptions = {
@@ -14,6 +15,35 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    }),
+    CredentialsProvider({
+      name: 'PIN',
+      credentials: {
+        pin: { label: 'PIN', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.pin || credentials.pin.length !== 4) {
+          return null
+        }
+
+        const worker = await prisma.worker.findUnique({
+          where: { pin: credentials.pin },
+          include: { user: true },
+        })
+
+        if (!worker || !worker.user) {
+          return null
+        }
+
+        return {
+          id: worker.user.id,
+          email: worker.user.email,
+          name: worker.user.name,
+          organizationId: worker.user.organizationId,
+          role: worker.user.role,
+          workerId: worker.id,
+        }
+      },
     }),
   ],
   pages: {
