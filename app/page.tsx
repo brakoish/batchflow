@@ -44,12 +44,18 @@ export default function LoginPage() {
         redirect: false,
       })
 
+      console.log('SignIn result:', result)
+
       if (result?.error) {
         haptic('heavy')
-        setError('Invalid PIN')
+        setError(result.error === 'CredentialsSignin' ? 'Invalid PIN' : result.error)
         setPin('')
         setLoading(false)
         return
+      }
+
+      if (result?.ok) {
+        router.push('/batches')
       }
 
       haptic('medium')
