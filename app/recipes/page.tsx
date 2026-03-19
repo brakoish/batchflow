@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/session'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/authOptions'
 import { prisma } from '@/lib/prisma'
 import AppShell from '@/app/components/AppShell'
 import RecipesClient from './RecipesClient'
 
 export default async function RecipesPage() {
-  const session = await getSession()
-  if (!session) redirect('/')
-  if (session.role !== 'OWNER') redirect('/batches')
+  const session = await getServerSession(authOptions)
+  if (!session?.user) redirect('/')
+  if (session.user.role !== 'OWNER') redirect('/batches')
 
   const recipes = await prisma.recipe.findMany({
     include: {

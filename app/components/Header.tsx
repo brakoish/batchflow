@@ -12,14 +12,10 @@ import {
 } from '@heroicons/react/24/outline'
 import ThemeToggle from './ThemeToggle'
 import { haptic } from '@/lib/haptic'
+import { Session } from 'next-auth'
 
 type HeaderProps = {
-  session: {
-    id: string
-    name: string
-    role: string
-    organizationId?: string
-  }
+  session: Session
   organizationName?: string
 }
 
@@ -28,7 +24,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
   const [onShift, setOnShift] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-  const isOwner = session.role === 'OWNER'
+  const isOwner = session.user.role === 'OWNER'
 
   useEffect(() => {
     if (isOwner) return
@@ -136,7 +132,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
             )
           )}
 
-          <span className="hidden sm:block text-sm text-muted-foreground">{session.name}</span>
+          <span className="hidden sm:block text-sm text-muted-foreground">{session.user.name}</span>
           
           <button
             onClick={handleLogout}

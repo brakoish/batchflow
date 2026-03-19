@@ -1,16 +1,17 @@
 import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/session'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/authOptions'
 import { prisma } from '@/lib/prisma'
 import AppShell from '@/app/components/AppShell'
 import OrgInviteManager from './OrgInviteManager'
 
 export default async function OrgInvitePage() {
-  const session = await getSession()
-  if (!session) redirect('/')
-  if (session.role !== 'OWNER') redirect('/batches')
+  const session = await getServerSession(authOptions)
+  if (!session?.user) redirect('/')
+  if (session.user.role !== 'OWNER') redirect('/batches')
 
   const organization = await prisma.organization.findUnique({
-    where: { id: session.organizationId },
+    where: { id: session.user.organizationId },
     select: {
       id: true,
       name: true,

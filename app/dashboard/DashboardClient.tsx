@@ -5,8 +5,7 @@ import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import { LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
-
-type Session = { id: string; name: string; role: string; organizationId: string }
+import { Session } from 'next-auth'
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number }
 type Batch = {
   id: string; name: string; targetQuantity: number; status: string; strain?: string; dueDate?: string

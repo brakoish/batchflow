@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import AppShell from '@/app/components/AppShell'
 import { ClockIcon, CubeIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid'
 import { formatDuration } from '@/lib/format'
-
-type Session = { id: string; name: string; role: string }
+import { Session } from 'next-auth'
 type Shift = { id: string; startedAt: string; endedAt: string | null; hours: number }
 type BatchActivity = { batchName: string; units: number }
 type Stats = {
@@ -37,7 +36,7 @@ export default function MyDayClient({ session }: { session: Session }) {
       if (actRes.ok) {
         const actData = await actRes.json()
         if (actData.workers) {
-          const me = actData.workers.find((w: any) => w.id === session.id)
+          const me = actData.workers.find((w: any) => w.id === (session.user.workerId || session.user.id))
           if (me) {
             setTodayUnits(me.todayUnits || 0)
             // Extract batch activities from progress logs
@@ -56,7 +55,7 @@ export default function MyDayClient({ session }: { session: Session }) {
 
       // Fetch today's shifts
       const today = new Date().toISOString().split('T')[0]
-      const shiftsRes = await fetch(`/api/shifts/all?workerId=${session.id}&from=${today}&to=${today}`)
+      const shiftsRes = await fetch(`/api/shifts/all?workerId=${session.user.workerId || session.user.id}&from=${today}&to=${today}`)
       if (shiftsRes.ok) {
         const shiftsData = await shiftsRes.json()
         setTodayShifts(shiftsData.shifts || [])
@@ -103,7 +102,7 @@ export default function MyDayClient({ session }: { session: Session }) {
       <main className="max-w-2xl mx-auto px-4 py-6 pb-24">
         {/* Greeting */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Hey {session.name.split(' ')[0]}!</h1>
+          <h1 className="text-3xl font-bold text-foreground">Hey {(session.user.name || '').split(' ')[0]}!</h1>
           <p className="text-muted-foreground mt-1">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>

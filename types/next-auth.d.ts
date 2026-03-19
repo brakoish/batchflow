@@ -4,10 +4,13 @@ declare module 'next-auth' {
   interface Session {
     user: {
       id: string
-      organizationId?: string | null
-      role?: string
+      email?: string | null
+      name?: string | null
+      image?: string | null
+      organizationId: string
+      role: string
       workerId?: string | null
-    } & DefaultSession['user']
+    }
   }
 
   interface User {

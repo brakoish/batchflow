@@ -5,26 +5,90 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Seeding database...')
 
+  // Create Organization
+  const org = await prisma.organization.upsert({
+    where: { slug: 'excelsior' },
+    update: {},
+    create: {
+      name: 'Excelsior',
+      slug: 'excelsior',
+    },
+  })
+
+  console.log('Created organization: Excelsior')
+
   // Create Workers
   const owner = await prisma.worker.upsert({
     where: { pin: '1234' },
     update: {},
-    create: { name: 'Will', pin: '1234', role: 'OWNER' },
+    create: {
+      name: 'Will',
+      pin: '1234',
+      role: 'OWNER',
+      organization: { connect: { id: org.id } }
+    },
   })
 
   const maria = await prisma.worker.upsert({
     where: { pin: '2241' },
     update: {},
-    create: { name: 'Maria', pin: '2241', role: 'WORKER' },
+    create: {
+      name: 'Maria',
+      pin: '2241',
+      role: 'WORKER',
+      organization: { connect: { id: org.id } }
+    },
   })
 
   const james = await prisma.worker.upsert({
     where: { pin: '3356' },
     update: {},
-    create: { name: 'James', pin: '3356', role: 'WORKER' },
+    create: {
+      name: 'James',
+      pin: '3356',
+      role: 'WORKER',
+      organization: { connect: { id: org.id } }
+    },
   })
 
   console.log('Created workers')
+
+  // Create Users for each worker
+  await prisma.user.upsert({
+    where: { email: 'will@example.com' },
+    update: {},
+    create: {
+      email: 'will@example.com',
+      name: 'Will',
+      role: 'OWNER',
+      organizationId: org.id,
+      workerId: owner.id,
+    },
+  })
+
+  await prisma.user.upsert({
+    where: { workerId: maria.id },
+    update: {},
+    create: {
+      name: 'Maria',
+      role: 'WORKER',
+      organizationId: org.id,
+      workerId: maria.id,
+    },
+  })
+
+  await prisma.user.upsert({
+    where: { workerId: james.id },
+    update: {},
+    create: {
+      name: 'James',
+      role: 'WORKER',
+      organizationId: org.id,
+      workerId: james.id,
+    },
+  })
+
+  console.log('Created users')
 
   // Create Recipe with Units
   const recipe = await prisma.recipe.create({
@@ -32,6 +96,7 @@ async function main() {
       name: '14g Ground Flower',
       description: 'Standard 14g ground flower bags',
       baseUnit: 'bags',
+      organizationId: org.id,
       units: {
         create: [
           { name: 'cases', ratio: 20, order: 0 },
@@ -87,6 +152,7 @@ async function main() {
       targetQuantity: batchTarget,
       baseUnit: 'bags',
       status: 'ACTIVE',
+      organizationId: org.id,
       steps: {
         create: recipeSteps.map((step, i) => {
           const ratio = step.unit?.ratio || 1
