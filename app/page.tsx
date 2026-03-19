@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { haptic } from '@/lib/haptic'
 
@@ -38,36 +39,26 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinToSubmit }),
+      const result = await signIn('credentials', {
+        pin: pinToSubmit,
+        redirect: false,
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
+      if (result?.error) {
         haptic('heavy')
-        setError(data.error || 'Invalid PIN')
+        setError('Invalid PIN')
         setPin('')
+        setLoading(false)
         return
       }
 
       haptic('medium')
       setSuccess(true)
-      setTimeout(() => {
-        // If worker needs to create/join an organization
-        if (data.needsOrg) {
-          router.push('/org/new')
-        } else {
-          router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/batches')
-        }
-      }, 300)
+      // NextAuth will handle the redirect
     } catch (err) {
       haptic('heavy')
       setError('Connection error')
       setPin('')
-    } finally {
       setLoading(false)
     }
   }
