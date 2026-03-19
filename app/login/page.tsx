@@ -169,12 +169,9 @@ function LoginForm() {
 
         {/* Worker PIN Login Link */}
         <div className="mt-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            Factory worker?{' '}
-            <Link href="/" className="text-foreground font-medium hover:underline">
-              Sign in with PIN
-            </Link>
-          </p>
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Sign in with PIN
+          </Link>
         </div>
       </div>
     </div>
