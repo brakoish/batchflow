@@ -1,15 +1,14 @@
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/authOptions'
+import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import BatchCreator from './BatchCreator'
 
 export default async function NewBatchPage() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) redirect('/')
-  if (session.user.role !== 'OWNER') redirect('/batches')
+  const session = await getSession()
+  if (!session) redirect('/')
+  if (session.role !== 'OWNER') redirect('/batches')
 
   const [recipes, workers] = await Promise.all([
     prisma.recipe.findMany({

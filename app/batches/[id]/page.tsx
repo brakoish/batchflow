@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/authOptions'
+import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import BatchDetailClient from './BatchDetailClient'
 
@@ -9,9 +8,9 @@ export default async function BatchDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
 
-  if (!session?.user) {
+  if (!session) {
     redirect('/')
   }
 

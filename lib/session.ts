@@ -3,6 +3,16 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from './authOptions'
 
+export type Session = {
+  id: string
+  name: string
+  email?: string
+  role: string
+  organizationId: string
+  workerId?: string
+  type: 'nextauth' | 'pin'
+}
+
 export async function getSession() {
   // Try NextAuth session first (Google/email users)
   const nextAuthSession = await getServerSession(authOptions)

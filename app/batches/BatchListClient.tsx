@@ -6,7 +6,7 @@ import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
 import { StopIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
-import { Session } from 'next-auth'
+import type { Session } from '@/lib/session'
 
 type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number }
 type Assignment = { worker: { id: string; name: string } }
@@ -148,7 +148,7 @@ export default function BatchListClient({
         )}
         
         {/* Clock-in nudge banner */}
-        {shiftChecked && !onShift && !nudgeDismissed && session.user.role === 'WORKER' && (
+        {shiftChecked && !onShift && !nudgeDismissed && session.role === 'WORKER' && (
           <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-lg shrink-0">👋</span>
@@ -219,11 +219,11 @@ export default function BatchListClient({
               )
             }
 
-            const myBatches = session.user.role === 'WORKER'
-              ? filteredBatches.filter(b => b.assignments?.some(a => a.worker.id === session.user.workerId))
+            const myBatches = session.role === 'WORKER'
+              ? filteredBatches.filter(b => b.assignments?.some(a => a.worker.id === session.workerId))
               : filteredBatches
-            const otherBatches = session.user.role === 'WORKER'
-              ? filteredBatches.filter(b => !b.assignments?.some(a => a.worker.id === session.user.workerId))
+            const otherBatches = session.role === 'WORKER'
+              ? filteredBatches.filter(b => !b.assignments?.some(a => a.worker.id === session.workerId))
               : []
 
             const renderBatch = (batch: Batch) => {
@@ -341,7 +341,7 @@ export default function BatchListClient({
               <div className="space-y-4">
                 {myBatches.length > 0 && (
                   <>
-                    {session.user.role === 'WORKER' && otherBatches.length > 0 && (
+                    {session.role === 'WORKER' && otherBatches.length > 0 && (
                       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Batches</h2>
                     )}
                     {myBatches.map(renderBatch)}

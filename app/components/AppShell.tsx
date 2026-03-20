@@ -1,6 +1,6 @@
 import Header from './Header'
 import BottomNav from './BottomNav'
-import { Session } from 'next-auth'
+import type { Session } from '@/lib/session'
 
 export default function AppShell({
   session,
@@ -15,7 +15,7 @@ export default function AppShell({
     <div className="min-h-dvh bg-background">
       <Header session={session} organizationName={organizationName} />
       {children}
-      <BottomNav role={session.user?.role || 'WORKER'} />
+      <BottomNav role={session.role} />
       {/* Bottom padding for mobile nav */}
       <div className="h-14 sm:h-0" />
     </div>

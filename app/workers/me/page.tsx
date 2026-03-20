@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/authOptions'
+import { getSession } from '@/lib/session'
 import MyDayClient from './MyDayClient'
 
 export default async function MyDayPage() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) redirect('/')
+  const session = await getSession()
+  if (!session) redirect('/')
   return <MyDayClient session={session} />
 }

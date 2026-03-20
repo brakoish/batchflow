@@ -12,7 +12,7 @@ import {
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
-import { Session } from 'next-auth'
+import type { Session } from '@/lib/session'
 
 type Worker = { id: string; name: string }
 type ProgressLog = {
@@ -439,7 +439,7 @@ export default function BatchDetailClient({
       id: `temp-${Date.now()}`,
       message: trimmed,
       createdAt: new Date().toISOString(),
-      worker: { id: session.user.workerId || session.user.id, name: session.user.name || '' },
+      worker: { id: session.workerId || session.id, name: session.name || '' },
     }
     setMessages(prev => [...prev, optimisticMessage])
     setNewMessage('')
@@ -609,7 +609,7 @@ export default function BatchDetailClient({
           )}
 
           {/* Owner batch controls */}
-          {session.user.role === 'OWNER' && batch.status === 'ACTIVE' && (
+          {session.role === 'OWNER' && batch.status === 'ACTIVE' && (
             <div className="flex items-center gap-2 mt-3">
               <button onClick={() => handleStatusChange('COMPLETED')}
                 className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-medium transition-all">
@@ -625,7 +625,7 @@ export default function BatchDetailClient({
               </button>
             </div>
           )}
-          {session.user.role === 'OWNER' && batch.status !== 'ACTIVE' && (
+          {session.role === 'OWNER' && batch.status !== 'ACTIVE' && (
             <div className="flex items-center gap-2 mt-3">
               <button onClick={() => handleStatusChange('ACTIVE')}
                 className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-blue-600 dark:text-blue-400 text-xs font-medium transition-all">
@@ -757,7 +757,7 @@ export default function BatchDetailClient({
                         <>
                           <div className="space-y-1 overflow-hidden transition-all duration-300">
                           {logs.map((log) => {
-                            const canEdit = session.user.role === 'OWNER' || session.user.workerId === log.worker.id
+                            const canEdit = session.role === 'OWNER' || session.workerId === log.worker.id
                             return (
                               <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground">
                                 <button
@@ -818,7 +818,7 @@ export default function BatchDetailClient({
                 <p className="text-xs text-muted-foreground/70 text-center py-4">No messages yet</p>
               ) : (
                 messages.map((msg) => {
-                  const isCurrentUser = msg.worker.id === (session.user.workerId || session.user.id)
+                  const isCurrentUser = msg.worker.id === (session.workerId || session.id)
                   return (
                     <div
                       key={msg.id}
@@ -1017,7 +1017,7 @@ export default function BatchDetailClient({
       )}
 
       {/* Edit Batch Modal */}
-      {showEditModal && session.user.role === 'OWNER' && (
+      {showEditModal && session.role === 'OWNER' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
             className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom max-h-[90vh] overflow-y-auto"

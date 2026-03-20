@@ -1,14 +1,13 @@
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/authOptions'
+import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import AppShell from '@/app/components/AppShell'
 import TimesheetClient from './TimesheetClient'
 
 export default async function TimesheetPage() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) redirect('/')
-  if (session.user.role !== 'OWNER') redirect('/batches')
+  const session = await getSession()
+  if (!session) redirect('/')
+  if (session.role !== 'OWNER') redirect('/batches')
 
   const workers = await prisma.worker.findMany({
     where: { role: 'WORKER' },
