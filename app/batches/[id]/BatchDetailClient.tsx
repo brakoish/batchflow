@@ -373,6 +373,15 @@ export default function BatchDetailClient({
       setBatch(data.batch)
       setShowEditModal(false)
       showToast('Batch updated')
+      // Force a full refetch to ensure steps/targets are in sync
+      try {
+        const refetch = await fetch(`/api/batches/${batch.id}`)
+        if (refetch.ok) {
+          const fresh = await refetch.json()
+          if (fresh.batch) setBatch(fresh.batch)
+        }
+      } catch {}
+    
     } catch (err) { 
       setError('Network error. Please check your connection.')
     }

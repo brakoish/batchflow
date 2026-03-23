@@ -97,8 +97,16 @@ export default function DashboardClient({
         return
       }
       const data = await res.json()
-      setBatches(prev => prev.map(b => b.id === editingBatch.id ? { ...b, ...data.batch } : b))
+      setBatches(prev => prev.map(b => b.id === editingBatch.id ? data.batch : b))
       setEditingBatch(null)
+      // Force a full refetch to ensure steps are in sync
+      try {
+        const refetch = await fetch('/api/batches')
+        if (refetch.ok) {
+          const fresh = await refetch.json()
+          if (fresh.batches) setBatches(fresh.batches)
+        }
+      } catch {}
     } catch {
       setEditError('Network error')
     } finally {
