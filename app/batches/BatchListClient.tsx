@@ -230,7 +230,7 @@ export default function BatchListClient({
               const firstIncomplete = batch.steps.find((s) => s.status !== 'COMPLETED')
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const pct = Math.round((completedSteps / batch.steps.length) * 100)
-              const isMyTurn = firstIncomplete && firstIncomplete.status !== 'LOCKED'
+              const isMyTurn = !!firstIncomplete
 
               return (
                 <Link

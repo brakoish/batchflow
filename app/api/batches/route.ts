@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
               unitLabel,
               unitRatio,
               targetQuantity: stepTarget,
-              status: step.order === 1 ? 'IN_PROGRESS' : 'LOCKED',
+              status: 'IN_PROGRESS',
             }
           }),
         },

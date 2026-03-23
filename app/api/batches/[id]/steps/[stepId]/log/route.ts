@@ -41,12 +41,7 @@ export async function POST(
       )
     }
 
-    if (step.status === 'LOCKED') {
-      return NextResponse.json(
-        { error: 'Step is locked' },
-        { status: 400 }
-      )
-    }
+    // Steps are never locked — workers can log on any step
 
     // Find previous step
     const previousStep = step.batch.steps.find(

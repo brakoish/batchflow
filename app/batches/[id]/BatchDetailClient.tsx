@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
 import {
-  LockClosedIcon,
   CheckCircleIcon,
   CheckIcon,
   PlusIcon,
@@ -644,7 +643,6 @@ export default function BatchDetailClient({
         {/* Steps */}
         <div className="space-y-2">
           {batch.steps.map((step) => {
-            const isLocked = step.status === 'LOCKED'
             const isCompleted = step.status === 'COMPLETED'
             const pct = (step.completedQuantity / step.targetQuantity) * 100
 
@@ -652,9 +650,7 @@ export default function BatchDetailClient({
               <div
                 key={step.id}
                 className={`rounded-xl border p-4 transition-all duration-150 ${
-                  isLocked
-                    ? 'border/50 bg-card/50 opacity-50'
-                    : isCompleted
+                  isCompleted
                     ? 'border-emerald-500/20 bg-emerald-500/5'
                     : 'border bg-card'
                 }`}
@@ -665,28 +661,24 @@ export default function BatchDetailClient({
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                       isCompleted
                         ? 'bg-emerald-500/15'
-                        : isLocked
-                        ? 'bg-muted'
                         : 'bg-blue-500/15'
                     }`}>
                       {isCompleted ? (
                         <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      ) : isLocked ? (
-                        <LockClosedIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
                       ) : (
                         <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{step.order}</span>
                       )}
                     </div>
                     <div className="min-w-0">
                       <p className={`text-sm font-medium truncate ${
-                        isCompleted ? 'text-emerald-600 dark:text-emerald-300' : isLocked ? 'text-muted-foreground/70' : 'text-foreground'
+                        isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground'
                       }`}>
                         {step.name}
                       </p>
-                      {step.recipeStep?.notes && !isLocked && (
+                      {step.recipeStep?.notes && (
                         <p className="text-[10px] text-muted-foreground/70 mt-0.5">{step.recipeStep.notes}</p>
                       )}
-                      {step.type === 'COUNT' && !isLocked && (
+                      {step.type === 'COUNT' && (
                         <p className="text-xs text-foreground tabular-nums mt-0.5">
                           {step.completedQuantity} / {step.targetQuantity} {step.unitLabel}
                         </p>
@@ -695,7 +687,7 @@ export default function BatchDetailClient({
                   </div>
 
                   {/* Right: action or status */}
-                  {!isLocked && !isCompleted && step.type === 'COUNT' && (
+                  {!isCompleted && step.type === 'COUNT' && (
                     <button
                       onClick={() => { haptic('light'); setSelectedStep(step); setQuantity(''); setNote(''); setError('') }}
                       className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0"
@@ -703,7 +695,7 @@ export default function BatchDetailClient({
                       <PlusIcon className="w-4 h-4" />Log
                     </button>
                   )}
-                  {!isLocked && !isCompleted && step.type === 'CHECK' && (
+                  {!isCompleted && step.type === 'CHECK' && (
                     <button
                       onClick={() => { haptic('light'); handleCheckComplete(step); }}
                       disabled={loading}
@@ -715,7 +707,7 @@ export default function BatchDetailClient({
                 </div>
 
                 {/* Progress bar for COUNT steps */}
-                {step.type === 'COUNT' && !isLocked && (
+                {step.type === 'COUNT' && (
                   <div className="mt-3">
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
@@ -729,7 +721,7 @@ export default function BatchDetailClient({
                 )}
 
                 {/* Materials needed for this step */}
-                {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && !isLocked && (
+                {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-border/50">
                     <span className="text-xs text-muted-foreground font-medium">Materials Needed</span>
                     <div className="mt-2 space-y-1.5">
@@ -747,7 +739,7 @@ export default function BatchDetailClient({
                 )}
 
                 {/* Logs */}
-                {step.progressLogs && step.progressLogs.length > 0 && !isLocked && (
+                {step.progressLogs && step.progressLogs.length > 0 && (
                   <div className="mt-3">
                     {(() => {
                       const isExpanded = expandedSteps.has(step.id)

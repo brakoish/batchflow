@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
-import { LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
 import type { Session } from '@/lib/session'
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number }
@@ -284,7 +284,6 @@ export default function DashboardClient({
                     <div className="space-y-1.5">
                       {batch.steps.map((step) => {
                         const stepPct = (step.completedQuantity / step.targetQuantity) * 100
-                        const isLocked = step.status === 'LOCKED'
                         const isCompleted = step.status === 'COMPLETED'
                         const isCheck = step.type === 'CHECK'
 
@@ -293,27 +292,25 @@ export default function DashboardClient({
                             <div className="w-6 flex justify-center shrink-0">
                               {isCompleted ? (
                                 <CheckCircleIcon className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                              ) : isLocked ? (
-                                <LockClosedIcon className="w-4 h-4 text-muted-foreground/30" />
                               ) : (
                                 <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                               )}
                             </div>
                             <span className={`text-sm w-28 truncate shrink-0 ${
-                              isLocked ? 'text-muted-foreground/40' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground/80'
+                              isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground/80'
                             }`}>
                               {step.name}
                             </span>
                             <div className="flex-1">
                               {isCheck ? (
-                                <span className={`text-xs ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : isLocked ? 'text-muted-foreground/30' : 'text-muted-foreground'}`}>
+                                <span className={`text-xs ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                                   {isCompleted ? 'Done' : 'Pending'}
                                 </span>
                               ) : (
                                 <div className="h-2 rounded-full bg-muted overflow-hidden">
                                   <div
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      isCompleted ? 'bg-emerald-500' : isLocked ? 'bg-muted' : 'bg-blue-500'
+                                      isCompleted ? 'bg-emerald-500' : 'bg-blue-500'
                                     }`}
                                     style={{ width: `${Math.min(stepPct, 100)}%` }}
                                   />
@@ -322,7 +319,7 @@ export default function DashboardClient({
                             </div>
                             {!isCheck && (
                               <span className={`text-xs tabular-nums shrink-0 ${
-                                isLocked ? 'text-muted-foreground/30' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                                isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
                               }`}>
                                 {step.completedQuantity}/{step.targetQuantity}
                               </span>
