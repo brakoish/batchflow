@@ -1,10 +1,50 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
+import { cookies } from 'next/headers'
 import { prisma } from './prisma'
 
+// Hybrid session that checks NextAuth first, then falls back to workerId cookie.
+// Returns the NextAuth-style shape (session.user.X) so all API routes work unchanged.
 export async function getSession() {
-  const session = await getServerSession(authOptions)
-  return session
+  // Try NextAuth session first (Google/email users)
+  const nextAuthSession = await getServerSession(authOptions)
+  if (nextAuthSession?.user?.id) {
+    return nextAuthSession
+  }
+
+  // Fall back to workerId cookie (PIN users)
+  const cookieStore = await cookies()
+  const workerId = cookieStore.get('workerId')?.value
+
+  if (!workerId) {
+    return null
+  }
+
+  const worker = await prisma.worker.findUnique({
+    where: { id: workerId },
+    select: {
+      id: true,
+      name: true,
+      role: true,
+      organizationId: true,
+    },
+  })
+
+  if (!worker) {
+    return null
+  }
+
+  // Return in NextAuth session shape so API routes don't need changes
+  return {
+    user: {
+      id: worker.id,
+      name: worker.name,
+      email: null,
+      role: worker.role,
+      organizationId: worker.organizationId,
+      workerId: worker.id,
+    },
+  }
 }
 
 export async function requireSession() {
@@ -43,7 +83,6 @@ export function isWorker(session: any): boolean {
   return session?.user?.role === 'WORKER'
 }
 
-// Helper to get worker ID from session (for backward compatibility)
 export async function getWorkerIdFromSession(session: any): Promise<string | null> {
   if (session?.user?.workerId) {
     return session.user.workerId
