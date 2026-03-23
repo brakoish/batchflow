@@ -1,21 +1,43 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowLeftIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { useRouter, useParams } from 'next/navigation'
+import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { haptic } from '@/lib/haptic'
 
-export default function LoginPage() {
+export default function OrgLoginPage() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [showOrgLookup, setShowOrgLookup] = useState(false)
-  const [orgSlug, setOrgSlug] = useState('')
+  const [orgName, setOrgName] = useState<string | null>(null)
+  const [orgNotFound, setOrgNotFound] = useState(false)
   const router = useRouter()
+  const params = useParams()
+  const slug = params.slug as string
+
+  useEffect(() => {
+    // Fetch organization info
+    const fetchOrg = async () => {
+      try {
+        const res = await fetch(`/api/organizations/${slug}`)
+        if (res.ok) {
+          const data = await res.json()
+          setOrgName(data.organization.name)
+        } else {
+          setOrgNotFound(true)
+          setError('Organization not found')
+        }
+      } catch (err) {
+        setOrgNotFound(true)
+        setError('Failed to load organization')
+      }
+    }
+    fetchOrg()
+  }, [slug])
 
   const handleNumberClick = (num: string) => {
-    if (pin.length < 4 && !loading && !showOrgLookup) {
+    if (pin.length < 4 && !loading && !orgNotFound) {
       haptic('light')
       const newPin = pin + num
       setPin(newPin)
@@ -28,16 +50,10 @@ export default function LoginPage() {
   }
 
   const handleBackspace = () => {
-    if (!loading && !showOrgLookup) {
+    if (!loading && !orgNotFound) {
       haptic('light')
       setPin(pin.slice(0, -1))
       setError('')
-    }
-  }
-
-  const handleOrgLookup = () => {
-    if (orgSlug.trim()) {
-      router.push(`/o/${orgSlug.trim().toLowerCase()}`)
     }
   }
 
@@ -49,7 +65,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinToSubmit }),
+        body: JSON.stringify({ pin: pinToSubmit, slug }),
       })
 
       const data = await res.json()
@@ -85,6 +101,31 @@ export default function LoginPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   })
 
+  if (orgNotFound) {
+    return (
+      <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 py-8">
+        <div className="text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-20 h-20 mx-auto mb-4 text-muted-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="12" y="12" width="32" height="32" rx="6" fill="currentColor" stroke="none"/>
+            <rect x="56" y="12" width="32" height="32" rx="6"/>
+            <rect x="12" y="56" width="32" height="32" rx="6"/>
+            <path d="M64 56h16a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H64a6 6 0 0 1-6-6V62a6 6 0 0 1 6-6z"/>
+          </svg>
+          <h1 className="text-2xl font-semibold text-foreground mb-4">Organization Not Found</h1>
+          <p className="text-muted-foreground mb-6">
+            The organization &quot;{slug}&quot; could not be found.
+          </p>
+          <a
+            href="/"
+            className="inline-block px-6 py-3 bg-foreground text-background rounded-xl font-medium hover:opacity-90 transition-opacity"
+          >
+            Go to Login
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 py-8">
       {/* Brand */}
@@ -95,7 +136,9 @@ export default function LoginPage() {
           <rect x="12" y="56" width="32" height="32" rx="6"/>
           <path d="M64 56h16a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H64a6 6 0 0 1-6-6V62a6 6 0 0 1 6-6z"/>
         </svg>
-        <h1 className="text-2xl font-semibold text-foreground">BatchFlow</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {orgName ? `Welcome to ${orgName}` : 'Loading...'}
+        </h1>
         <p className="text-sm text-muted-foreground mt-2">Enter your PIN</p>
       </div>
 
@@ -116,7 +159,7 @@ export default function LoginPage() {
       </div>
 
       {/* Error */}
-      {error && (
+      {error && !orgNotFound && (
         <p className="text-red-500 dark:text-red-400 text-center text-base mb-6 font-medium">
           {error}
         </p>
@@ -128,7 +171,7 @@ export default function LoginPage() {
           <button
             key={num}
             onClick={() => handleNumberClick(num.toString())}
-            disabled={loading}
+            disabled={loading || orgNotFound}
             className="h-20 rounded-2xl bg-muted text-foreground text-2xl font-medium hover:bg-muted/80 active:scale-[0.95] transition-all duration-150 disabled:opacity-40"
           >
             {num}
@@ -136,14 +179,14 @@ export default function LoginPage() {
         ))}
         <button
           onClick={handleBackspace}
-          disabled={loading || pin.length === 0}
+          disabled={loading || pin.length === 0 || orgNotFound}
           className="h-20 rounded-2xl bg-muted text-muted-foreground hover:bg-muted/80 active:scale-[0.95] transition-all duration-150 disabled:opacity-20 flex items-center justify-center"
         >
           <ArrowLeftIcon className="w-6 h-6" />
         </button>
         <button
           onClick={() => handleNumberClick('0')}
-          disabled={loading}
+          disabled={loading || orgNotFound}
           className="h-20 rounded-2xl bg-muted text-foreground text-2xl font-medium hover:bg-muted/80 active:scale-[0.95] transition-all duration-150 disabled:opacity-40"
         >
           0
@@ -157,62 +200,12 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Organization Lookup */}
-      {!showOrgLookup ? (
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => setShowOrgLookup(true)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 mx-auto"
-          >
-            <MagnifyingGlassIcon className="w-4 h-4" />
-            Find your organization
-          </button>
-          <a href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors block mt-4">
-            Sign in with email
-          </a>
-        </div>
-      ) : (
-        <div className="mt-8 w-full max-w-xs">
-          <div className="bg-muted rounded-2xl p-4">
-            <p className="text-sm text-muted-foreground mb-3 text-center">
-              Enter your organization code
-            </p>
-            <input
-              type="text"
-              value={orgSlug}
-              onChange={(e) => setOrgSlug(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleOrgLookup()
-                if (e.key === 'Escape') {
-                  setShowOrgLookup(false)
-                  setOrgSlug('')
-                }
-              }}
-              placeholder="e.g. greenleaf"
-              className="w-full px-4 py-3 rounded-xl bg-background text-foreground text-center text-base border border-border focus:outline-none focus:ring-2 focus:ring-foreground/20"
-              autoFocus
-            />
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={() => {
-                  setShowOrgLookup(false)
-                  setOrgSlug('')
-                }}
-                className="flex-1 px-4 py-2 rounded-xl bg-background text-muted-foreground text-sm hover:bg-background/80 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleOrgLookup}
-                disabled={!orgSlug.trim()}
-                className="flex-1 px-4 py-2 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Back to general login */}
+      <div className="mt-8 text-center">
+        <a href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          Use a different organization
+        </a>
+      </div>
     </div>
   )
 }
