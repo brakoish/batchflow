@@ -24,6 +24,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
   const [stats, setStats] = useState<TodayStats>({ batches: 0, units: 0 })
   const [workerStats, setWorkerStats] = useState<WorkerStats | null>(null)
   const [showStats, setShowStats] = useState(false)
+  const [timezone, setTimezone] = useState('America/New_York')
   const router = useRouter()
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
       .then(r => r.json())
       .then(d => {
         setShift(d.activeShift)
+        setTimezone(d.timezone || 'America/New_York')
         if (d.activeShift) {
           updateElapsed(d.activeShift.startedAt)
         }

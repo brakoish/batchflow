@@ -11,6 +11,12 @@ export async function GET(request: Request) {
     const dateFrom = searchParams.get('from')
     const dateTo = searchParams.get('to')
 
+    // Get organization timezone
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.user.organizationId },
+      select: { timezone: true },
+    })
+
     const where: any = {
       worker: {
         organizationId: session.user.organizationId,
@@ -38,7 +44,7 @@ export async function GET(request: Request) {
         : Math.round(((Date.now() - new Date(s.startedAt).getTime()) / 1000 / 60 / 60) * 100) / 100,
     }))
 
-    return NextResponse.json({ shifts: withHours })
+    return NextResponse.json({ shifts: withHours, timezone: organization?.timezone || 'America/New_York' })
   } catch (error) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

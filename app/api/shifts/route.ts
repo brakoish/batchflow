@@ -7,6 +7,11 @@ export async function GET() {
   try {
     const session = await requireSession()
 
+    const worker = await prisma.worker.findUnique({
+      where: { id: session.user.workerId },
+      include: { organization: { select: { timezone: true } } },
+    })
+
     const activeShift = await prisma.shift.findFirst({
       where: { workerId: session.user.workerId, status: 'ACTIVE' },
       orderBy: { startedAt: 'desc' },
@@ -20,7 +25,11 @@ export async function GET() {
       orderBy: { startedAt: 'desc' },
     })
 
-    return NextResponse.json({ activeShift, todayShifts })
+    return NextResponse.json({
+      activeShift,
+      todayShifts,
+      timezone: worker?.organization?.timezone || 'America/New_York'
+    })
   } catch (error) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

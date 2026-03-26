@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { haptic } from '@/lib/haptic'
 import { formatDuration } from '@/lib/format'
+import { formatTimeInTz, formatDateInTz, toDateTimeLocalString, fromDateTimeLocalString } from '@/lib/timezone'
 
 type Worker = { id: string; name: string }
 type Shift = {
@@ -16,6 +17,7 @@ type Shift = {
 
 export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const [shifts, setShifts] = useState<Shift[]>([])
+  const [timezone, setTimezone] = useState('America/New_York')
   const [filterWorker, setFilterWorker] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -33,11 +35,12 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
       if (filterWorker) params.append('workerId', filterWorker)
       if (dateFrom) params.append('from', dateFrom)
       if (dateTo) params.append('to', dateTo)
-      
+
       const res = await fetch(`/api/shifts/all?${params}`)
       if (res.ok) {
         const data = await res.json()
         setShifts(data.shifts || [])
+        setTimezone(data.timezone || 'America/New_York')
       }
     } catch {}
     setLoading(false)
@@ -61,12 +64,10 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const openEditModal = (shift: Shift) => {
     haptic('light')
     setEditingShift(shift)
-    // Format dates for datetime-local input
-    const start = new Date(shift.startedAt)
-    setEditStart(start.toISOString().slice(0, 16))
+    // Format dates for datetime-local input using org timezone
+    setEditStart(toDateTimeLocalString(shift.startedAt, timezone))
     if (shift.endedAt) {
-      const end = new Date(shift.endedAt)
-      setEditEnd(end.toISOString().slice(0, 16))
+      setEditEnd(toDateTimeLocalString(shift.endedAt, timezone))
     } else {
       setEditEnd('')
     }
@@ -75,34 +76,35 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
 
   const handleUpdateShift = async () => {
     if (!editingShift) return
-    
-    const start = new Date(editStart)
-    const end = editEnd ? new Date(editEnd) : null
-    
+
+    // Convert from org timezone datetime-local string to UTC
+    const start = fromDateTimeLocalString(editStart, timezone)
+    const end = editEnd ? fromDateTimeLocalString(editEnd, timezone) : null
+
     if (end && end <= start) {
       setError('End time must be after start time')
       return
     }
-    
+
     setLoading(true)
     setError('')
-    
+
     try {
       const res = await fetch(`/api/shifts/${editingShift.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startedAt: editStart,
-          endedAt: editEnd || null,
+          startedAt: start.toISOString(),
+          endedAt: end ? end.toISOString() : null,
         }),
       })
-      
+
       if (!res.ok) {
         const data = await res.json()
         setError(data.error || 'Failed to update')
         return
       }
-      
+
       setSuccess('Shift updated')
       setEditingShift(null)
       fetchShifts()
@@ -272,11 +274,11 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
                     <div>
                       <p className="text-sm font-medium text-foreground">{shift.worker.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(shift.startedAt).toLocaleDateString()}
+                        {formatDateInTz(shift.startedAt, timezone)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(shift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        {shift.endedAt && ` - ${new Date(shift.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                        {formatTimeInTz(shift.startedAt, timezone)}
+                        {shift.endedAt && ` - ${formatTimeInTz(shift.endedAt, timezone)}`}
                       </p>
                     </div>
                   </div>
