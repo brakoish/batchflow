@@ -134,7 +134,7 @@ export default function BatchDetailClient({
   useEffect(() => {
     const fetchBatch = async () => {
       try {
-        const res = await fetch(`/api/batches/${batch.id}`)
+        const res = await fetch(`/api/batches/${batch.id}`, { cache: "no-store" })
         if (res.ok) {
           const data = await res.json()
           if (data.batch) {
@@ -147,7 +147,7 @@ export default function BatchDetailClient({
 
     const fetchMessages = async () => {
       try {
-        const res = await fetch(`/api/batches/${batch.id}/chat`)
+        const res = await fetch(`/api/batches/${batch.id}/chat`, { cache: "no-store" })
         if (res.ok) {
           const data = await res.json()
           if (data.messages) setMessages(data.messages)
@@ -375,7 +375,7 @@ export default function BatchDetailClient({
       showToast('Batch updated')
       // Force a full refetch to ensure steps/targets are in sync
       try {
-        const refetch = await fetch(`/api/batches/${batch.id}`)
+        const refetch = await fetch(`/api/batches/${batch.id}`, { cache: "no-store" })
         if (refetch.ok) {
           const fresh = await refetch.json()
           if (fresh.batch) setBatch(fresh.batch)

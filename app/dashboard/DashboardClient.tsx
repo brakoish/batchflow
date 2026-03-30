@@ -59,7 +59,7 @@ export default function DashboardClient({
 
   useEffect(() => {
     // Fetch workers list for assignment
-    fetch('/api/workers').then(r => r.json()).then(d => {
+    fetch('/api/workers', { cache: "no-store" }).then(r => r.json()).then(d => {
       if (d.workers) setAllWorkers(d.workers.filter((w: any) => w.role === 'WORKER'))
     }).catch(() => {})
   }, [])
@@ -101,7 +101,7 @@ export default function DashboardClient({
       setEditingBatch(null)
       // Force a full refetch to ensure steps are in sync
       try {
-        const refetch = await fetch('/api/batches')
+        const refetch = await fetch('/api/batches', { cache: "no-store" })
         if (refetch.ok) {
           const fresh = await refetch.json()
           if (fresh.batches) setBatches(fresh.batches)
@@ -118,9 +118,9 @@ export default function DashboardClient({
     const poll = async () => {
       try {
         const [bRes, aRes, wRes] = await Promise.all([
-          fetch('/api/batches'),
-          fetch('/api/activity'),
-          fetch('/api/workers/activity'),
+          fetch('/api/batches', { cache: "no-store" }),
+          fetch('/api/activity', { cache: "no-store" }),
+          fetch('/api/workers/activity', { cache: "no-store" }),
         ])
         if (bRes.ok) { const d = await bRes.json(); if (d.batches) { setBatches(d.batches); setLoading(false) } }
         if (aRes.ok) { const d = await aRes.json(); if (d.activities) setActivity(d.activities) }

@@ -35,8 +35,8 @@ export default function BatchListClient({
     if (showLoading) setRefreshing(true)
     try {
       const [bRes, sRes] = await Promise.all([
-        fetch('/api/batches'),
-        fetch('/api/shifts'),
+        fetch('/api/batches', { cache: "no-store" }),
+        fetch('/api/shifts', { cache: "no-store" }),
       ])
       if (bRes.ok) {
         const data = await bRes.json()
@@ -81,7 +81,7 @@ export default function BatchListClient({
   useEffect(() => {
     if (!onShift) return
     const update = async () => {
-      const res = await fetch('/api/shifts')
+      const res = await fetch('/api/shifts', { cache: "no-store" })
       if (res.ok) {
         const data = await res.json()
         if (data.activeShift) {
