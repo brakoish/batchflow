@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession, requireOwner } from '@/lib/auth'
+import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
 
 export async function GET() {
   try {
@@ -42,7 +42,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireOwner()
+    const session = await requireSupervisorOrOwner()
 
     const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag } = await request.json()
 

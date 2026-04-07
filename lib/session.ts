@@ -76,3 +76,11 @@ export async function requireOwner() {
   }
   return session
 }
+
+export async function requireSupervisorOrOwner() {
+  const session = await requireSession()
+  if (session.role !== 'SUPERVISOR' && session.role !== 'OWNER') {
+    throw new Error('Forbidden: Supervisor or Owner access required')
+  }
+  return session
+}

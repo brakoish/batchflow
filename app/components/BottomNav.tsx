@@ -34,13 +34,21 @@ export default function BottomNav({ role }: Props) {
     { href: '/workers', label: 'Team', Icon: UsersIcon, IconActive: UsersIconSolid },
   ]
 
+  const supervisorItems = [
+    { href: '/batches', label: 'Batches', Icon: QueueListIcon, IconActive: QueueListIconSolid },
+    { href: '/batches/new', label: 'New', Icon: PlusCircleIcon, IconActive: PlusCircleIconSolid },
+    { href: '/recipes', label: 'Recipes', Icon: BeakerIcon, IconActive: BeakerIconSolid },
+    { href: '/shift', label: 'Shift', Icon: ClockIcon, IconActive: ClockIconSolid },
+    { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
+  ]
+
   const workerItems = [
     { href: '/batches', label: 'Batches', Icon: QueueListIcon, IconActive: QueueListIconSolid },
     { href: '/shift', label: 'Shift', Icon: ClockIcon, IconActive: ClockIconSolid },
     { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
   ]
 
-  const items = role === 'OWNER' ? ownerItems : workerItems
+  const items = role === 'OWNER' ? ownerItems : role === 'SUPERVISOR' ? supervisorItems : workerItems
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 

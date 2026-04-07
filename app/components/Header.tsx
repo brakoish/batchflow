@@ -25,6 +25,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
   const isOwner = session.role === 'OWNER'
+  const isSupervisor = session.role === 'SUPERVISOR'
 
   useEffect(() => {
     if (isOwner) return
@@ -60,17 +61,27 @@ export default function Header({ session, organizationName }: HeaderProps) {
     window.location.reload()
   }
 
-  const navItems = isOwner
-    ? [
-        { href: '/dashboard', label: 'Dashboard' },
-        { href: '/batches/new', label: 'New Batch' },
-        { href: '/history', label: 'History' },
-        { href: '/timesheet', label: 'Timesheet' },
-        { href: '/recipes', label: 'Recipes' },
-        { href: '/workers', label: 'Workers' },
-        { href: '/org/invite', label: 'Org' },
-      ]
-    : [{ href: '/batches', label: 'Batches' }]
+  const ownerNavItems = [
+    { href: '/dashboard', label: 'Dashboard' },
+    { href: '/batches/new', label: 'New Batch' },
+    { href: '/history', label: 'History' },
+    { href: '/timesheet', label: 'Timesheet' },
+    { href: '/recipes', label: 'Recipes' },
+    { href: '/workers', label: 'Workers' },
+    { href: '/org/invite', label: 'Org' },
+  ]
+
+  const supervisorNavItems = [
+    { href: '/batches', label: 'Batches' },
+    { href: '/batches/new', label: 'New Batch' },
+    { href: '/recipes', label: 'Recipes' },
+  ]
+
+  const workerNavItems = [
+    { href: '/batches', label: 'Batches' },
+  ]
+
+  const navItems = isOwner ? ownerNavItems : isSupervisor ? supervisorNavItems : workerNavItems
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 

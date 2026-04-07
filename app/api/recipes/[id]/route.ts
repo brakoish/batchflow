@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession, requireOwner } from '@/lib/auth'
+import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +34,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireOwner()
+    await requireSupervisorOrOwner()
     const { id } = await params
     const { name, description, baseUnit, units, steps } = await request.json()
 
@@ -119,7 +119,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireOwner()
+    await requireSupervisorOrOwner()
     const { id } = await params
 
     // Check if recipe has active batches

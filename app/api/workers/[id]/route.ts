@@ -48,7 +48,7 @@ export async function PATCH(
     // Handle name/role update
     const updateData: { name?: string; role?: Role } = {}
     if (name) updateData.name = name
-    if (role && ['WORKER', 'OWNER'].includes(role)) updateData.role = role as Role
+    if (role && ['WORKER', 'SUPERVISOR', 'OWNER'].includes(role)) updateData.role = role as Role
 
     const worker = await prisma.worker.update({
       where: { id },

@@ -7,9 +7,10 @@ import RecipesClient from './RecipesClient'
 export default async function RecipesPage() {
   const session = await getSession()
   if (!session) redirect('/')
-  if (session.role !== 'OWNER') redirect('/batches')
+  if (session.role !== 'OWNER' && session.role !== 'SUPERVISOR') redirect('/batches')
 
   const recipes = await prisma.recipe.findMany({
+    where: { organizationId: session.organizationId },
     include: {
       units: { orderBy: { order: 'asc' } },
       steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },

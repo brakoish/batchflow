@@ -8,15 +8,16 @@ import BatchCreator from './BatchCreator'
 export default async function NewBatchPage() {
   const session = await getSession()
   if (!session) redirect('/')
-  if (session.role !== 'OWNER') redirect('/batches')
+  if (session.role !== 'OWNER' && session.role !== 'SUPERVISOR') redirect('/batches')
 
   const [recipes, workers] = await Promise.all([
     prisma.recipe.findMany({
+      where: { organizationId: session.organizationId },
       include: { steps: { orderBy: { order: 'asc' } } },
       orderBy: { name: 'asc' },
     }),
     prisma.worker.findMany({
-      where: { role: 'WORKER' },
+      where: { role: { in: ['WORKER', 'SUPERVISOR'] }, organizationId: session.organizationId },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),

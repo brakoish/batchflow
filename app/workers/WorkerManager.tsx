@@ -14,14 +14,14 @@ type Worker = {
 export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
-  const [role, setRole] = useState<'WORKER' | 'OWNER'>('WORKER')
+  const [role, setRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null)
   const [editPin, setEditPin] = useState('')
   const [editName, setEditName] = useState('')
-  const [editRole, setEditRole] = useState<'WORKER' | 'OWNER'>('WORKER')
+  const [editRole, setEditRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
   const [showEditModal, setShowEditModal] = useState(false)
   const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
   const router = useRouter()
@@ -122,7 +122,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const openEditModal = (worker: Worker) => {
     setEditingWorker(worker)
     setEditName(worker.name)
-    setEditRole(worker.role as 'WORKER' | 'OWNER')
+    setEditRole(worker.role as 'WORKER' | 'SUPERVISOR' | 'OWNER')
     setEditPin('')
     setError('')
     setShowEditModal(true)
@@ -163,7 +163,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
         </div>
 
         <div className="flex gap-2">
-          {(['WORKER', 'OWNER'] as const).map((r) => (
+          {(['WORKER', 'SUPERVISOR', 'OWNER'] as const).map((r) => (
             <button
               key={r}
               onClick={() => setRole(r)}
@@ -222,7 +222,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           />
 
           <div className="flex gap-2">
-            {(['WORKER', 'OWNER'] as const).map((r) => (
+            {(['WORKER', 'SUPERVISOR', 'OWNER'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => setEditRole(r)}
@@ -300,6 +300,8 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
                 <span className={`text-xs px-2 py-0.5 rounded border ${
                   worker.role === 'OWNER'
                     ? 'bg-purple-500/10 text-purple-500 border-purple-500/20'
+                    : worker.role === 'SUPERVISOR'
+                    ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
                     : 'bg-primary/10 text-primary border-primary/20'
                 }`}>
                   {worker.role}
