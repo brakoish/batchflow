@@ -13,7 +13,7 @@ export default async function NewBatchPage() {
   const [recipes, workers] = await Promise.all([
     prisma.recipe.findMany({
       where: { organizationId: session.organizationId },
-      include: { steps: { orderBy: { order: 'asc' } } },
+      select: { id: true, name: true, description: true, baseUnit: true, steps: { orderBy: { order: 'asc' }, select: { id: true, name: true, order: true, notes: true } } },
       orderBy: { name: 'asc' },
     }),
     prisma.worker.findMany({

@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckCircleIcon } from '@heroicons/react/24/solid'
+import { haptic } from '@/lib/haptic'
 
 type Recipe = {
-  id: string; name: string; description: string | null
+  id: string; name: string; description: string | null; baseUnit: string
   steps: { id: string; name: string; order: number; notes: string | null }[]
 }
 
@@ -26,48 +28,52 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [showMetrc, setShowMetrc] = useState(false)
   const router = useRouter()
 
+  const nameRef = useRef<HTMLInputElement>(null)
+  const qtyRef = useRef<HTMLInputElement>(null)
+
   const selected = recipes.find((r) => r.id === selectedId)
 
+  // Auto-focus name input when recipe is selected
+  useEffect(() => {
+    if (selectedId && nameRef.current) {
+      setTimeout(() => nameRef.current?.focus(), 150)
+    }
+  }, [selectedId])
+
   const toggleWorker = (id: string) => {
+    haptic('light')
     setSelectedWorkers(prev =>
       prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]
     )
   }
 
   const handleSubmit = async () => {
-    if (!selectedId || !name.trim() || !targetQuantity) { setError('All fields required'); return }
-    const qty = parseInt(targetQuantity)
-    if (qty <= 0) { setError('Quantity must be > 0'); return }
+    if (!selectedId) { setError('Pick a recipe'); return }
+    if (!name.trim()) { setError('Give this batch a name'); return }
+    if (!targetQuantity || parseInt(targetQuantity) <= 0) { setError('Enter a quantity'); return }
 
-    // Calculate due date from preset
     let dueDate: string | undefined
     if (dueDatePreset === 'week') {
-      const d = new Date()
-      d.setDate(d.getDate() + 7)
+      const d = new Date(); d.setDate(d.getDate() + 7)
       dueDate = d.toISOString().split('T')[0]
     } else if (dueDatePreset === 'nextweek') {
-      const d = new Date()
-      d.setDate(d.getDate() + 14)
+      const d = new Date(); d.setDate(d.getDate() + 14)
       dueDate = d.toISOString().split('T')[0]
     } else if (dueDatePreset === 'custom' && customDueDate) {
       dueDate = customDueDate
     }
 
+    haptic('medium')
     setLoading(true); setError('')
     try {
       const res = await fetch('/api/batches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipeId: selectedId,
-          name,
-          targetQuantity: qty,
-          dueDate,
+          recipeId: selectedId, name, targetQuantity: parseInt(targetQuantity), dueDate,
           workerIds: selectedWorkers.length > 0 ? selectedWorkers : undefined,
-          metrcBatchId: metrcBatchId || undefined,
-          lotNumber: lotNumber || undefined,
-          strain: strain || undefined,
-          packageTag: packageTag || undefined,
+          metrcBatchId: metrcBatchId || undefined, lotNumber: lotNumber || undefined,
+          strain: strain || undefined, packageTag: packageTag || undefined,
         }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
@@ -78,204 +84,207 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-6">
-      {/* Recipe selection */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-2.5 block">1. Choose Recipe</label>
-        <div className="space-y-2">
-          {recipes.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => setSelectedId(r.id)}
-              disabled={loading}
-              className={`w-full text-left p-4 min-h-[44px] rounded-lg border-2 transition-all ${
-                selectedId === r.id
-                  ? 'border-emerald-500 bg-emerald-500/10 shadow-sm'
-                  : 'border-input hover:border-border'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-base font-medium text-foreground">{r.name}</p>
-                  {r.description && <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>}
-                  <p className="text-xs text-muted-foreground/60 mt-1">{r.steps.length} steps</p>
-                </div>
-                {selectedId === r.id && (
-                  <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="space-y-8">
 
-      {/* 2. Batch name */}
+      {/* ── Recipe Selection ── */}
       <div>
-        <label className="text-sm font-semibold text-foreground mb-1.5 block">2. Name this batch</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g., Monday Pre-Rolls, Lot 420"
-          className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-          disabled={loading}
-        />
-      </div>
-
-      {/* 3. Quantity */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-1.5 block">3. How many {selected?.steps?.[0] ? (selected as any).baseUnit || 'units' : 'units'}?</label>
-        <input
-          type="number"
-          inputMode="numeric"
-          value={targetQuantity}
-          onChange={(e) => setTargetQuantity(e.target.value)}
-          placeholder="Target quantity"
-          min="1"
-          className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-xl font-semibold tabular-nums placeholder:text-muted-foreground/50 placeholder:font-normal placeholder:text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-          disabled={loading}
-        />
-      </div>
-
-      {/* 4. Due date - quick picks */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-2 block">4. Deadline</label>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { key: 'none' as const, label: 'No deadline' },
-            { key: 'week' as const, label: 'This week' },
-            { key: 'nextweek' as const, label: 'Next week' },
-            { key: 'custom' as const, label: 'Pick a date' },
-          ].map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setDueDatePreset(opt.key)}
-              disabled={loading}
-              className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-all ${
-                dueDatePreset === opt.key
-                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500/40'
-                  : 'bg-card border-2 border-input text-muted-foreground hover:border-border'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        {dueDatePreset === 'custom' && (
-          <input
-            type="date"
-            value={customDueDate}
-            onChange={(e) => setCustomDueDate(e.target.value)}
-            className="w-full mt-2 px-3.5 py-3 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-            disabled={loading}
-          />
-        )}
-      </div>
-
-      {/* 5. Worker Assignment */}
-      {workers.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-semibold text-foreground">5. Assign workers</label>
-            <button
-              onClick={() => setSelectedWorkers(selectedWorkers.length === workers.length ? [] : workers.map(w => w.id))}
-              className="text-xs text-emerald-600 dark:text-emerald-400 font-medium"
-            >
-              {selectedWorkers.length === workers.length ? 'Clear all' : 'Select all'}
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">Leave empty = everyone can work on it</p>
-          <div className="space-y-2">
-            {workers.map((w) => (
+        <p className="text-sm text-muted-foreground mb-3">Pick a recipe to get started</p>
+        <div className="grid gap-2">
+          {recipes.map((r) => {
+            const isSelected = selectedId === r.id
+            return (
               <button
-                key={w.id}
-                onClick={() => toggleWorker(w.id)}
+                key={r.id}
+                onClick={() => { haptic('light'); setSelectedId(r.id) }}
                 disabled={loading}
-                className={`w-full flex items-center gap-3 p-3 min-h-[44px] rounded-lg transition-all ${
-                  selectedWorkers.includes(w.id)
-                    ? 'bg-blue-500/10 border-2 border-blue-500/40'
-                    : 'bg-card border-2 border-input hover:border-border'
+                className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-150 active:scale-[0.98] ${
+                  isSelected
+                    ? 'bg-emerald-500/10 border-2 border-emerald-500 shadow-sm'
+                    : 'bg-card border-2 border-border hover:border-foreground/20'
                 }`}
               >
-                <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
-                  selectedWorkers.includes(w.id) ? 'bg-blue-600' : 'bg-muted border border-input'
-                }`}>
-                  {selectedWorkers.includes(w.id) && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{r.name}</p>
+                    {r.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">{r.steps.length} steps</span>
+                    {isSelected && <CheckCircleIcon className="w-5 h-5 text-emerald-500" />}
+                  </div>
                 </div>
-                <span className="text-sm font-medium text-foreground">{w.name}</span>
               </button>
-            ))}
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Details (shown after recipe selection) ── */}
+      {selected && (
+        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+
+          {/* Batch Name */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">Batch name</label>
+            <input
+              ref={nameRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={`e.g., ${selected.name} - Monday Run`}
+              className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
+              disabled={loading}
+            />
           </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+              How many {selected.baseUnit}?
+            </label>
+            <input
+              ref={qtyRef}
+              type="number"
+              inputMode="numeric"
+              value={targetQuantity}
+              onChange={(e) => setTargetQuantity(e.target.value)}
+              placeholder="0"
+              min="1"
+              className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-2xl font-bold tabular-nums placeholder:text-muted-foreground/30 placeholder:font-normal placeholder:text-base focus:outline-none focus:border-emerald-500 transition-all"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Deadline */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">Deadline</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: 'none' as const, label: 'No deadline', sub: '' },
+                { key: 'week' as const, label: 'This week', sub: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })() },
+                { key: 'nextweek' as const, label: 'Next week', sub: (() => { const d = new Date(); d.setDate(d.getDate() + 14); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })() },
+                { key: 'custom' as const, label: 'Pick date', sub: '' },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => { haptic('light'); setDueDatePreset(opt.key) }}
+                  disabled={loading}
+                  className={`min-h-[48px] px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${
+                    dueDatePreset === opt.key
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
+                      : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                  }`}
+                >
+                  <div>{opt.label}</div>
+                  {opt.sub && <div className="text-[10px] opacity-60 mt-0.5">{opt.sub}</div>}
+                </button>
+              ))}
+            </div>
+            {dueDatePreset === 'custom' && (
+              <input
+                type="date"
+                value={customDueDate}
+                onChange={(e) => setCustomDueDate(e.target.value)}
+                className="w-full mt-2 px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-base focus:outline-none focus:border-emerald-500 transition-all"
+                disabled={loading}
+              />
+            )}
+          </div>
+
+          {/* Workers */}
+          {workers.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assign team</label>
+                <button
+                  onClick={() => { haptic('light'); setSelectedWorkers(selectedWorkers.length === workers.length ? [] : workers.map(w => w.id)) }}
+                  className="text-xs text-emerald-600 dark:text-emerald-400 font-medium"
+                >
+                  {selectedWorkers.length === workers.length ? 'Clear' : 'All'}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {workers.map((w) => {
+                  const on = selectedWorkers.includes(w.id)
+                  return (
+                    <button
+                      key={w.id}
+                      onClick={() => toggleWorker(w.id)}
+                      disabled={loading}
+                      className={`px-4 py-2.5 min-h-[44px] rounded-full text-sm font-medium transition-all active:scale-[0.96] ${
+                        on
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      }`}
+                    >
+                      {w.name}
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedWorkers.length === 0 && (
+                <p className="text-[11px] text-muted-foreground/60 mt-2">No one selected = everyone can work on it</p>
+              )}
+            </div>
+          )}
+
+          {/* Tracking (collapsible) */}
+          <button
+            type="button"
+            onClick={() => { haptic('light'); setShowMetrc(!showMetrc) }}
+            className="w-full min-h-[44px] py-2.5 rounded-xl text-sm text-muted-foreground font-medium hover:text-foreground transition-colors flex items-center justify-center gap-1.5"
+          >
+            <svg className={`w-4 h-4 transition-transform ${showMetrc ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+            {showMetrc ? 'Hide' : 'Add'} tracking info
+          </button>
+
+          {showMetrc && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+              {[
+                { value: strain, set: setStrain, placeholder: 'Strain' },
+                { value: metrcBatchId, set: setMetrcBatchId, placeholder: 'METRC Batch ID' },
+                { value: lotNumber, set: setLotNumber, placeholder: 'Lot Number' },
+                { value: packageTag, set: setPackageTag, placeholder: 'Package Tag' },
+              ].map((f, i) => (
+                <input
+                  key={i}
+                  type="text"
+                  value={f.value}
+                  onChange={(e) => f.set(e.target.value)}
+                  placeholder={f.placeholder}
+                  className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
+                  disabled={loading}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+              <p className="text-red-500 dark:text-red-400 text-sm text-center">{error}</p>
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !selectedId || !name.trim() || !targetQuantity}
+            className="w-full min-h-[52px] py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-30 disabled:bg-muted flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+          >
+            {loading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>Create Batch &rarr;</>
+            )}
+          </button>
         </div>
       )}
-
-      {/* Tracking & Compliance */}
-      <button
-        type="button"
-        onClick={() => setShowMetrc(!showMetrc)}
-        className="w-full min-h-[44px] py-3 rounded-lg border-2 border-dashed border-input text-sm text-muted-foreground font-medium hover:text-foreground hover:border-border transition-colors"
-      >
-        {showMetrc ? 'Hide Tracking & Compliance' : 'Add Tracking & Compliance'}
-      </button>
-
-      {showMetrc && (
-        <div className="rounded-lg bg-muted/30 border border-input/50 p-4 space-y-3">
-          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Tracking & Compliance</p>
-          <input
-            type="text"
-            value={metrcBatchId}
-            onChange={(e) => setMetrcBatchId(e.target.value)}
-            placeholder="METRC Batch ID"
-            className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-card border border-input text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-            disabled={loading}
-          />
-          <input
-            type="text"
-            value={lotNumber}
-            onChange={(e) => setLotNumber(e.target.value)}
-            placeholder="Lot Number"
-            className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-card border border-input text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-            disabled={loading}
-          />
-          <input
-            type="text"
-            value={strain}
-            onChange={(e) => setStrain(e.target.value)}
-            placeholder="Strain"
-            className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-card border border-input text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-            disabled={loading}
-          />
-          <input
-            type="text"
-            value={packageTag}
-            onChange={(e) => setPackageTag(e.target.value)}
-            placeholder="Package Tag"
-            className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-card border border-input text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-            disabled={loading}
-          />
-        </div>
-      )}
-
-      {error && <p className="text-red-500 text-xs text-center">{error}</p>}
-
-      <button
-        onClick={handleSubmit}
-        disabled={loading || !selectedId}
-        className="w-full min-h-[44px] py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-base transition-all duration-150 disabled:opacity-40 disabled:bg-muted flex items-center justify-center gap-2"
-      >
-        {loading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Creating...
-          </>
-        ) : 'Create Batch'}
-      </button>
     </div>
   )
 }
