@@ -4,9 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 
-type UnitDef = { name: string; count: number; perUnit: string }
-type MaterialDef = { name: string; quantityPerUnit: number; unit: string }
-type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string; materials: MaterialDef[] }
+type UnitDef = { name: string; count: number }
+type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
 
 type EditRecipe = {
   id: string; name: string; description: string | null; baseUnit: string
@@ -21,7 +20,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || 'bags')
   const [units, setUnits] = useState<UnitDef[]>(
     editRecipe?.units.length
-      ? editRecipe.units.map(u => ({ name: u.name, count: u.ratio, perUnit: '' }))
+      ? editRecipe.units.map(u => ({ name: u.name, count: u.ratio }))
       : []
   )
   const [steps, setSteps] = useState<StepDef[]>(
@@ -31,27 +30,22 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
           notes: s.notes || '',
           type: s.type as 'CHECK' | 'COUNT',
           unitName: s.unit?.name || '',
-          materials: (s as any).materials?.map((m: MaterialDef) => ({
-            name: m.name,
-            quantityPerUnit: m.quantityPerUnit,
-            unit: m.unit,
-          })) || [],
         }))
-      : [{ name: '', notes: '', type: 'COUNT', unitName: '', materials: [] }]
+      : [{ name: '', notes: '', type: 'COUNT', unitName: '' }]
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
 
   // Unit helpers
-  const addUnit = () => setUnits([...units, { name: '', count: 1, perUnit: '' }])
+  const addUnit = () => setUnits([...units, { name: '', count: 1 }])
   const removeUnit = (i: number) => setUnits(units.filter((_, idx) => idx !== i))
   const updateUnit = (i: number, field: string, value: any) => {
     const u = [...units]; (u[i] as any)[field] = value; setUnits(u)
   }
 
   // Step helpers
-  const addStep = () => setSteps([...steps, { name: '', notes: '', type: 'COUNT', unitName: '', materials: [] }])
+  const addStep = () => setSteps([...steps, { name: '', notes: '', type: 'COUNT', unitName: '' }])
   const removeStep = (i: number) => steps.length > 1 && setSteps(steps.filter((_, idx) => idx !== i))
   const updateStep = (i: number, field: string, value: string) => {
     const s = [...steps]; (s[i] as any)[field] = value; setSteps(s)
@@ -62,31 +56,12 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     const s = [...steps]; [s[i], s[t]] = [s[t], s[i]]; setSteps(s)
   }
 
-  // Material helpers
-  const addMaterial = (stepIdx: number) => {
-    const s = [...steps]
-    s[stepIdx].materials = [...s[stepIdx].materials, { name: '', quantityPerUnit: 1, unit: 'units' }]
-    setSteps(s)
-  }
-  const removeMaterial = (stepIdx: number, matIdx: number) => {
-    const s = [...steps]
-    s[stepIdx].materials = s[stepIdx].materials.filter((_, idx) => idx !== matIdx)
-    setSteps(s)
-  }
-  const updateMaterial = (stepIdx: number, matIdx: number, field: string, value: string | number) => {
-    const s = [...steps]
-    ;(s[stepIdx].materials[matIdx] as any)[field] = value
-    setSteps(s)
-  }
 
-  // Compute base ratio for each unit by chaining
-  const getBaseRatio = (unitName: string, visited: Set<string> = new Set()): number => {
+  // Simplified: units always reference the base unit directly
+  const getBaseRatio = (unitName: string): number => {
     if (!unitName || unitName === baseUnit) return 1
-    if (visited.has(unitName)) return 1 // prevent cycles
-    visited.add(unitName)
     const u = units.find(x => x.name === unitName)
-    if (!u) return 1
-    return u.count * getBaseRatio(u.perUnit, visited)
+    return u?.count || 1
   }
 
   const allUnits = [
@@ -95,9 +70,9 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   ]
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError('Recipe name required'); return }
+    if (!name.trim()) { setError('Give your recipe a name'); return }
     const validSteps = steps.filter((s) => s.name.trim())
-    if (!validSteps.length) { setError('Add at least one step'); return }
+    if (!validSteps.length) { setError('Add at least one step so workers know what to do'); return }
 
     setLoading(true); setError('')
     try {
@@ -117,18 +92,13 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             notes: s.notes || undefined,
             type: s.type,
             unitName: s.unitName || undefined,
-            materials: s.materials.filter(m => m.name.trim()).map(m => ({
-              name: m.name,
-              quantityPerUnit: m.quantityPerUnit,
-              unit: m.unit,
-            })),
           })),
         }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
       if (!isEdit) {
         setName(''); setDescription(''); setBaseUnit('bags')
-        setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '', materials: [] }])
+        setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
       }
       router.refresh()
       onDone?.()
@@ -141,29 +111,39 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
         {isEdit ? 'Edit Recipe' : 'New Recipe'}
       </h2>
-      <div className="rounded-xl border border bg-card p-4 space-y-4">
-        {/* Name + Description */}
-        <div className="space-y-2.5">
+      <div className="rounded-xl border border bg-card p-4 space-y-6">
+        {/* What are you making? */}
+        <div>
+          <label className="text-sm text-foreground font-semibold block mb-1.5">What are you making?</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="Recipe name" disabled={loading}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all" />
+            placeholder="e.g., Pre-Rolls, Gummies, Vape Cartridges" disabled={loading}
+            className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all" />
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className="text-sm text-foreground font-semibold block mb-1.5">Description <span className="text-muted-foreground font-normal text-xs">(optional)</span></label>
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description (optional)" disabled={loading}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all" />
+            placeholder="Any details about this recipe" disabled={loading}
+            className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all" />
         </div>
 
         {/* Base Unit */}
         <div>
-          <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1.5">Base Unit</label>
+          <label className="text-sm text-foreground font-semibold block mb-1.5">Base unit for counting</label>
+          <p className="text-xs text-muted-foreground mb-2">The smallest unit you&apos;ll count</p>
           <input type="text" value={baseUnit} onChange={(e) => setBaseUnit(e.target.value)}
             placeholder="e.g. bags, units, pieces" disabled={loading}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all" />
+            className="w-full px-3.5 py-3 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all" />
         </div>
 
-        {/* Additional Units */}
+        {/* Counting Units */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider">Additional Units</label>
+            <div>
+              <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block">Counting Units</label>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">How do you count finished product?</p>
+            </div>
             <button onClick={addUnit} disabled={loading}
               className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center gap-0.5">
               <PlusIcon className="w-3 h-3" />Add
@@ -172,167 +152,173 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
           {units.length === 0 ? (
             <p className="text-xs text-muted-foreground/70 italic">No additional units. Steps will use {baseUnit || 'base units'}.</p>
           ) : (
-            <div className="space-y-2">
-              {units.map((u, i) => {
-                // Available "per" units: base + any units defined before this one
-                const perOptions = [baseUnit, ...units.slice(0, i).filter(x => x.name.trim()).map(x => x.name)]
-                const resolved = getBaseRatio(u.name)
-                return (
-                  <div key={i} className="flex items-center gap-2 flex-wrap">
-                    <input type="text" value={u.name} onChange={(e) => updateUnit(i, 'name', e.target.value)}
-                      placeholder="Unit name (e.g. cases)" disabled={loading}
-                      className="flex-1 min-w-[100px] px-2.5 py-2 rounded-md bg-muted border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
-                    <span className="text-[10px] text-foreground">=</span>
-                    <input type="number" value={u.count} onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
-                      min="1" disabled={loading}
-                      className="w-14 px-2.5 py-2 rounded-md bg-muted border border-input text-foreground text-xs tabular-nums text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
-                    <select value={u.perUnit} onChange={(e) => updateUnit(i, 'perUnit', e.target.value)} disabled={loading}
-                      className="px-2 py-2 rounded-md bg-muted border border-input text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all">
-                      {perOptions.map((opt) => (
-                        <option key={opt} value={opt === baseUnit ? '' : opt}>{opt}</option>
-                      ))}
-                    </select>
-                    {resolved > 1 && u.perUnit && (
-                      <span className="text-[10px] text-muted-foreground/70">= {resolved} {baseUnit}</span>
-                    )}
-                    <button onClick={() => removeUnit(i)} className="p-1 text-foreground hover:text-red-500 dark:text-red-400 transition-colors">
-                      <XMarkIcon className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )
-              })}
+            <div className="space-y-3">
+              {units.map((u, i) => (
+                <div key={i} className="rounded-lg bg-muted/50 border border-input p-4">
+                  <label className="text-xs text-muted-foreground font-medium block mb-1.5">Unit name</label>
+                  <input type="text" value={u.name} onChange={(e) => updateUnit(i, 'name', e.target.value)}
+                    placeholder="Cases" disabled={loading}
+                    className="w-full px-3.5 py-2.5 min-h-[44px] rounded-lg bg-card border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all mb-3" />
+
+                  <label className="text-xs text-muted-foreground font-medium block mb-1.5">How many {baseUnit} per {u.name.trim() || 'unit'}?</label>
+                  <input type="number" value={u.count} onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
+                    min="1" disabled={loading} inputMode="numeric"
+                    className="w-full px-3.5 py-2.5 min-h-[44px] rounded-lg bg-card border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all mb-3" />
+
+                  <button onClick={() => removeUnit(i)}
+                    className="w-full min-h-[44px] py-2.5 rounded-lg border border-input text-sm text-muted-foreground hover:text-red-500 hover:border-red-500/30 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-2">
+                    <XMarkIcon className="w-4 h-4" />Remove
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
         {/* Steps */}
         <div>
-          <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-2">Steps</label>
-          <div className="space-y-2.5">
+          <label className="text-sm text-foreground font-semibold block mb-1.5">Production steps</label>
+          <p className="text-xs text-muted-foreground mb-3">Add the steps workers will follow</p>
+          <div className="space-y-3">
             {steps.map((step, i) => (
-              <div key={i} className="rounded-lg bg-muted/50 border border-input p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] text-muted-foreground/70 font-bold tabular-nums w-4">{i + 1}.</span>
-                  <input type="text" value={step.name} onChange={(e) => updateStep(i, 'name', e.target.value)}
-                    placeholder="Step name" disabled={loading}
-                    className="flex-1 px-2.5 py-1.5 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
-                  <div className="flex items-center gap-0.5">
-                    <button onClick={() => moveStep(i, 'up')} disabled={i === 0} className="p-1 text-foreground hover:text-foreground/80 disabled:opacity-20"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => moveStep(i, 'down')} disabled={i === steps.length - 1} className="p-1 text-foreground hover:text-foreground/80 disabled:opacity-20"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => removeStep(i)} disabled={steps.length === 1} className="p-1 text-foreground hover:text-red-500 dark:text-red-400 disabled:opacity-20"><XMarkIcon className="w-3.5 h-3.5" /></button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 mb-2">
-                  {/* Type toggle */}
-                  <button onClick={() => updateStep(i, 'type', 'CHECK')} disabled={loading}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold transition-all ${
-                      step.type === 'CHECK' ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30' : 'text-foreground hover:text-muted-foreground'
-                    }`}>
-                    <CheckCircleIcon className="w-3 h-3" />Check
-                  </button>
-                  <button onClick={() => updateStep(i, 'type', 'COUNT')} disabled={loading}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold transition-all ${
-                      step.type === 'COUNT' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'text-foreground hover:text-muted-foreground'
-                    }`}>
-                    <HashtagIcon className="w-3 h-3" />Count
-                  </button>
-
-                  {/* Unit selector for COUNT steps */}
-                  {step.type === 'COUNT' && (
-                    <select
-                      value={step.unitName}
-                      onChange={(e) => updateStep(i, 'unitName', e.target.value)}
-                      disabled={loading}
-                      className="px-2 py-1.5 rounded-md bg-card border border-input text-foreground text-[10px] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                    >
-                      <option value="">{baseUnit} (base)</option>
-                      {units.filter(u => u.name.trim()).map((u, idx) => (
-                        <option key={idx} value={u.name}>{u.name} ({getBaseRatio(u.name)} {baseUnit}/ea)</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-
-                <input type="text" value={step.notes} onChange={(e) => updateStep(i, 'notes', e.target.value)}
-                  placeholder="Notes (optional)" disabled={loading}
-                  className="w-full px-2.5 py-1.5 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all mb-2" />
-
-                {/* Materials for this step */}
-                <div className="rounded-md bg-card/50 border border p-2">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] text-foreground font-medium">Materials</span>
-                    <button onClick={() => addMaterial(i)} disabled={loading}
-                      className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-300 text-[10px] font-medium flex items-center gap-0.5">
-                      <PlusIcon className="w-3 h-3" />Add
+              <div key={i} className="rounded-lg bg-muted/50 border border-input p-4">
+                {/* Step number and reorder controls */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-muted-foreground font-bold">Step {i + 1}</span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => moveStep(i, 'up')} disabled={i === 0}
+                      className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-foreground hover:bg-muted disabled:opacity-20 transition-colors">
+                      <ChevronUpIcon className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => moveStep(i, 'down')} disabled={i === steps.length - 1}
+                      className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-foreground hover:bg-muted disabled:opacity-20 transition-colors">
+                      <ChevronDownIcon className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => removeStep(i)} disabled={steps.length === 1}
+                      className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-foreground hover:text-red-500 dark:hover:text-red-400 disabled:opacity-20 transition-colors">
+                      <XMarkIcon className="w-5 h-5" />
                     </button>
                   </div>
-                  {step.materials.length === 0 ? (
-                    <p className="text-[10px] text-muted-foreground/70 italic">No materials added</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {step.materials.length > 0 && (
-                        <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground/60 uppercase tracking-wider font-medium">
-                          <span className="flex-1 min-w-[80px]">Name</span>
-                          <span className="w-16 text-center">Per unit</span>
-                          <span className="w-14">Measure</span>
-                          <span className="w-3" />
-                        </div>
-                      )}
-                      {step.materials.map((mat, mi) => (
-                        <div key={mi} className="flex items-center gap-1.5">
-                          <input type="text" value={mat.name} onChange={(e) => updateMaterial(i, mi, 'name', e.target.value)}
-                            placeholder="e.g. Rolling Paper" disabled={loading}
-                            className="flex-1 min-w-[80px] px-2 py-1 rounded bg-muted border border-input text-foreground text-[11px] placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
-                          <input type="number" value={mat.quantityPerUnit} onChange={(e) => updateMaterial(i, mi, 'quantityPerUnit', parseFloat(e.target.value) || 0)}
-                            placeholder="1" disabled={loading} step="0.01"
-                            className="w-16 px-2 py-1 rounded bg-muted border border-input text-foreground text-[11px] tabular-nums text-center focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
-                          <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, mi, 'unit', e.target.value)}
-                            placeholder="each" disabled={loading}
-                            className="w-14 px-2 py-1 rounded bg-muted border border-input text-foreground text-[11px] placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all" />
-                          <button onClick={() => removeMaterial(i, mi)} className="p-0.5 text-foreground hover:text-red-500 dark:text-red-400 transition-colors">
-                            <XMarkIcon className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                      <p className="text-[9px] text-muted-foreground/50 italic">How many of each material needed per 1 unit produced</p>
-                    </div>
-                  )}
                 </div>
+
+                {/* Step name */}
+                <input type="text" value={step.name} onChange={(e) => updateStep(i, 'name', e.target.value)}
+                  placeholder="Step name" disabled={loading}
+                  className="w-full px-3.5 py-2.5 min-h-[44px] rounded-lg bg-card border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all mb-3" />
+
+                {/* Type toggle - bigger pill buttons */}
+                <div className="mb-3">
+                  <label className="text-xs text-muted-foreground font-medium block mb-2">Step type</label>
+                  <div className="flex gap-2">
+                    <button onClick={() => updateStep(i, 'type', 'CHECK')} disabled={loading}
+                      className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                        step.type === 'CHECK' ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-2 border-blue-500/40' : 'bg-card border-2 border-input text-muted-foreground hover:border-border'
+                      }`}>
+                      <CheckCircleIcon className="w-5 h-5" />
+                      <div className="text-left">
+                        <div>Checkpoint</div>
+                        <div className="text-[10px] opacity-70 font-normal">Just mark it done</div>
+                      </div>
+                    </button>
+                    <button onClick={() => updateStep(i, 'type', 'COUNT')} disabled={loading}
+                      className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                        step.type === 'COUNT' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500/40' : 'bg-card border-2 border-input text-muted-foreground hover:border-border'
+                      }`}>
+                      <HashtagIcon className="w-5 h-5" />
+                      <div className="text-left">
+                        <div>Count</div>
+                        <div className="text-[10px] opacity-70 font-normal">Track how many</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Unit selector for COUNT steps - only show if additional units exist */}
+                {step.type === 'COUNT' && units.filter(u => u.name.trim()).length > 0 && (
+                  <div className="mb-3">
+                    <label className="text-xs text-muted-foreground font-medium block mb-2">Count by</label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => updateStep(i, 'unitName', '')}
+                        disabled={loading}
+                        className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-all ${
+                          !step.unitName ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500/40' : 'bg-card border-2 border-input text-muted-foreground hover:border-border'
+                        }`}
+                      >
+                        {baseUnit} (base)
+                      </button>
+                      {units.filter(u => u.name.trim()).map((u, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => updateStep(i, 'unitName', u.name)}
+                          disabled={loading}
+                          className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-all ${
+                            step.unitName === u.name ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500/40' : 'bg-card border-2 border-input text-muted-foreground hover:border-border'
+                          }`}
+                        >
+                          {u.name} ({u.count}/{baseUnit})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                <input type="text" value={step.notes} onChange={(e) => updateStep(i, 'notes', e.target.value)}
+                  placeholder="Any instructions for this step?" disabled={loading}
+                  className="w-full px-3.5 py-2.5 min-h-[44px] rounded-lg bg-card border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+
               </div>
             ))}
           </div>
 
           <button onClick={addStep} disabled={loading}
-            className="w-full mt-2.5 py-2 rounded-lg border border-dashed border-input text-xs text-foreground hover:text-foreground/80 hover:border-input transition-colors flex items-center justify-center gap-1">
-            <PlusIcon className="w-3.5 h-3.5" />Add Step
+            className="w-full mt-3 min-h-[44px] py-3 rounded-lg border-2 border-dashed border-input text-sm text-foreground font-medium hover:bg-muted/50 hover:border-border transition-colors flex items-center justify-center gap-2">
+            <PlusIcon className="w-4 h-4" />Add Step
           </button>
         </div>
 
         {/* Preview */}
-        {steps.some(s => s.name.trim() && s.type === 'COUNT') && (
-          <div className="rounded-lg bg-muted/30 border border-input/50 p-3">
-            <p className="text-[10px] text-foreground font-semibold uppercase tracking-wider mb-1.5">Preview (for 500 {baseUnit} batch)</p>
-            {steps.filter(s => s.name.trim()).map((s, i) => {
-              if (s.type === 'CHECK') return (
-                <p key={i} className="text-xs text-muted-foreground"><span className="text-muted-foreground/70 tabular-nums">{i+1}.</span> {s.name} — <span className="text-blue-600 dark:text-blue-400">check</span></p>
-              )
-              const ratio = s.unitName ? getBaseRatio(s.unitName) : 1
-              const unit = s.unitName ? units.find(u => u.name === s.unitName) : null
-              const target = Math.ceil(500 / ratio)
-              const label = unit?.name || baseUnit
-              return (
-                <p key={i} className="text-xs text-muted-foreground"><span className="text-muted-foreground/70 tabular-nums">{i+1}.</span> {s.name} — <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">{target} {label}</span></p>
-              )
-            })}
+        {steps.some(s => s.name.trim()) && (
+          <div className="rounded-lg bg-muted/30 border border-input/50 p-4">
+            <p className="text-sm text-foreground font-semibold mb-3">Preview (example: 500 {baseUnit} batch)</p>
+            <div className="space-y-2">
+              {steps.filter(s => s.name.trim()).map((s, i) => {
+                if (s.type === 'CHECK') return (
+                  <div key={i} className="flex items-center gap-2 p-2 rounded-md bg-blue-500/5 border border-blue-500/20">
+                    <CheckCircleIcon className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span className="text-sm text-foreground">{s.name}</span>
+                    <span className="ml-auto text-xs text-blue-600 dark:text-blue-400 font-medium">Checkpoint</span>
+                  </div>
+                )
+                const ratio = s.unitName ? getBaseRatio(s.unitName) : 1
+                const unit = s.unitName ? units.find(u => u.name === s.unitName) : null
+                const target = Math.ceil(500 / ratio)
+                const label = unit?.name || baseUnit
+                return (
+                  <div key={i} className="flex items-center gap-2 p-2 rounded-md bg-emerald-500/5 border border-emerald-500/20">
+                    <HashtagIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="text-sm text-foreground">{s.name}</span>
+                    <span className="ml-auto text-sm text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{target} {label}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
         {error && <p className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
 
         <button onClick={handleSubmit} disabled={loading}
-          className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40">
-          {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Recipe'}
+          className="w-full min-h-[44px] py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-base transition-all duration-150 disabled:opacity-40 flex items-center justify-center gap-2">
+          {loading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              {isEdit ? 'Saving...' : 'Creating...'}
+            </>
+          ) : (
+            isEdit ? 'Save Changes' : 'Create Recipe'
+          )}
         </button>
       </div>
     </div>

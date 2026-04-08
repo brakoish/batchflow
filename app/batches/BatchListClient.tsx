@@ -148,7 +148,7 @@ export default function BatchListClient({
         )}
         
         {/* Clock-in nudge banner */}
-        {shiftChecked && !onShift && !nudgeDismissed && session.role === 'WORKER' && (
+        {shiftChecked && !onShift && !nudgeDismissed && (session.role === 'WORKER' || session.role === 'SUPERVISOR') && (
           <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-lg shrink-0">👋</span>
