@@ -9,6 +9,7 @@ import {
   PlusIcon,
   XMarkIcon,
   ChatBubbleLeftRightIcon,
+  DocumentDuplicateIcon,
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import type { Session } from '@/lib/session'
@@ -32,7 +33,7 @@ type Batch = {
   lotNumber?: string
   strain?: string
   packageTag?: string
-  recipe: { name: string }; steps: BatchStep[]
+  recipe: { id: string; name: string }; steps: BatchStep[]
   assignments?: { worker: Worker }[]
 }
 type BatchMessage = {
@@ -129,6 +130,13 @@ export default function BatchDetailClient({
   const [editStrain, setEditStrain] = useState(batch.strain || '')
   const [editPackageTag, setEditPackageTag] = useState(batch.packageTag || '')
   const [editWorkerIds, setEditWorkerIds] = useState<string[]>(batch.assignments?.map(a => a.worker.id) || [])
+
+  // Duplicate modal state
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
+  const [duplicateName, setDuplicateName] = useState('')
+  const [duplicateTargetQty, setDuplicateTargetQty] = useState('')
+  const [duplicateStrain, setDuplicateStrain] = useState('')
+  const [duplicating, setDuplicating] = useState(false)
 
   // Auto-refresh every 5 seconds
   useEffect(() => {
@@ -364,10 +372,10 @@ export default function BatchDetailClient({
           packageTag: editPackageTag || undefined,
         }),
       })
-      if (!res.ok) { 
+      if (!res.ok) {
         const data = await res.json().catch(() => ({ error: 'Server error' }))
         setError(data.error || 'Failed to save changes')
-        return 
+        return
       }
       const data = await res.json()
       setBatch(data.batch)
@@ -381,11 +389,58 @@ export default function BatchDetailClient({
           if (fresh.batch) setBatch(fresh.batch)
         }
       } catch {}
-    
-    } catch (err) { 
+
+    } catch (err) {
       setError('Network error. Please check your connection.')
     }
     finally { setLoading(false) }
+  }
+
+  const handleOpenDuplicate = () => {
+    haptic('light')
+    setDuplicateName(`${batch.name} (copy)`)
+    setDuplicateTargetQty(batch.targetQuantity.toString())
+    setDuplicateStrain(batch.strain || '')
+    setShowDuplicateModal(true)
+    setError('')
+  }
+
+  const handleDuplicateBatch = async () => {
+    if (!duplicateName.trim() || !duplicateTargetQty || parseInt(duplicateTargetQty) <= 0) {
+      setError('Please fill in all required fields')
+      return
+    }
+
+    setDuplicating(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipeId: batch.recipe.id,
+          name: duplicateName,
+          targetQuantity: parseInt(duplicateTargetQty),
+          strain: duplicateStrain || undefined,
+          workerIds: batch.assignments?.map(a => a.worker.id) || [],
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to duplicate batch')
+        return
+      }
+
+      const data = await res.json()
+      showToast('Batch duplicated successfully')
+      router.push(`/batches/${data.batch.id}`)
+    } catch (err) {
+      setError('Network error. Please check your connection.')
+    } finally {
+      setDuplicating(false)
+    }
   }
 
   const handleSubmit = async () => {
@@ -616,32 +671,50 @@ export default function BatchDetailClient({
             </div>
           )}
 
-          {/* Owner batch controls */}
-          {session.role === 'OWNER' && batch.status === 'ACTIVE' && (
-            <div className="flex items-center gap-2 mt-3">
-              <button onClick={() => handleStatusChange('COMPLETED')}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-medium transition-all">
-                Mark Complete
+          {/* Owner/Supervisor batch controls */}
+          {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && (
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              {session.role === 'OWNER' && (
+                <button onClick={() => handleStatusChange('COMPLETED')}
+                  className="px-3 py-2 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-medium transition-all">
+                  Mark Complete
+                </button>
+              )}
+              {session.role === 'OWNER' && (
+                <button onClick={() => setShowEditModal(true)}
+                  className="px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground/80 text-xs font-medium transition-all">
+                  Edit Batch
+                </button>
+              )}
+              <button onClick={handleOpenDuplicate}
+                className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
+                <DocumentDuplicateIcon className="w-4 h-4" />
+                Duplicate
               </button>
-              <button onClick={() => setShowEditModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground/80 text-xs font-medium transition-all">
-                Edit Batch
-              </button>
-              <button onClick={() => handleStatusChange('CANCELLED')}
-                className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-red-500 dark:text-red-400 text-xs font-medium transition-all">
-                Cancel Batch
-              </button>
+              {session.role === 'OWNER' && (
+                <button onClick={() => handleStatusChange('CANCELLED')}
+                  className="px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-red-500 dark:text-red-400 text-xs font-medium transition-all">
+                  Cancel Batch
+                </button>
+              )}
             </div>
           )}
-          {session.role === 'OWNER' && batch.status !== 'ACTIVE' && (
-            <div className="flex items-center gap-2 mt-3">
-              <button onClick={() => handleStatusChange('ACTIVE')}
-                className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-blue-600 dark:text-blue-400 text-xs font-medium transition-all">
-                Reopen Batch
+          {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status !== 'ACTIVE' && (
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              <button onClick={handleOpenDuplicate}
+                className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
+                <DocumentDuplicateIcon className="w-4 h-4" />
+                Duplicate
               </button>
-              {batch.status === 'CANCELLED' && (
+              {session.role === 'OWNER' && (
+                <button onClick={() => handleStatusChange('ACTIVE')}
+                  className="px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-blue-600 dark:text-blue-400 text-xs font-medium transition-all">
+                  Reopen Batch
+                </button>
+              )}
+              {session.role === 'OWNER' && batch.status === 'CANCELLED' && (
                 <button onClick={handleDeleteBatch}
-                  className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 active:scale-[0.96] text-red-500 dark:text-red-400 text-xs font-medium transition-all">
+                  className="px-3 py-2 min-h-[44px] rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 active:scale-[0.96] text-red-500 dark:text-red-400 text-xs font-medium transition-all">
                   Delete Batch
                 </button>
               )}
@@ -1010,6 +1083,80 @@ export default function BatchDetailClient({
                   className="w-full py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 active:scale-[0.98] text-red-500 dark:text-red-400 font-semibold text-sm transition-all duration-150 disabled:opacity-40"
                 >
                   Delete Entry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate Batch Modal */}
+      {showDuplicateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-sm font-semibold text-foreground">Duplicate Batch</p>
+                <button
+                  onClick={() => setShowDuplicateModal(false)}
+                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
+                  <input
+                    type="text"
+                    value={duplicateName}
+                    onChange={(e) => setDuplicateName(e.target.value)}
+                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
+                  <input
+                    type="number"
+                    value={duplicateTargetQty}
+                    onChange={(e) => setDuplicateTargetQty(e.target.value)}
+                    min="1"
+                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Strain (Optional)</label>
+                  <input
+                    type="text"
+                    value={duplicateStrain}
+                    onChange={(e) => setDuplicateStrain(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg bg-muted border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                  />
+                </div>
+
+                <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                  This will create a new batch using the <span className="font-medium text-foreground">{batch.recipe.name}</span> recipe with the same worker assignments.
+                </div>
+
+                {error && <p className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
+
+                <button
+                  onClick={handleDuplicateBatch}
+                  disabled={duplicating || !duplicateName.trim() || !duplicateTargetQty}
+                  className="w-full py-3.5 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+                >
+                  {duplicating ? 'Creating...' : 'Create Duplicate'}
                 </button>
               </div>
             </div>

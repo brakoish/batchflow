@@ -47,6 +47,8 @@ export default function DashboardClient({
   const [showCompleted, setShowCompleted] = useState(false)
   const [loading, setLoading] = useState(!initialBatches.length && !initialActivity.length)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'newest' | 'dueDate' | 'progress'>('newest')
+  const [filterRecipe, setFilterRecipe] = useState('')
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null)
   const [editName, setEditName] = useState('')
   const [editTargetQty, setEditTargetQty] = useState('')
@@ -140,6 +142,63 @@ export default function DashboardClient({
 
   const totalUnits = activity.reduce((sum, l) => sum + (l.type === 'log' ? (l.quantity || 0) : 0), 0)
 
+  // Extract unique recipe names for filter dropdown
+  const uniqueRecipes = Array.from(new Set(batches.map(b => b.recipe.name))).sort()
+
+  // Apply filtering and sorting
+  const getFilteredAndSortedBatches = () => {
+    let filtered = batches
+      .filter(b => showCompleted || b.status === 'ACTIVE')
+      .filter((b) => {
+        const query = searchQuery.toLowerCase()
+        return (
+          b.name.toLowerCase().includes(query) ||
+          b.recipe.name.toLowerCase().includes(query) ||
+          (b.strain && b.strain.toLowerCase().includes(query))
+        )
+      })
+
+    // Apply recipe filter
+    if (filterRecipe) {
+      filtered = filtered.filter(b => b.recipe.name === filterRecipe)
+    }
+
+    // Apply sorting
+    if (sortBy === 'dueDate') {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      filtered.sort((a, b) => {
+        const aDate = a.dueDate ? new Date(a.dueDate.split('T')[0] + 'T00:00:00') : null
+        const bDate = b.dueDate ? new Date(b.dueDate.split('T')[0] + 'T00:00:00') : null
+
+        // No due date goes to bottom
+        if (!aDate && !bDate) return 0
+        if (!aDate) return 1
+        if (!bDate) return -1
+
+        // Overdue first (ascending by how overdue)
+        const aOverdue = aDate < today
+        const bOverdue = bDate < today
+
+        if (aOverdue && !bOverdue) return -1
+        if (!aOverdue && bOverdue) return 1
+
+        // Both overdue or both not overdue: sort by date ascending
+        return aDate.getTime() - bDate.getTime()
+      })
+    } else if (sortBy === 'progress') {
+      filtered.sort((a, b) => {
+        const aProgress = a.steps.filter(s => s.status === 'COMPLETED').length / a.steps.length
+        const bProgress = b.steps.filter(s => s.status === 'COMPLETED').length / b.steps.length
+        return aProgress - bProgress // Least complete first
+      })
+    }
+    // 'newest' keeps the default order from API
+
+    return filtered
+  }
+
   return (
     <AppShell session={session} organizationName={organizationName}>
 
@@ -175,8 +234,57 @@ export default function DashboardClient({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search batches..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              className="w-full pl-10 pr-4 py-2 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             />
+          </div>
+
+          {/* Filter and Sort Controls */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Recipe Filter */}
+            <select
+              value={filterRecipe}
+              onChange={(e) => setFilterRecipe(e.target.value)}
+              className="flex-1 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+            >
+              <option value="">All Recipes</option>
+              {uniqueRecipes.map((recipe) => (
+                <option key={recipe} value={recipe}>{recipe}</option>
+              ))}
+            </select>
+
+            {/* Sort Pills */}
+            <div className="flex gap-2 overflow-x-auto">
+              <button
+                onClick={() => setSortBy('newest')}
+                className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                  sortBy === 'newest'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-card border border-border text-foreground hover:bg-muted'
+                }`}
+              >
+                Newest
+              </button>
+              <button
+                onClick={() => setSortBy('dueDate')}
+                className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                  sortBy === 'dueDate'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-card border border-border text-foreground hover:bg-muted'
+                }`}
+              >
+                Due Date
+              </button>
+              <button
+                onClick={() => setSortBy('progress')}
+                className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                  sortBy === 'progress'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-card border border-border text-foreground hover:bg-muted'
+                }`}
+              >
+                Progress
+              </button>
+            </div>
           </div>
         </div>
 
@@ -191,16 +299,7 @@ export default function DashboardClient({
                 ))}
               </>
             ) : (() => {
-                const filteredBatches = batches
-                  .filter(b => showCompleted || b.status === 'ACTIVE')
-                  .filter((b) => {
-                    const query = searchQuery.toLowerCase()
-                    return (
-                      b.name.toLowerCase().includes(query) ||
-                      b.recipe.name.toLowerCase().includes(query) ||
-                      (b.strain && b.strain.toLowerCase().includes(query))
-                    )
-                  })
+                const filteredBatches = getFilteredAndSortedBatches()
 
                 if (filteredBatches.length === 0) {
                   return searchQuery ? (
