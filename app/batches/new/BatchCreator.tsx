@@ -15,6 +15,7 @@ type Worker = { id: string; name: string }
 export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; workers: Worker[] }) {
   const [selectedId, setSelectedId] = useState('')
   const [name, setName] = useState('')
+  const [batchType, setBatchType] = useState<'fixed' | 'open'>('fixed')
   const [targetQuantity, setTargetQuantity] = useState('')
   const [dueDatePreset, setDueDatePreset] = useState<'none' | 'week' | 'nextweek' | 'custom'>('none')
   const [customDueDate, setCustomDueDate] = useState('')
@@ -50,7 +51,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const handleSubmit = async () => {
     if (!selectedId) { setError('Pick a recipe'); return }
     if (!name.trim()) { setError('Give this batch a name'); return }
-    if (!targetQuantity || parseInt(targetQuantity) <= 0) { setError('Enter a quantity'); return }
+    if (batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)) { setError('Enter a quantity'); return }
 
     let dueDate: string | undefined
     if (dueDatePreset === 'week') {
@@ -70,7 +71,9 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipeId: selectedId, name, targetQuantity: parseInt(targetQuantity), dueDate,
+          recipeId: selectedId, name,
+          targetQuantity: batchType === 'open' ? null : parseInt(targetQuantity),
+          dueDate,
           workerIds: selectedWorkers.length > 0 ? selectedWorkers : undefined,
           metrcBatchId: metrcBatchId || undefined, lotNumber: lotNumber || undefined,
           strain: strain || undefined, packageTag: packageTag || undefined,
@@ -137,23 +140,57 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             />
           </div>
 
-          {/* Quantity */}
+          {/* Batch Type */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
-              How many {selected.baseUnit}?
-            </label>
-            <input
-              ref={qtyRef}
-              type="number"
-              inputMode="numeric"
-              value={targetQuantity}
-              onChange={(e) => setTargetQuantity(e.target.value)}
-              placeholder="0"
-              min="1"
-              className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-2xl font-bold tabular-nums placeholder:text-muted-foreground/30 placeholder:font-normal placeholder:text-base focus:outline-none focus:border-emerald-500 transition-all"
-              disabled={loading}
-            />
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">Batch type</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { haptic('medium'); setBatchType('fixed') }}
+                disabled={loading}
+                className={`min-h-[48px] px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${
+                  batchType === 'fixed'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
+                    : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                }`}
+              >
+                Fixed target
+              </button>
+              <button
+                onClick={() => { haptic('medium'); setBatchType('open') }}
+                disabled={loading}
+                className={`min-h-[48px] px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${
+                  batchType === 'open'
+                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
+                    : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                }`}
+              >
+                Open — count as we go
+              </button>
+            </div>
+            {batchType === 'open' && (
+              <p className="text-xs text-muted-foreground/70 mt-2">Workers will log what they produce. Mark the batch done when the run is finished.</p>
+            )}
           </div>
+
+          {/* Quantity (only shown for fixed batches) */}
+          {batchType === 'fixed' && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+                How many {selected.baseUnit}?
+              </label>
+              <input
+                ref={qtyRef}
+                type="number"
+                inputMode="numeric"
+                value={targetQuantity}
+                onChange={(e) => setTargetQuantity(e.target.value)}
+                placeholder="0"
+                min="1"
+                className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-2xl font-bold tabular-nums placeholder:text-muted-foreground/30 placeholder:font-normal placeholder:text-base focus:outline-none focus:border-emerald-500 transition-all"
+                disabled={loading}
+              />
+            </div>
+          )}
 
           {/* Deadline */}
           <div>
@@ -271,7 +308,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
           {/* Submit */}
           <button
             onClick={handleSubmit}
-            disabled={loading || !selectedId || !name.trim() || !targetQuantity}
+            disabled={loading || !selectedId || !name.trim() || (batchType === 'fixed' && !targetQuantity)}
             className="w-full min-h-[52px] py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-30 disabled:bg-muted flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
           >
             {loading ? (

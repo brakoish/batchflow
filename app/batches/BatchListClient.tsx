@@ -8,10 +8,10 @@ import { StopIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import type { Session } from '@/lib/session'
 
-type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number }
+type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number | null }
 type Assignment = { worker: { id: string; name: string } }
 type Batch = {
-  id: string; name: string; targetQuantity: number; status: string; strain?: string; dueDate?: string
+  id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string
   recipe: { name: string }; steps: Step[]; assignments?: Assignment[]
 }
 
@@ -329,7 +329,7 @@ export default function BatchListClient({
 
                     {/* Target */}
                     <div className="text-right shrink-0">
-                      <p className="text-xl font-bold text-foreground">{batch.targetQuantity}</p>
+                      <p className="text-xl font-bold text-foreground">{batch.targetQuantity ?? <span className="text-sm text-blue-500">Open</span>}</p>
                       <p className="text-xs text-muted-foreground">units</p>
                     </div>
                   </div>

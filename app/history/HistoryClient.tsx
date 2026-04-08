@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
 
-type Step = { id: string; name: string; order: number; type: string; unitLabel: string; targetQuantity: number; completedQuantity: number; status: string }
+type Step = { id: string; name: string; order: number; type: string; unitLabel: string; targetQuantity: number | null; completedQuantity: number; status: string }
 type Batch = {
-  id: string; name: string; targetQuantity: number; baseUnit: string; status: string
+  id: string; name: string; targetQuantity: number | null; baseUnit: string; status: string
   completedDate: string | null; startDate: string; createdAt: string
   recipe: { name: string }; steps: Step[]
 }
@@ -66,7 +66,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                     )}
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">{batch.name}</h3>
-                      <p className="text-xs text-foreground mt-0.5">{batch.recipe.name} · {batch.targetQuantity} {batch.baseUnit}</p>
+                      <p className="text-xs text-foreground mt-0.5">{batch.recipe.name} · {batch.targetQuantity ? `${batch.targetQuantity} ${batch.baseUnit}` : <span className="text-blue-500">Open batch</span>}</p>
                     </div>
                   </div>
                   <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0 ml-2">{date}</span>

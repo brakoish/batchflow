@@ -6,9 +6,9 @@ import AppShell from '@/app/components/AppShell'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
 import type { Session } from '@/lib/session'
-type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number }
+type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null }
 type Batch = {
-  id: string; name: string; targetQuantity: number; status: string; strain?: string; dueDate?: string
+  id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string
   recipe: { name: string }; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
 }
 type ActivityLog = {
@@ -69,7 +69,7 @@ export default function DashboardClient({
   useEffect(() => {
     if (editingBatch) {
       setEditName(editingBatch.name)
-      setEditTargetQty(editingBatch.targetQuantity.toString())
+      setEditTargetQty(editingBatch.targetQuantity?.toString() || '')
       setEditDueDate(editingBatch.dueDate?.split('T')[0] || '')
       setEditStrain(editingBatch.strain || '')
       setEditWorkerIds(editingBatch.assignments?.map(a => a.worker.id) || [])
@@ -87,7 +87,7 @@ export default function DashboardClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName,
-          targetQuantity: parseInt(editTargetQty),
+          targetQuantity: editTargetQty ? parseInt(editTargetQty) : undefined,
           dueDate: editDueDate || undefined,
           strain: editStrain || undefined,
           workerIds: editWorkerIds,
@@ -373,7 +373,7 @@ export default function DashboardClient({
                       </div>
                       <div className="flex items-start gap-2 ml-4 shrink-0">
                         <div className="text-right">
-                          <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity}</span>
+                          <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity ?? <span className="text-sm text-blue-500 font-semibold">Open</span>}</span>
                           <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
                         </div>
                         <button
@@ -390,7 +390,7 @@ export default function DashboardClient({
 
                     <div className="space-y-1.5">
                       {batch.steps.map((step) => {
-                        const stepPct = (step.completedQuantity / step.targetQuantity) * 100
+                        const stepPct = step.targetQuantity ? (step.completedQuantity / step.targetQuantity) * 100 : 0
                         const isCompleted = step.status === 'COMPLETED'
                         const isCheck = step.type === 'CHECK'
 
@@ -428,7 +428,7 @@ export default function DashboardClient({
                               <span className={`text-xs tabular-nums shrink-0 ${
                                 isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
                               }`}>
-                                {step.completedQuantity}/{step.targetQuantity}
+                                {step.completedQuantity}{step.targetQuantity ? `/${step.targetQuantity}` : ' produced'}
                               </span>
                             )}
                           </div>

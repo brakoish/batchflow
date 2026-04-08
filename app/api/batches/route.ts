@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag } = await request.json()
 
-    if (!recipeId || !name || !targetQuantity) {
+    if (!recipeId || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       data: {
         recipeId,
         name,
-        targetQuantity,
+        targetQuantity: targetQuantity ?? null,
         baseUnit: recipe.baseUnit,
         organizationId: session.user.organizationId,
         startDate: startDate ? new Date(startDate) : new Date(),
@@ -88,7 +88,17 @@ export async function POST(request: NextRequest) {
           create: recipe.steps.map((step) => {
             const unitRatio = step.unit?.ratio || 1
             const unitLabel = step.unit?.name || recipe.baseUnit
-            const stepTarget = Math.ceil(targetQuantity / unitRatio)
+
+            // For open-ended batches (no targetQuantity), set step targets to null
+            // Except for CHECK steps which always have target of 1
+            let stepTarget: number | null
+            if (step.type === 'CHECK') {
+              stepTarget = 1
+            } else if (targetQuantity == null) {
+              stepTarget = null
+            } else {
+              stepTarget = Math.ceil(targetQuantity / unitRatio)
+            }
 
             return {
               recipeStepId: step.id,

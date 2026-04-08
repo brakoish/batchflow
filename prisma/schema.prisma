@@ -188,7 +188,7 @@ model Batch {
   recipeId        String
   recipe          Recipe        @relation(fields: [recipeId], references: [id])
   name            String
-  targetQuantity  Int
+  targetQuantity  Int?
   baseUnit        String        @default("units")
   status          BatchStatus   @default(ACTIVE)
   organizationId  String
@@ -256,7 +256,7 @@ model BatchStep {
   type              StepType      @default(COUNT)
   unitLabel         String        @default("units")
   unitRatio         Int           @default(1)
-  targetQuantity    Int
+  targetQuantity    Int?
   completedQuantity Int           @default(0)
   status            StepStatus    @default(LOCKED)
   progressLogs      ProgressLog[]

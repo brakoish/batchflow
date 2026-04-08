@@ -130,20 +130,30 @@ export async function PATCH(
     
     // Handle target quantity changes (recalculate step targets)
     if (targetQuantity !== undefined) {
-      updateData.targetQuantity = targetQuantity
-      
+      updateData.targetQuantity = targetQuantity ?? null
+
       // Get batch with recipe to recalculate steps
       const batch = await prisma.batch.findUnique({
         where: { id },
         include: { recipe: { include: { steps: { include: { unit: true } } } } }
       })
-      
+
       if (batch) {
         // Update each step's target quantity
         for (const recipeStep of batch.recipe.steps) {
           const unitRatio = recipeStep.unit?.ratio || 1
-          const stepTarget = Math.ceil(targetQuantity / unitRatio)
-          
+
+          // For open-ended batches (null targetQuantity), set step targets to null
+          // Except for CHECK steps which always have target of 1
+          let stepTarget: number | null
+          if (recipeStep.type === 'CHECK') {
+            stepTarget = 1
+          } else if (targetQuantity == null) {
+            stepTarget = null
+          } else {
+            stepTarget = Math.ceil(targetQuantity / unitRatio)
+          }
+
           await prisma.batchStep.updateMany({
             where: { batchId: id, recipeStepId: recipeStep.id },
             data: { targetQuantity: stepTarget }

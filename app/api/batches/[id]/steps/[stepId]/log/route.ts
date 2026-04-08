@@ -62,8 +62,9 @@ export async function POST(
         warning = `Exceeds ${(previousStep as any).name} count by ${excess}`
       }
     } else {
-      // First step: ceiling is the step's own target - keep this as a hard stop
-      if (newTotal > step.targetQuantity) {
+      // First step: ceiling is the step's own target
+      // For open-ended batches (targetQuantity is null), skip this check
+      if (step.targetQuantity != null && newTotal > step.targetQuantity) {
         return NextResponse.json(
           { error: `Cannot exceed target of ${step.targetQuantity}` },
           { status: 400 }
@@ -102,11 +103,12 @@ export async function POST(
     })
 
     // Update step completed quantity and status
+    // For open-ended steps (targetQuantity is null), never auto-complete
     const updatedStep = await prisma.batchStep.update({
       where: { id: stepId },
       data: {
         completedQuantity: newTotal,
-        status: newTotal >= step.targetQuantity ? 'COMPLETED' : 'IN_PROGRESS',
+        status: step.targetQuantity != null && newTotal >= step.targetQuantity ? 'COMPLETED' : 'IN_PROGRESS',
       },
     })
 
@@ -144,43 +146,50 @@ export async function POST(
     }
 
     // Check if all steps are completed
+    // Skip auto-complete for open-ended batches (any step has null targetQuantity)
     const allSteps = await prisma.batchStep.findMany({
       where: { batchId: step.batchId },
     })
 
-    const allCompleted = allSteps.every(
-      (s: { id: string; targetQuantity: number; completedQuantity: number }) => s.id === stepId
-        ? newTotal >= s.targetQuantity
-        : s.completedQuantity >= s.targetQuantity
+    const hasOpenEndedSteps = allSteps.some(
+      (s: { targetQuantity: number | null }) => s.targetQuantity == null
     )
 
-    if (allCompleted) {
-      await prisma.batch.update({
-        where: { id: step.batchId },
-        data: {
-          status: 'COMPLETED',
-          completedDate: new Date(),
-        },
-      })
+    if (!hasOpenEndedSteps) {
+      const allCompleted = allSteps.every(
+        (s: { id: string; targetQuantity: number; completedQuantity: number }) => s.id === stepId
+          ? newTotal >= s.targetQuantity
+          : s.completedQuantity >= s.targetQuantity
+      )
 
-      // Notify all assigned workers about batch completion
-      const assignments = await prisma.batchAssignment.findMany({
-        where: { batchId: step.batchId },
-        include: { worker: true },
-      })
+      if (allCompleted) {
+        await prisma.batch.update({
+          where: { id: step.batchId },
+          data: {
+            status: 'COMPLETED',
+            completedDate: new Date(),
+          },
+        })
 
-      assignments.forEach((assignment) => {
-        fetch(`${request.nextUrl.origin}/api/notifications/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workerId: assignment.workerId,
-            title: `Batch completed: ${step.batch.name}`,
-            body: 'All steps have been completed',
-            url: `/batches/${step.batchId}`,
-          }),
-        }).catch((error) => console.error('Failed to send notification:', error))
-      })
+        // Notify all assigned workers about batch completion
+        const assignments = await prisma.batchAssignment.findMany({
+          where: { batchId: step.batchId },
+          include: { worker: true },
+        })
+
+        assignments.forEach((assignment) => {
+          fetch(`${request.nextUrl.origin}/api/notifications/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              workerId: assignment.workerId,
+              title: `Batch completed: ${step.batch.name}`,
+              body: 'All steps have been completed',
+              url: `/batches/${step.batchId}`,
+            }),
+          }).catch((error) => console.error('Failed to send notification:', error))
+        })
+      }
     }
 
     return NextResponse.json({

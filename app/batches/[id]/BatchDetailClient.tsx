@@ -22,12 +22,12 @@ type StepMaterial = { name: string; quantityPerUnit: number; unit: string }
 type BatchStep = {
   id: string; name: string; order: number; type: 'CHECK' | 'COUNT'
   unitLabel: string; unitRatio: number
-  targetQuantity: number; completedQuantity: number; status: string
+  targetQuantity: number | null; completedQuantity: number; status: string
   recipeStep?: { notes: string | null; materials?: StepMaterial[] }
   progressLogs: ProgressLog[]
 }
 type Batch = {
-  id: string; name: string; targetQuantity: number; baseUnit: string; status: string
+  id: string; name: string; targetQuantity: number | null; baseUnit: string; status: string
   dueDate?: string
   metrcBatchId?: string
   lotNumber?: string
@@ -44,7 +44,24 @@ type BatchMessage = {
 }
 
 // Smart increment buttons that adapt to remaining quantity
-function QuickAddButtons({ remaining, current, onAdd }: { remaining: number; current: number; onAdd: (val: number) => void }) {
+function QuickAddButtons({ remaining, current, onAdd }: { remaining: number | null; current: number; onAdd: (val: number) => void }) {
+  // For open-ended batches (no target), show generic increments
+  if (remaining === null) {
+    return (
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        {[10, 50, 100].map((amt) => (
+          <button
+            key={amt}
+            onClick={() => { haptic('light'); onAdd(current + amt); }}
+            className="py-2.5 rounded-lg border text-sm font-medium active:scale-[0.96] transition-all duration-150 bg-muted hover:bg-muted/80 border-input text-foreground/80"
+          >
+            +{amt}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   // Don't show buttons if nothing remaining
   if (remaining <= 0) return null
 
@@ -123,7 +140,7 @@ export default function BatchDetailClient({
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
   const [editName, setEditName] = useState(batch.name)
-  const [editTargetQty, setEditTargetQty] = useState(batch.targetQuantity.toString())
+  const [editTargetQty, setEditTargetQty] = useState(batch.targetQuantity?.toString() || '')
   const [editDueDate, setEditDueDate] = useState(batch.dueDate?.split('T')[0] || '')
   const [editMetrcBatchId, setEditMetrcBatchId] = useState(batch.metrcBatchId || '')
   const [editLotNumber, setEditLotNumber] = useState(batch.lotNumber || '')
@@ -399,15 +416,22 @@ export default function BatchDetailClient({
   const handleOpenDuplicate = () => {
     haptic('light')
     setDuplicateName(`${batch.name} (copy)`)
-    setDuplicateTargetQty(batch.targetQuantity.toString())
+    setDuplicateTargetQty(batch.targetQuantity?.toString() || '')
     setDuplicateStrain(batch.strain || '')
     setShowDuplicateModal(true)
     setError('')
   }
 
   const handleDuplicateBatch = async () => {
-    if (!duplicateName.trim() || !duplicateTargetQty || parseInt(duplicateTargetQty) <= 0) {
-      setError('Please fill in all required fields')
+    if (!duplicateName.trim()) {
+      setError('Please enter a batch name')
+      return
+    }
+
+    // If original batch is open-ended, allow duplicating as open-ended too
+    const isOpenEnded = batch.targetQuantity === null
+    if (!isOpenEnded && (!duplicateTargetQty || parseInt(duplicateTargetQty) <= 0)) {
+      setError('Please enter a target quantity')
       return
     }
 
@@ -421,7 +445,7 @@ export default function BatchDetailClient({
         body: JSON.stringify({
           recipeId: batch.recipe.id,
           name: duplicateName,
-          targetQuantity: parseInt(duplicateTargetQty),
+          targetQuantity: isOpenEnded ? null : parseInt(duplicateTargetQty),
           strain: duplicateStrain || undefined,
           workerIds: batch.assignments?.map(a => a.worker.id) || [],
         }),
@@ -488,6 +512,11 @@ export default function BatchDetailClient({
     if (order === 1) return batch.targetQuantity
     return batch.steps.find((s) => s.order === order - 1)?.completedQuantity || 0
   }
+
+  // Calculate overall progress for open-ended batches
+  const isOpenEnded = batch.targetQuantity === null
+  const stepsCompleted = batch.steps.filter(s => s.status === 'COMPLETED').length
+  const totalSteps = batch.steps.length
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -607,7 +636,15 @@ export default function BatchDetailClient({
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-foreground">{batch.recipe.name}</span>
             <span className="text-muted-foreground/30">·</span>
-            <span className="text-xs text-foreground">{batch.targetQuantity} {batch.baseUnit}</span>
+            {isOpenEnded ? (
+              <>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">Open</span>
+                <span className="text-muted-foreground/30">·</span>
+                <span className="text-xs text-foreground">{batch.steps[0]?.completedQuantity || 0} {batch.baseUnit} produced</span>
+              </>
+            ) : (
+              <span className="text-xs text-foreground">{batch.targetQuantity} {batch.baseUnit}</span>
+            )}
             {batch.dueDate && (() => {
               const dueDate = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
               const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -622,7 +659,11 @@ export default function BatchDetailClient({
               )
             })()}
             <span className="text-muted-foreground/30">·</span>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{overallPct}%</span>
+            {isOpenEnded ? (
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{stepsCompleted}/{totalSteps} steps</span>
+            ) : (
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{overallPct}%</span>
+            )}
             {batch.status !== 'ACTIVE' && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
                 batch.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/20'
@@ -726,7 +767,7 @@ export default function BatchDetailClient({
         <div className="space-y-2">
           {batch.steps.map((step) => {
             const isCompleted = step.status === 'COMPLETED'
-            const pct = (step.completedQuantity / step.targetQuantity) * 100
+            const pct = step.targetQuantity ? (step.completedQuantity / step.targetQuantity) * 100 : 0
 
             return (
               <div
@@ -762,7 +803,7 @@ export default function BatchDetailClient({
                       )}
                       {step.type === 'COUNT' && (
                         <p className="text-xs text-foreground tabular-nums mt-0.5">
-                          {step.completedQuantity} / {step.targetQuantity} {step.unitLabel}
+                          {step.completedQuantity}{step.targetQuantity ? ` / ${step.targetQuantity}` : ''} {step.unitLabel}{!step.targetQuantity && step.completedQuantity > 0 ? ' produced' : ''}
                         </p>
                       )}
                     </div>
@@ -788,8 +829,8 @@ export default function BatchDetailClient({
                   )}
                 </div>
 
-                {/* Progress bar for COUNT steps */}
-                {step.type === 'COUNT' && (
+                {/* Progress bar for COUNT steps (only when there's a target) */}
+                {step.type === 'COUNT' && step.targetQuantity && (
                   <div className="mt-3">
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
@@ -969,7 +1010,7 @@ export default function BatchDetailClient({
                 <div>
                   <p className="text-sm font-semibold text-foreground">{selectedStep.name}</p>
                   <p className="text-xs text-foreground tabular-nums mt-0.5">
-                    {selectedStep.completedQuantity} / {selectedStep.targetQuantity} {selectedStep.unitLabel}
+                    {selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}
                   </p>
                 </div>
                 <button
@@ -994,7 +1035,7 @@ export default function BatchDetailClient({
 
               {/* Quick add - smart increments based on remaining quantity */}
               <QuickAddButtons
-                remaining={selectedStep.targetQuantity - selectedStep.completedQuantity}
+                remaining={selectedStep.targetQuantity ? selectedStep.targetQuantity - selectedStep.completedQuantity : 999999}
                 current={parseInt(quantity) || 0}
                 onAdd={(val) => setQuantity(String(val))}
               />
