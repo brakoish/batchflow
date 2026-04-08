@@ -311,13 +311,13 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => openEditModal(worker)}
-                className="px-3 py-2 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+                className="px-4 py-2.5 min-h-[44px] text-sm font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground active:scale-[0.97] transition-all"
               >
                 Edit
               </button>
               <button
                 onClick={() => handleDeleteWorker(worker)}
-                className="px-3 py-2 text-xs font-medium rounded-md border border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                className="px-4 py-2.5 min-h-[44px] text-sm font-medium rounded-lg border border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground active:scale-[0.97] transition-all"
               >
                 Delete
               </button>
