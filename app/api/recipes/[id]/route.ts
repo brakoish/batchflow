@@ -42,14 +42,21 @@ export async function PUT(
       return NextResponse.json({ error: 'Name and steps required' }, { status: 400 })
     }
 
-    // Delete materials first, then steps (they reference units), then units
+    // Get existing recipe steps (we need to update in place to preserve BatchStep references)
+    const existingSteps = await prisma.recipeStep.findMany({
+      where: { recipeId: id },
+      orderBy: { order: 'asc' },
+    })
+
+    // Delete materials (they'll be recreated) — safe because they cascade
     await prisma.stepMaterial.deleteMany({
       where: { recipeStep: { recipeId: id } },
     })
-    await prisma.recipeStep.deleteMany({ where: { recipeId: id } })
+
+    // Delete old units and recreate
     await prisma.recipeUnit.deleteMany({ where: { recipeId: id } })
 
-    // Update recipe
+    // Update recipe + create new units
     const recipe = await prisma.recipe.update({
       where: { id },
       data: {
@@ -67,34 +74,69 @@ export async function PUT(
       include: { units: true },
     })
 
-    // Create steps with unit references and materials
-    for (let i = 0; i < steps.length; i++) {
+    // Update/create/delete steps in place to preserve BatchStep foreign keys
+    const newStepCount = steps.length
+    const existingStepCount = existingSteps.length
+
+    for (let i = 0; i < newStepCount; i++) {
       const step = steps[i]
       const unitRef = step.unitName
         ? recipe.units.find((u) => u.name === step.unitName)
         : null
 
-      const createdStep = await prisma.recipeStep.create({
-        data: {
-          recipeId: id,
-          name: step.name,
-          notes: step.notes || null,
-          type: step.type === 'CHECK' ? 'CHECK' : 'COUNT',
-          order: i + 1,
-          unitId: unitRef?.id || null,
-        },
-      })
+      if (i < existingStepCount) {
+        // Update existing step in place (preserves BatchStep references)
+        await prisma.recipeStep.update({
+          where: { id: existingSteps[i].id },
+          data: {
+            name: step.name,
+            notes: step.notes || null,
+            type: step.type === 'CHECK' ? 'CHECK' : 'COUNT',
+            order: i + 1,
+            unitId: unitRef?.id || null,
+          },
+        })
+      } else {
+        // Create new step
+        await prisma.recipeStep.create({
+          data: {
+            recipeId: id,
+            name: step.name,
+            notes: step.notes || null,
+            type: step.type === 'CHECK' ? 'CHECK' : 'COUNT',
+            order: i + 1,
+            unitId: unitRef?.id || null,
+          },
+        })
+      }
 
-      // Create materials for this step
-      if (step.materials && step.materials.length > 0) {
+      // Recreate materials for this step
+      const stepId = i < existingStepCount ? existingSteps[i].id : (await prisma.recipeStep.findFirst({
+        where: { recipeId: id, order: i + 1 },
+        select: { id: true },
+      }))?.id
+
+      if (stepId && step.materials && step.materials.length > 0) {
         await prisma.stepMaterial.createMany({
           data: step.materials.map((m: { name: string; quantityPerUnit: number; unit: string }) => ({
-            recipeStepId: createdStep.id,
+            recipeStepId: stepId,
             name: m.name,
             quantityPerUnit: m.quantityPerUnit,
             unit: m.unit || 'units',
           })),
         })
+      }
+    }
+
+    // Delete extra steps that were removed (only if no batch steps reference them)
+    if (existingStepCount > newStepCount) {
+      for (let i = newStepCount; i < existingStepCount; i++) {
+        const stepId = existingSteps[i].id
+        const batchStepCount = await prisma.batchStep.count({ where: { recipeStepId: stepId } })
+        if (batchStepCount === 0) {
+          await prisma.recipeStep.delete({ where: { id: stepId } })
+        }
+        // If batch steps reference it, leave the recipe step (orphaned but safe)
       }
     }
 
