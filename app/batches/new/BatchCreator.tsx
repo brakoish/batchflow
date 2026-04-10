@@ -17,8 +17,8 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [name, setName] = useState('')
   const [batchType, setBatchType] = useState<'fixed' | 'open'>('fixed')
   const [targetQuantity, setTargetQuantity] = useState('')
-  const [dueDatePreset, setDueDatePreset] = useState<'none' | 'week' | 'nextweek' | 'custom'>('none')
-  const [customDueDate, setCustomDueDate] = useState('')
+  const [selectedDueDate, setSelectedDueDate] = useState<string | null>(null)
+  const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([])
   const [metrcBatchId, setMetrcBatchId] = useState('')
   const [lotNumber, setLotNumber] = useState('')
@@ -53,16 +53,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
     if (!name.trim()) { setError('Give this batch a name'); return }
     if (batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)) { setError('Enter a quantity'); return }
 
-    let dueDate: string | undefined
-    if (dueDatePreset === 'week') {
-      const d = new Date(); d.setDate(d.getDate() + 7)
-      dueDate = d.toISOString().split('T')[0]
-    } else if (dueDatePreset === 'nextweek') {
-      const d = new Date(); d.setDate(d.getDate() + 14)
-      dueDate = d.toISOString().split('T')[0]
-    } else if (dueDatePreset === 'custom' && customDueDate) {
-      dueDate = customDueDate
-    }
+    const dueDate = selectedDueDate || undefined
 
     haptic('medium')
     setLoading(true); setError('')
@@ -192,40 +183,150 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             </div>
           )}
 
-          {/* Deadline */}
+          {/* Deadline — inline calendar */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">Deadline</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { key: 'none' as const, label: 'No deadline', sub: '' },
-                { key: 'week' as const, label: 'This week', sub: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })() },
-                { key: 'nextweek' as const, label: 'Next week', sub: (() => { const d = new Date(); d.setDate(d.getDate() + 14); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })() },
-                { key: 'custom' as const, label: 'Pick date', sub: '' },
-              ].map((opt) => (
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Deadline</label>
+              {selectedDueDate && (
                 <button
-                  key={opt.key}
-                  onClick={() => { haptic('light'); setDueDatePreset(opt.key) }}
-                  disabled={loading}
-                  className={`min-h-[48px] px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${
-                    dueDatePreset === opt.key
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
-                      : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
-                  }`}
+                  onClick={() => { haptic('light'); setSelectedDueDate(null) }}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <div>{opt.label}</div>
-                  {opt.sub && <div className="text-[10px] opacity-60 mt-0.5">{opt.sub}</div>}
+                  Clear
                 </button>
-              ))}
+              )}
             </div>
-            {dueDatePreset === 'custom' && (
-              <input
-                type="date"
-                value={customDueDate}
-                onChange={(e) => setCustomDueDate(e.target.value)}
-                className="w-full mt-2 px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-base focus:outline-none focus:border-emerald-500 transition-all"
-                disabled={loading}
-              />
-            )}
+
+            {/* Quick picks */}
+            <div className="flex gap-2 mb-3 overflow-x-auto">
+              {[
+                { label: 'No deadline', date: null },
+                { label: 'In 7 days', date: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d })() },
+                { label: 'In 2 weeks', date: (() => { const d = new Date(); d.setDate(d.getDate() + 14); return d })() },
+              ].map((opt, i) => {
+                const dateStr = opt.date ? opt.date.toISOString().split('T')[0] : null
+                const isSelected = selectedDueDate === dateStr
+                return (
+                  <button
+                    key={i}
+                    onClick={() => { haptic('light'); setSelectedDueDate(dateStr) }}
+                    className={`shrink-0 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                      isSelected
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500'
+                        : !selectedDueDate && !dateStr
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500'
+                        : 'bg-card border border-border text-muted-foreground'
+                    }`}
+                  >
+                    <div>{opt.label}</div>
+                    {opt.date && <div className="text-[10px] opacity-60">{opt.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Calendar */}
+            <div className="rounded-xl border-2 border-border bg-card p-3">
+              {/* Month navigation */}
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => { haptic('light'); setCalendarMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d }) }}
+                  className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <span className="text-sm font-semibold text-foreground">
+                  {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </span>
+                <button
+                  onClick={() => { haptic('light'); setCalendarMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d }) }}
+                  className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Day headers */}
+              <div className="grid grid-cols-7 mb-1">
+                {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => (
+                  <div key={d} className="text-center text-[10px] font-medium text-muted-foreground/60 py-1">{d}</div>
+                ))}
+              </div>
+
+              {/* Calendar days */}
+              <div className="grid grid-cols-7">
+                {(() => {
+                  const year = calendarMonth.getFullYear()
+                  const month = calendarMonth.getMonth()
+                  const firstDay = new Date(year, month, 1)
+                  const lastDay = new Date(year, month + 1, 0)
+                  // Monday = 0 for our grid
+                  let startPad = firstDay.getDay() - 1
+                  if (startPad < 0) startPad = 6
+
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+
+                  const days: React.ReactNode[] = []
+
+                  // Padding days from previous month
+                  for (let i = 0; i < startPad; i++) {
+                    days.push(<div key={`pad-${i}`} />)
+                  }
+
+                  // Actual days
+                  for (let d = 1; d <= lastDay.getDate(); d++) {
+                    const date = new Date(year, month, d)
+                    const dateStr = date.toISOString().split('T')[0]
+                    const isToday = date.getTime() === today.getTime()
+                    const isSelected = selectedDueDate === dateStr
+                    const isPast = date < today
+
+                    days.push(
+                      <button
+                        key={d}
+                        onClick={() => {
+                          if (!isPast) {
+                            haptic('light')
+                            setSelectedDueDate(isSelected ? null : dateStr)
+                          }
+                        }}
+                        disabled={isPast || loading}
+                        className={`min-h-[40px] flex items-center justify-center rounded-lg text-sm font-medium transition-all active:scale-[0.95] ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : isToday
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
+                            : isPast
+                            ? 'text-muted-foreground/30 cursor-default'
+                            : 'text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    )
+                  }
+
+                  return days
+                })()}
+              </div>
+
+              {/* Selected date display */}
+              {selectedDueDate && (
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm font-medium text-foreground">
+                    Due {new Date(selectedDueDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Workers */}
