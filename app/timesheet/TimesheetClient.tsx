@@ -19,6 +19,7 @@ type WeeklySummary = {
   workerName: string
   totalHours: number
   shiftCount: number
+  days: Record<string, { hours: number; shiftCount: number }>
 }
 
 export default function TimesheetClient({ workers }: { workers: Worker[] }) {
@@ -465,31 +466,58 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
               <p className="text-sm text-muted-foreground text-center py-8">No data for this week</p>
             ) : (
               <>
-                {weeklyData.map((worker) => (
-                  <div
-                    key={worker.workerId}
-                    className="bg-card border border-border rounded-lg p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <span className="text-sm font-bold text-primary">{worker.workerName.charAt(0)}</span>
+                {weeklyData.map((worker) => {
+                  const dayKeys = Object.keys(worker.days).sort()
+                  return (
+                    <div
+                      key={worker.workerId}
+                      className="bg-card border border-border rounded-lg p-4"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-bold text-primary">{worker.workerName.charAt(0)}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{worker.workerName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {worker.shiftCount} shift{worker.shiftCount !== 1 ? 's' : ''}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{worker.workerName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {worker.shiftCount} shift{worker.shiftCount !== 1 ? 's' : ''}
+                        <div className="text-right">
+                          <p className="text-lg font-semibold tabular-nums text-foreground">
+                            {formatDuration(worker.totalHours)}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-semibold tabular-nums text-foreground">
-                          {formatDuration(worker.totalHours)}
-                        </p>
-                      </div>
+                      {/* Day breakdown */}
+                      {dayKeys.length > 0 && (
+                        <div className="grid grid-cols-7 gap-1">
+                          {dayKeys.map((day) => {
+                            const label = new Date(day + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })
+                            const isToday = day === new Date().toISOString().split('T')[0]
+                            return (
+                              <div
+                                key={day}
+                                className={`text-center rounded px-1 py-1.5 text-xs ${
+                                  isToday
+                                    ? 'bg-primary/15 border border-primary/30'
+                                    : 'bg-muted/50'
+                                }`}
+                              >
+                                <div className="text-muted-foreground font-medium">{label}</div>
+                                <div className="text-foreground font-semibold tabular-nums mt-0.5">
+                                  {formatDuration(worker.days[day].hours)}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
 
                 {/* Total Row */}
                 <div className="bg-emerald-500/5 border-2 border-emerald-500/20 rounded-lg p-4 mt-3">

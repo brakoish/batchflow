@@ -39,29 +39,44 @@ export async function GET(request: Request) {
       orderBy: { startedAt: 'desc' },
     })
 
-    // Group by worker and calculate totals
+    // Collect all unique days in range
+    const daySet = new Set<string>()
+    shifts.forEach((shift) => {
+      daySet.add(shift.startedAt.toISOString().split('T')[0])
+    })
+    const allDays = Array.from(daySet).sort()
+
+    // Group by worker with per-day breakdown
     const workerMap = new Map<string, {
       workerId: string
       workerName: string
       totalHours: number
       shiftCount: number
+      days: Record<string, { hours: number; shiftCount: number }>
     }>()
 
     shifts.forEach((shift) => {
       if (!shift.endedAt) return // Skip active shifts
 
-      const hours = Math.round(((new Date(shift.endedAt).getTime() - new Date(shift.startedAt).getTime()) / 1000 / 60 / 60) * 100) / 100
+      const dayKey = shift.startedAt.toISOString().split('T')[0]
+      const hours = Math.round(
+        ((new Date(shift.endedAt).getTime() - new Date(shift.startedAt).getTime()) / 1000 / 60 / 60) * 100
+      ) / 100
 
       const existing = workerMap.get(shift.workerId)
       if (existing) {
         existing.totalHours += hours
         existing.shiftCount += 1
+        existing.days[dayKey] = existing.days[dayKey]
+          ? { hours: existing.days[dayKey].hours + hours, shiftCount: existing.days[dayKey].shiftCount + 1 }
+          : { hours, shiftCount: 1 }
       } else {
         workerMap.set(shift.workerId, {
           workerId: shift.workerId,
           workerName: shift.worker.name,
           totalHours: hours,
           shiftCount: 1,
+          days: { [dayKey]: { hours, shiftCount: 1 } },
         })
       }
     })
@@ -75,7 +90,8 @@ export async function GET(request: Request) {
       weeks,
       totalHours: Math.round(totalHours * 100) / 100,
       totalShifts,
-      timezone: organization?.timezone || 'America/New_York'
+      timezone: organization?.timezone || 'America/New_York',
+      allDays,
     })
   } catch (error) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
