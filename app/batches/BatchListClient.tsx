@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
 import { StopIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
@@ -27,7 +28,6 @@ export default function BatchListClient({
   const [clockingIn, setClockingIn] = useState(false)
   const [elapsed, setElapsed] = useState('0h 00m')
   const [refreshing, setRefreshing] = useState(false)
-  const [touchStart, setTouchStart] = useState(0)
   const [loading, setLoading] = useState(!initialBatches.length)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -60,23 +60,7 @@ export default function BatchListClient({
     return () => clearInterval(id)
   }, [])
 
-  // Pull to refresh handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (window.scrollY === 0) {
-      setTouchStart(e.touches[0].clientY)
-    }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStart > 0 && window.scrollY === 0) {
-      const pullDistance = e.touches[0].clientY - touchStart
-      if (pullDistance > 100) {
-        haptic('light')
-        fetchData(true)
-        setTouchStart(0)
-      }
-    }
-  }
+  const { handlers: ptrHandlers } = usePullToRefresh(() => { setRefreshing(true); fetchData(true) }, 80)
 
   useEffect(() => {
     if (!onShift) return
@@ -137,8 +121,9 @@ export default function BatchListClient({
     <AppShell session={session} organizationName={organizationName}>
       <main 
         className="max-w-2xl mx-auto px-4 py-6 pb-32"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
+        onTouchStart={ptrHandlers.onTouchStart}
+        onTouchMove={ptrHandlers.onTouchMove}
+        onTouchEnd={ptrHandlers.onTouchEnd}
       >
         {/* Pull to refresh indicator */}
         {refreshing && (

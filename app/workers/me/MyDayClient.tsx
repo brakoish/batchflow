@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import AppShell from '@/app/components/AppShell'
+import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { ClockIcon, CubeIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid'
 import { formatDuration } from '@/lib/format'
 import type { Session } from '@/lib/session'
@@ -22,6 +23,7 @@ export default function MyDayClient({ session }: { session: Session }) {
   const [todayBatches, setTodayBatches] = useState<BatchActivity[]>([])
   const [weekStats, setWeekStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -32,7 +34,7 @@ export default function MyDayClient({ session }: { session: Session }) {
   const fetchData = async () => {
     try {
       // Fetch today's activity
-      const actRes = await fetch('/api/workers/activity')
+      const actRes = await fetch('/api/workers/activity', { cache: "no-store" })
       if (actRes.ok) {
         const actData = await actRes.json()
         if (actData.workers) {
@@ -47,7 +49,7 @@ export default function MyDayClient({ session }: { session: Session }) {
       }
 
       // Fetch current shift
-      const shiftRes = await fetch('/api/shifts')
+      const shiftRes = await fetch('/api/shifts', { cache: "no-store" })
       if (shiftRes.ok) {
         const shiftData = await shiftRes.json()
         setActiveShift(shiftData.activeShift || null)
@@ -55,14 +57,14 @@ export default function MyDayClient({ session }: { session: Session }) {
 
       // Fetch today's shifts
       const today = new Date().toISOString().split('T')[0]
-      const shiftsRes = await fetch(`/api/shifts/all?workerId=${session.workerId || session.id}&from=${today}&to=${today}`)
+      const shiftsRes = await fetch(`/api/shifts/all?workerId=${session.workerId || session.id}&from=${today}&to=${today}`, { cache: "no-store" })
       if (shiftsRes.ok) {
         const shiftsData = await shiftsRes.json()
         setTodayShifts(shiftsData.shifts || [])
       }
 
       // Fetch worker stats (this gives us week data)
-      const statsRes = await fetch('/api/workers/stats')
+      const statsRes = await fetch('/api/workers/stats', { cache: "no-store" })
       if (statsRes.ok) {
         const statsData = await statsRes.json()
         setWeekStats(statsData.stats || null)
@@ -89,8 +91,11 @@ export default function MyDayClient({ session }: { session: Session }) {
       console.error('Failed to fetch My Day data:', err)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
+
+  const { handlers: ptrHandlers } = usePullToRefresh(() => { setRefreshing(true); fetchData() }, 80)
 
   const todayHours = todayShifts.reduce((sum, s) => sum + s.hours, 0)
   const currentShiftDuration = activeShift
@@ -99,7 +104,17 @@ export default function MyDayClient({ session }: { session: Session }) {
 
   return (
     <AppShell session={session}>
-      <main className="max-w-2xl mx-auto px-4 py-6 pb-24">
+      <main
+        className="max-w-2xl mx-auto px-4 py-6 pb-24"
+        {...ptrHandlers}
+      >
+        {/* Pull to refresh indicator */}
+        {refreshing && (
+          <div className="flex justify-center py-4">
+            <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
+          </div>
+        )}
+
         {/* Greeting */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Hey {(session.name || '').split(' ')[0]}!</h1>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
+import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
 import type { Session } from '@/lib/session'
@@ -46,6 +47,7 @@ export default function DashboardClient({
   const [activeWorkers, setActiveWorkers] = useState(0)
   const [showCompleted, setShowCompleted] = useState(false)
   const [loading, setLoading] = useState(!initialBatches.length && !initialActivity.length)
+  const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'newest' | 'dueDate' | 'progress'>('newest')
   const [filterRecipe, setFilterRecipe] = useState('')
@@ -116,29 +118,32 @@ export default function DashboardClient({
     }
   }
 
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const [bRes, aRes, wRes] = await Promise.all([
-          fetch('/api/batches', { cache: "no-store" }),
-          fetch('/api/activity', { cache: "no-store" }),
-          fetch('/api/workers/activity', { cache: "no-store" }),
-        ])
-        if (bRes.ok) { const d = await bRes.json(); if (d.batches) { setBatches(d.batches); setLoading(false) } }
-        if (aRes.ok) { const d = await aRes.json(); if (d.activities) setActivity(d.activities) }
-        if (wRes.ok) {
-          const d = await wRes.json();
-          if (d.workers) {
-            setWorkerSummary(d.workers)
-            setActiveWorkers(d.workers.filter((w: any) => w.onShift).length)
-          }
+  const poll = async () => {
+    try {
+      const [bRes, aRes, wRes] = await Promise.all([
+        fetch('/api/batches', { cache: "no-store" }),
+        fetch('/api/activity', { cache: "no-store" }),
+        fetch('/api/workers/activity', { cache: "no-store" }),
+      ])
+      if (bRes.ok) { const d = await bRes.json(); if (d.batches) { setBatches(d.batches); setLoading(false) } }
+      if (aRes.ok) { const d = await aRes.json(); if (d.activities) setActivity(d.activities) }
+      if (wRes.ok) {
+        const d = await wRes.json();
+        if (d.workers) {
+          setWorkerSummary(d.workers)
+          setActiveWorkers(d.workers.filter((w: any) => w.onShift).length)
         }
-      } catch {}
-    }
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
     poll()
     const id = setInterval(poll, 5000)
     return () => clearInterval(id)
   }, [])
+
+  const { handlers: ptrHandlers } = usePullToRefresh(() => { setRefreshing(true); poll() }, 80)
 
   const totalUnits = activity.reduce((sum, l) => sum + (l.type === 'log' ? (l.quantity || 0) : 0), 0)
 
@@ -202,7 +207,16 @@ export default function DashboardClient({
   return (
     <AppShell session={session} organizationName={organizationName}>
 
-      <main className="max-w-5xl mx-auto px-4 py-5">
+      <main
+        className="max-w-5xl mx-auto px-4 py-5"
+        {...ptrHandlers}
+      >
+        {/* Pull to refresh indicator */}
+        {refreshing && (
+          <div className="flex justify-center py-4">
+            <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
+          </div>
+        )}
         {/* Stats */}
         <div className="mb-5 space-y-3">
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
