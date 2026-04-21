@@ -152,6 +152,7 @@ export default function BatchDetailClient({
   // Duplicate modal state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
   const [duplicateName, setDuplicateName] = useState('')
+  const [duplicateIsOpenEnded, setDuplicateIsOpenEnded] = useState(batch.targetQuantity === null)
   const [duplicateTargetQty, setDuplicateTargetQty] = useState('')
   const [duplicateStrain, setDuplicateStrain] = useState('')
   const [duplicating, setDuplicating] = useState(false)
@@ -417,6 +418,7 @@ export default function BatchDetailClient({
   const handleOpenDuplicate = () => {
     haptic('light')
     setDuplicateName(`${batch.name} (copy)`)
+    setDuplicateIsOpenEnded(batch.targetQuantity === null)
     setDuplicateTargetQty(batch.targetQuantity?.toString() || '')
     setDuplicateStrain(batch.strain || '')
     setShowDuplicateModal(true)
@@ -429,8 +431,7 @@ export default function BatchDetailClient({
       return
     }
 
-    // If original batch is open-ended, allow duplicating as open-ended too
-    const isOpenEnded = batch.targetQuantity === null
+    const isOpenEnded = duplicateIsOpenEnded
     if (!isOpenEnded && (!duplicateTargetQty || parseInt(duplicateTargetQty) <= 0)) {
       setError('Please enter a target quantity')
       return
@@ -1166,13 +1167,43 @@ export default function BatchDetailClient({
                 </div>
 
                 <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Batch Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { haptic('medium'); setDuplicateIsOpenEnded(false) }}
+                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                        !duplicateIsOpenEnded
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
+                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      }`}
+                    >
+                      Fixed target
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { haptic('medium'); setDuplicateIsOpenEnded(true) }}
+                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                        duplicateIsOpenEnded
+                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
+                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      }`}
+                    >
+                      Open — count as we go
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
                   <input
                     type="number"
                     value={duplicateTargetQty}
                     onChange={(e) => setDuplicateTargetQty(e.target.value)}
                     min="1"
-                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    disabled={duplicateIsOpenEnded}
+                    placeholder={duplicateIsOpenEnded ? 'Open-ended' : '0'}
+                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all disabled:opacity-40"
                   />
                 </div>
 
@@ -1195,7 +1226,7 @@ export default function BatchDetailClient({
 
                 <button
                   onClick={handleDuplicateBatch}
-                  disabled={duplicating || !duplicateName.trim() || !duplicateTargetQty}
+                  disabled={duplicating || !duplicateName.trim() || (!duplicateIsOpenEnded && (!duplicateTargetQty || parseInt(duplicateTargetQty) <= 0))}
                   className="w-full py-3.5 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
                 >
                   {duplicating ? 'Creating...' : 'Create Duplicate'}
