@@ -23,6 +23,8 @@ export default function BatchListClient({
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [onShift, setOnShift] = useState(false)
+  const [confirmingClockOut, setConfirmingClockOut] = useState(false)
+  const [clockOutLoading, setClockOutLoading] = useState(false)
   const [shiftChecked, setShiftChecked] = useState(false)
   const [nudgeDismissed, setNudgeDismissed] = useState(false)
   const [clockingIn, setClockingIn] = useState(false)
@@ -105,16 +107,32 @@ export default function BatchListClient({
     setClockingIn(false)
   }
 
-  const handleClockOut = async () => {
+  // Inline tap-to-confirm clock out so a stray thumb can't end a shift.
+  // First tap: reveal the Confirm button for 4s. Second tap: actually clock out.
+  const handleClockOutRequest = () => {
+    haptic('light')
+    setConfirmingClockOut(true)
+  }
+
+  // Auto-cancel the confirmation after 4s of inactivity.
+  useEffect(() => {
+    if (!confirmingClockOut) return
+    const t = setTimeout(() => setConfirmingClockOut(false), 4000)
+    return () => clearTimeout(t)
+  }, [confirmingClockOut])
+
+  const handleClockOutConfirm = async () => {
     haptic('medium')
-    if (!confirm('Clock out?')) return
+    setClockOutLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
       if (res.ok) {
         setOnShift(false)
+        setConfirmingClockOut(false)
         window.dispatchEvent(new Event('shift-changed'))
       }
     } catch {}
+    setClockOutLoading(false)
   }
 
   return (
@@ -354,23 +372,47 @@ export default function BatchListClient({
             )
         })()}
 
-        {/* Floating Clock Out Bar */}
+        {/* Floating 'On Shift' bar.
+            Clock Out is intentionally small, ghost-styled, and tap-to-confirm so
+            a thumb grazing the bottom of the screen can't end a shift. */}
         {onShift && (
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-bottom">
-            <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="w-3 h-3 rounded-full bg-success animate-pulse" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">On Shift</p>
-                  <p className="text-xs text-muted-foreground tabular-nums">{elapsed}</p>
+            <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">On Shift</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">{elapsed}</p>
                 </div>
               </div>
-              <button
-                onClick={handleClockOut}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive-subtle text-destructive text-sm font-semibold hover:bg-destructive hover:text-destructive-foreground transition-all"
-              >
-                <StopIcon className="w-4 h-4" /> Clock Out
-              </button>
+              {confirmingClockOut ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { haptic('light'); setConfirmingClockOut(false) }}
+                    className="min-h-[40px] px-3 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleClockOutConfirm}
+                    disabled={clockOutLoading}
+                    className="min-h-[40px] px-4 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 active:scale-[0.97] transition-all disabled:opacity-60 flex items-center gap-1.5"
+                    autoFocus
+                  >
+                    <StopIcon className="w-3.5 h-3.5" />
+                    {clockOutLoading ? 'Clocking out…' : 'Confirm'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleClockOutRequest}
+                  aria-label="Clock out"
+                  title="Clock out"
+                  className="min-h-[40px] min-w-[40px] p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive-subtle active:scale-[0.96] transition-all flex items-center justify-center"
+                >
+                  <StopIcon className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         )}
