@@ -261,21 +261,27 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
 
         {/* Share / Download actions */}
         {!loading && completedCount > 0 && (
-          <div className="grid grid-cols-2 gap-2 mb-5">
+          <div className="flex items-center justify-end gap-2 mb-5">
+            <button
+              onClick={handleDownloadCsv}
+              aria-label="Download CSV"
+              title="Download CSV"
+              className="min-h-[48px] min-w-[48px] px-3 rounded-xl bg-muted hover:bg-muted/80 border border-input active:scale-[0.97] text-foreground transition-all flex items-center justify-center"
+            >
+              <ArrowDownTrayIcon className="w-5 h-5" />
+            </button>
             <button
               onClick={handleShare}
               disabled={sharing}
-              className="min-h-[48px] px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.97] text-white text-sm font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              aria-label={sharing ? 'Preparing image' : 'Share this week'}
+              title="Share"
+              className="min-h-[48px] min-w-[48px] px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.97] text-white transition-all flex items-center justify-center disabled:opacity-60"
             >
-              <ShareIcon className="w-4 h-4" />
-              {sharing ? 'Preparing…' : 'Share'}
-            </button>
-            <button
-              onClick={handleDownloadCsv}
-              className="min-h-[48px] px-4 py-3 rounded-xl bg-muted hover:bg-muted/80 border border-input active:scale-[0.97] text-foreground text-sm font-medium transition-all flex items-center justify-center gap-2"
-            >
-              <ArrowDownTrayIcon className="w-4 h-4" />
-              CSV
+              {sharing ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <ShareIcon className="w-5 h-5" />
+              )}
             </button>
           </div>
         )}
