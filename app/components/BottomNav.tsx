@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -32,7 +32,26 @@ type Props = { session: Session }
 export default function BottomNav({ session }: Props) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [onShift, setOnShift] = useState(false)
   const role = session.role
+  const isOwner = role === 'OWNER'
+
+  // Show an ambient "on shift" indicator on the More button.
+  // Owners don't clock in/out, so skip the check for them.
+  useEffect(() => {
+    if (isOwner) return
+    const check = () => {
+      fetch('/api/shifts')
+        .then((r) => r.json())
+        .then((d) => setOnShift(!!d.activeShift))
+        .catch(() => {})
+    }
+    check()
+    const onChange = () => check()
+    window.addEventListener('shift-changed', onChange)
+    // Re-check on route changes so status stays fresh as the worker moves around.
+    return () => window.removeEventListener('shift-changed', onChange)
+  }, [isOwner, pathname])
 
   // Role-based primary destinations. Secondary destinations (Recipes for
   // supervisors, Org settings, etc.) live in the More sheet.
@@ -82,18 +101,29 @@ export default function BottomNav({ session }: Props) {
           })}
           <button
             onClick={() => { haptic('light'); setMoreOpen(true) }}
-            aria-label="More options"
+            aria-label={onShift ? 'More options. You are on shift.' : 'More options'}
             aria-haspopup="dialog"
             aria-expanded={moreOpen}
-            className={`flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${
+            className={`relative flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${
               moreOpen ? 'text-emerald-500' : 'text-muted-foreground'
             }`}
           >
-            {moreOpen ? (
-              <EllipsisHorizontalCircleIconSolid className="w-5 h-5" />
-            ) : (
-              <EllipsisHorizontalCircleIcon className="w-5 h-5" />
-            )}
+            <span className="relative inline-flex">
+              {moreOpen ? (
+                <EllipsisHorizontalCircleIconSolid className="w-5 h-5" />
+              ) : (
+                <EllipsisHorizontalCircleIcon className="w-5 h-5" />
+              )}
+              {onShift && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-0.5 -right-0.5 inline-flex"
+                >
+                  <span className="absolute inline-flex h-2 w-2 rounded-full bg-emerald-500 opacity-75 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-background" />
+                </span>
+              )}
+            </span>
             <span className="text-[9px] font-medium">More</span>
           </button>
         </div>

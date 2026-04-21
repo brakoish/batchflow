@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
-import { StopIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
+import { ChevronRightIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import type { Session } from '@/lib/session'
 
@@ -23,12 +23,9 @@ export default function BatchListClient({
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [onShift, setOnShift] = useState(false)
-  const [confirmingClockOut, setConfirmingClockOut] = useState(false)
-  const [clockOutLoading, setClockOutLoading] = useState(false)
   const [shiftChecked, setShiftChecked] = useState(false)
   const [nudgeDismissed, setNudgeDismissed] = useState(false)
   const [clockingIn, setClockingIn] = useState(false)
-  const [elapsed, setElapsed] = useState('0h 00m')
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(!initialBatches.length)
   const [searchQuery, setSearchQuery] = useState('')
@@ -64,81 +61,23 @@ export default function BatchListClient({
 
   const { handlers: ptrHandlers } = usePullToRefresh(() => { setRefreshing(true); fetchData(true) }, 80)
 
-  useEffect(() => {
-    if (!onShift) return
-    const update = async () => {
-      const res = await fetch('/api/shifts', { cache: "no-store" })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.activeShift) {
-          const start = new Date(data.activeShift.startedAt)
-          const now = new Date()
-          const ms = Math.max(0, now.getTime() - start.getTime())
-          const hrs = Math.floor(ms / 3600000)
-          const mins = Math.floor((ms % 3600000) / 60000)
-          setElapsed(`${hrs}h ${mins.toString().padStart(2, '0')}m`)
-        }
-      }
-    }
-    update()
-    const id = setInterval(update, 60000)
-    return () => clearInterval(id)
-  }, [onShift])
-
   const handleQuickClockIn = async () => {
     haptic('medium')
     setClockingIn(true)
     try {
       const res = await fetch('/api/shifts', { method: 'POST' })
       if (res.ok) {
-        const data = await res.json()
         setOnShift(true)
         window.dispatchEvent(new Event('shift-changed'))
-        if (data.shift) {
-          const start = new Date(data.shift.startedAt)
-          const now = new Date()
-          const ms = Math.max(0, now.getTime() - start.getTime())
-          const hrs = Math.floor(ms / 3600000)
-          const mins = Math.floor((ms % 3600000) / 60000)
-          setElapsed(`${hrs}h ${mins.toString().padStart(2, '0')}m`)
-        }
       }
     } catch {}
     setClockingIn(false)
   }
 
-  // Inline tap-to-confirm clock out so a stray thumb can't end a shift.
-  // First tap: reveal the Confirm button for 4s. Second tap: actually clock out.
-  const handleClockOutRequest = () => {
-    haptic('light')
-    setConfirmingClockOut(true)
-  }
-
-  // Auto-cancel the confirmation after 4s of inactivity.
-  useEffect(() => {
-    if (!confirmingClockOut) return
-    const t = setTimeout(() => setConfirmingClockOut(false), 4000)
-    return () => clearTimeout(t)
-  }, [confirmingClockOut])
-
-  const handleClockOutConfirm = async () => {
-    haptic('medium')
-    setClockOutLoading(true)
-    try {
-      const res = await fetch('/api/shifts', { method: 'PATCH' })
-      if (res.ok) {
-        setOnShift(false)
-        setConfirmingClockOut(false)
-        window.dispatchEvent(new Event('shift-changed'))
-      }
-    } catch {}
-    setClockOutLoading(false)
-  }
-
   return (
     <AppShell session={session} organizationName={organizationName}>
       <main 
-        className="max-w-2xl mx-auto px-4 py-6 pb-32"
+        className="max-w-2xl mx-auto px-4 py-6 pb-24"
         onTouchStart={ptrHandlers.onTouchStart}
         onTouchMove={ptrHandlers.onTouchMove}
         onTouchEnd={ptrHandlers.onTouchEnd}
@@ -372,50 +311,6 @@ export default function BatchListClient({
             )
         })()}
 
-        {/* Floating 'On Shift' bar.
-            Clock Out is intentionally small, ghost-styled, and tap-to-confirm so
-            a thumb grazing the bottom of the screen can't end a shift. */}
-        {onShift && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-bottom">
-            <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse shrink-0" aria-hidden="true" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">On Shift</p>
-                  <p className="text-[11px] text-muted-foreground tabular-nums">{elapsed}</p>
-                </div>
-              </div>
-              {confirmingClockOut ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => { haptic('light'); setConfirmingClockOut(false) }}
-                    className="min-h-[40px] px-3 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleClockOutConfirm}
-                    disabled={clockOutLoading}
-                    className="min-h-[40px] px-4 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 active:scale-[0.97] transition-all disabled:opacity-60 flex items-center gap-1.5"
-                    autoFocus
-                  >
-                    <StopIcon className="w-3.5 h-3.5" />
-                    {clockOutLoading ? 'Clocking out…' : 'Confirm'}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={handleClockOutRequest}
-                  aria-label="Clock out"
-                  title="Clock out"
-                  className="min-h-[40px] min-w-[40px] p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive-subtle active:scale-[0.96] transition-all flex items-center justify-center"
-                >
-                  <StopIcon className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
       </main>
     </AppShell>
   )
