@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { ClockIcon, CubeIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid'
@@ -55,9 +56,9 @@ export default function MyDayClient({ session }: { session: Session }) {
         setActiveShift(shiftData.activeShift || null)
       }
 
-      // Fetch today's shifts
+      // Fetch today's shifts (worker-scoped, works for PIN users too)
       const today = new Date().toISOString().split('T')[0]
-      const shiftsRes = await fetch(`/api/shifts/all?workerId=${session.workerId || session.id}&from=${today}&to=${today}`, { cache: "no-store" })
+      const shiftsRes = await fetch(`/api/shifts/my?from=${today}&to=${today}`, { cache: "no-store" })
       if (shiftsRes.ok) {
         const shiftsData = await shiftsRes.json()
         setTodayShifts(shiftsData.shifts || [])
@@ -198,7 +199,15 @@ export default function MyDayClient({ session }: { session: Session }) {
             {/* This Week's Totals */}
             {weekStats && (
               <div className="bg-card border border-border rounded-xl p-5">
-                <h3 className="text-base font-semibold text-foreground mb-4">This Week</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-semibold text-foreground">This Week</h3>
+                  <Link
+                    href="/workers/me/timesheet"
+                    className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center"
+                  >
+                    Timesheet →
+                  </Link>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
