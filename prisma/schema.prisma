@@ -198,6 +198,9 @@ model Batch {
   completedDate   DateTime?
   createdAt       DateTime      @default(now())
 
+  // Free-form team notes visible on the batch detail (e.g. "flower came in wet, add 1h dry time").
+  notes           String?       @db.Text
+
   // METRC prep fields
   metrcBatchId    String?
   lotNumber       String?

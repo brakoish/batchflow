@@ -33,6 +33,7 @@ type Batch = {
   lotNumber?: string
   strain?: string
   packageTag?: string
+  notes?: string | null
   recipe: { id: string; name: string }; steps: BatchStep[]
   assignments?: { worker: Worker }[]
 }
@@ -147,6 +148,7 @@ export default function BatchDetailClient({
   const [editLotNumber, setEditLotNumber] = useState(batch.lotNumber || '')
   const [editStrain, setEditStrain] = useState(batch.strain || '')
   const [editPackageTag, setEditPackageTag] = useState(batch.packageTag || '')
+  const [editNotes, setEditNotes] = useState(batch.notes || '')
   const [editWorkerIds, setEditWorkerIds] = useState<string[]>(batch.assignments?.map(a => a.worker.id) || [])
 
   // Duplicate modal state
@@ -389,6 +391,7 @@ export default function BatchDetailClient({
           lotNumber: editLotNumber || undefined,
           strain: editStrain || undefined,
           packageTag: editPackageTag || undefined,
+          notes: editNotes,
         }),
       })
       if (!res.ok) {
@@ -696,6 +699,14 @@ export default function BatchDetailClient({
             </div>
           )}
 
+          {/* Batch notes */}
+          {batch.notes && (
+            <div className="mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">Notes</p>
+              <p className="text-xs text-foreground whitespace-pre-wrap break-words">{batch.notes}</p>
+            </div>
+          )}
+
           {/* METRC Fields Display */}
           {(batch.metrcBatchId || batch.lotNumber || batch.strain || batch.packageTag) && (
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -724,7 +735,20 @@ export default function BatchDetailClient({
                 </button>
               )}
               {session.role === 'OWNER' && (
-                <button onClick={() => setShowEditModal(true)}
+                <button onClick={() => {
+                  // Re-sync edit fields from the latest batch before opening
+                  setEditName(batch.name)
+                  setEditIsOpenEnded(batch.targetQuantity === null)
+                  setEditTargetQty(batch.targetQuantity?.toString() || '')
+                  setEditDueDate(batch.dueDate?.split('T')[0] || '')
+                  setEditMetrcBatchId(batch.metrcBatchId || '')
+                  setEditLotNumber(batch.lotNumber || '')
+                  setEditStrain(batch.strain || '')
+                  setEditPackageTag(batch.packageTag || '')
+                  setEditNotes(batch.notes || '')
+                  setEditWorkerIds(batch.assignments?.map(a => a.worker.id) || [])
+                  setShowEditModal(true)
+                }}
                   className="px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground/80 text-xs font-medium transition-all">
                   Edit Batch
                 </button>
@@ -1352,6 +1376,19 @@ export default function BatchDetailClient({
                     placeholder="Package Tag"
                     className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Notes</label>
+                  <textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value.slice(0, 2000))}
+                    rows={3}
+                    placeholder="Anything the team should know (e.g. flower came in wet, add 1h dry time)"
+                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all resize-none"
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground/70 text-right tabular-nums">{editNotes.length}/2000</p>
                 </div>
 
                 {/* Assigned Workers */}

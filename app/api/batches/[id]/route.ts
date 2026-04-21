@@ -106,7 +106,7 @@ export async function PATCH(
     }
     
     // Handle full batch edits
-    const { name, targetQuantity, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag } = body
+    const { name, targetQuantity, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes } = body
     
     // Build update data
     const updateData: any = {}
@@ -116,6 +116,7 @@ export async function PATCH(
     if (lotNumber !== undefined) updateData.lotNumber = lotNumber || null
     if (strain !== undefined) updateData.strain = strain || null
     if (packageTag !== undefined) updateData.packageTag = packageTag || null
+    if (notes !== undefined) updateData.notes = notes ? String(notes).slice(0, 2000) : null
     
     // Handle worker assignment updates
     if (workerIds !== undefined) {
