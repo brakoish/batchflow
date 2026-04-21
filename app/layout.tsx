@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ThemeProvider } from './components/ThemeProvider'
 import NotificationManager from './components/NotificationManager'
+import UpdateNotifier from './components/UpdateNotifier'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
@@ -55,6 +56,7 @@ export default function RootLayout({
         <Providers>
           <ThemeProvider>
             <NotificationManager />
+            <UpdateNotifier />
             {children}
           </ThemeProvider>
         </Providers>
