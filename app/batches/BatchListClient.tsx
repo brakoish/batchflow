@@ -267,22 +267,20 @@ export default function BatchListClient({
                         {batch.strain}
                       </span>
                     )}
-                    {batch.notes && batch.notes.trim() && (
-                      <span
-                        title={batch.notes}
-                        aria-label="Has notes"
-                        className="px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs flex items-center gap-1"
-                      >
-                        <span aria-hidden="true">📝</span>
-                        <span className="font-medium">Notes</span>
-                      </span>
-                    )}
                     {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (
                       <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
                         OVERDUE
                       </span>
                     )}
                   </div>
+
+                  {/* Inline notes preview (mobile-friendly — no hover needed) */}
+                  {batch.notes && batch.notes.trim() && (
+                    <div className="-mt-2 mb-4 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 flex items-start gap-2">
+                      <span aria-hidden="true" className="text-sm leading-none mt-0.5">📝</span>
+                      <p className="text-xs text-foreground/90 line-clamp-2 break-words flex-1 min-w-0">{batch.notes}</p>
+                    </div>
+                  )}
 
                   {/* Progress */}
                   <div className="flex items-center gap-4">

@@ -1386,7 +1386,9 @@ export default function BatchDetailClient({
                     onChange={(e) => setEditNotes(e.target.value.slice(0, 2000))}
                     rows={3}
                     placeholder="Anything the team should know (e.g. flower came in wet, add 1h dry time)"
-                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all resize-none"
+                    autoCapitalize="sentences"
+                    inputMode="text"
+                    className="w-full min-h-[88px] px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all resize-y"
                   />
                   <p className="mt-1 text-[10px] text-muted-foreground/70 text-right tabular-nums">{editNotes.length}/2000</p>
                 </div>

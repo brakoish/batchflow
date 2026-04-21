@@ -375,10 +375,12 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value.slice(0, 2000))}
-              rows={2}
+              rows={3}
               placeholder="Anything the team should know (e.g. flower came in wet, add 1h dry time)"
               disabled={loading}
-              className="w-full px-4 py-3 rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all resize-none"
+              autoCapitalize="sentences"
+              inputMode="text"
+              className="w-full min-h-[88px] px-4 py-3 rounded-xl bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all resize-y"
             />
             {notes.length > 0 && (
               <p className="mt-1 text-[10px] text-muted-foreground/70 text-right tabular-nums">{notes.length}/2000</p>

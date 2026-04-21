@@ -343,7 +343,6 @@ export default function DashboardClient({
                           )}
                           {batch.notes && batch.notes.trim() && (
                             <span
-                              title={batch.notes}
                               aria-label="Has notes"
                               className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium shrink-0"
                             >
@@ -357,6 +356,11 @@ export default function DashboardClient({
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">{batch.recipe.name}</p>
+                        {batch.notes && batch.notes.trim() && (
+                          <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400 line-clamp-1 break-words">
+                            📝 {batch.notes}
+                          </p>
+                        )}
                         {batch.dueDate && (() => {
                           const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
                           const now = new Date()
