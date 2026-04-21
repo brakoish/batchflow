@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  Bars3Icon,
-  XMarkIcon,
   ArrowRightOnRectangleIcon,
   StopIcon,
   PlayIcon,
@@ -20,7 +18,6 @@ type HeaderProps = {
 }
 
 export default function Header({ session, organizationName }: HeaderProps) {
-  const [menuOpen, setMenuOpen] = useState(false)
   const [onShift, setOnShift] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -152,62 +149,9 @@ export default function Header({ session, organizationName }: HeaderProps) {
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </button>
 
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="sm:hidden p-2 text-foreground rounded-md hover:bg-muted transition-colors"
-          >
-            {menuOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
-          </button>
+          {/* Mobile: no hamburger here — the BottomNav "More" button owns secondary actions. */}
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div className="sm:hidden border-t border-border bg-background">
-          <div className="px-4 py-3 space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                className={`block px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
-                  isActive(item.href)
-                    ? 'bg-foreground text-background'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-
-            {!isOwner && (
-              onShift ? (
-                <button
-                  onClick={() => { handleClockOut(); setMenuOpen(false) }}
-                  className="w-full text-left px-3 py-2.5 text-sm font-medium rounded-md bg-destructive-subtle text-destructive flex items-center gap-2"
-                >
-                  <StopIcon className="w-4 h-4" /> Clock Out
-                </button>
-              ) : (
-                <button
-                  onClick={() => { handleClockIn(); setMenuOpen(false) }}
-                  className="w-full text-left px-3 py-2.5 text-sm font-medium rounded-md bg-success-subtle text-success flex items-center gap-2"
-                >
-                  <PlayIcon className="w-4 h-4" /> Clock In
-                </button>
-              )
-            )}
-
-            <button
-              onClick={() => { handleLogout(); setMenuOpen(false) }}
-              className="w-full text-left px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-            >
-              Log out
-            </button>
-          </div>
-        </div>
-      )}
     </header>
   )
 }

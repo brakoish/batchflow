@@ -15,7 +15,7 @@ export default function AppShell({
     <div className="min-h-dvh bg-background">
       <Header session={session} organizationName={organizationName} />
       {children}
-      <BottomNav role={session.role} />
+      <BottomNav session={session} />
       {/* Bottom padding for mobile nav */}
       <div className="h-14 sm:h-0" />
     </div>
