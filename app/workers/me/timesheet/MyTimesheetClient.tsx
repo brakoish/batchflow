@@ -268,7 +268,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
               className="min-h-[48px] px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.97] text-white text-sm font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-60"
             >
               <ShareIcon className="w-4 h-4" />
-              {sharing ? 'Preparing…' : 'Send to boss'}
+              {sharing ? 'Preparing…' : 'Share'}
             </button>
             <button
               onClick={handleDownloadCsv}
