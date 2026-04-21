@@ -10,6 +10,7 @@ import type { Session } from '@/lib/session'
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null }
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string; notes?: string | null
+  lotNumber?: string; metrcBatchId?: string; packageTag?: string
   recipe: { name: string }; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
 }
 type ActivityLog = {
@@ -53,9 +54,15 @@ export default function DashboardClient({
   const [filterRecipe, setFilterRecipe] = useState('')
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null)
   const [editName, setEditName] = useState('')
+  const [editIsOpenEnded, setEditIsOpenEnded] = useState(false)
   const [editTargetQty, setEditTargetQty] = useState('')
   const [editDueDate, setEditDueDate] = useState('')
   const [editStrain, setEditStrain] = useState('')
+  const [editLotNumber, setEditLotNumber] = useState('')
+  const [editMetrcBatchId, setEditMetrcBatchId] = useState('')
+  const [editPackageTag, setEditPackageTag] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editShowMetrc, setEditShowMetrc] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
   const [editWorkerIds, setEditWorkerIds] = useState<string[]>([])
@@ -71,16 +78,23 @@ export default function DashboardClient({
   useEffect(() => {
     if (editingBatch) {
       setEditName(editingBatch.name)
+      setEditIsOpenEnded(editingBatch.targetQuantity === null)
       setEditTargetQty(editingBatch.targetQuantity?.toString() || '')
       setEditDueDate(editingBatch.dueDate?.split('T')[0] || '')
       setEditStrain(editingBatch.strain || '')
+      setEditLotNumber((editingBatch as any).lotNumber || '')
+      setEditMetrcBatchId((editingBatch as any).metrcBatchId || '')
+      setEditPackageTag((editingBatch as any).packageTag || '')
+      setEditNotes(editingBatch.notes || '')
+      setEditShowMetrc(false)
       setEditWorkerIds(editingBatch.assignments?.map(a => a.worker.id) || [])
       setEditError('')
     }
   }, [editingBatch])
 
   const handleEditSave = async () => {
-    if (!editingBatch || !editName.trim() || !editTargetQty) return
+    if (!editingBatch || !editName.trim()) return
+    if (!editIsOpenEnded && (!editTargetQty || parseInt(editTargetQty) <= 0)) return
     setEditSaving(true)
     setEditError('')
     try {
@@ -89,9 +103,13 @@ export default function DashboardClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName,
-          targetQuantity: editTargetQty ? parseInt(editTargetQty) : undefined,
+          targetQuantity: editIsOpenEnded ? null : parseInt(editTargetQty),
           dueDate: editDueDate || undefined,
           strain: editStrain || undefined,
+          lotNumber: editLotNumber || undefined,
+          metrcBatchId: editMetrcBatchId || undefined,
+          packageTag: editPackageTag || undefined,
+          notes: editNotes,
           workerIds: editWorkerIds,
         }),
       })
@@ -570,11 +588,11 @@ export default function DashboardClient({
         </div>
       </main>
 
-      {/* Quick Edit Modal */}
+      {/* Edit Batch Modal — parity with /batches/[id] Edit modal */}
       {editingBatch && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center" onClick={() => setEditingBatch(null)}>
           <div
-            className="w-full max-w-md bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl safe-bottom max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -582,7 +600,8 @@ export default function DashboardClient({
                 <p className="text-sm font-semibold text-foreground">Edit Batch</p>
                 <button
                   onClick={() => setEditingBatch(null)}
-                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                  className="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                  aria-label="Close"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -591,27 +610,103 @@ export default function DashboardClient({
               </div>
 
               <div className="space-y-3">
+                {/* Name */}
                 <div>
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
                   <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                    autoCapitalize="words"
+                    className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
                 </div>
+
+                {/* Fixed/Open toggle */}
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1.5">Target Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditIsOpenEnded(false)}
+                      className={`min-h-[44px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                        !editIsOpenEnded
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
+                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      }`}
+                    >
+                      Fixed target
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditIsOpenEnded(true)}
+                      className={`min-h-[44px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                        editIsOpenEnded
+                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
+                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      }`}
+                    >
+                      Open — count as we go
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target quantity */}
                 <div>
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
-                  <input type="number" value={editTargetQty} onChange={(e) => setEditTargetQty(e.target.value)} min="1"
-                    className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                  <input type="number" inputMode="numeric" value={editTargetQty} onChange={(e) => setEditTargetQty(e.target.value)} min="1"
+                    disabled={editIsOpenEnded}
+                    placeholder={editIsOpenEnded ? 'Open-ended' : '0'}
+                    className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all disabled:opacity-40" />
                 </div>
+
+                {/* Due date */}
                 <div>
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Due Date</label>
                   <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
-                </div>
-                <div>
-                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Strain</label>
-                  <input type="text" value={editStrain} onChange={(e) => setEditStrain(e.target.value)} placeholder="Optional"
-                    className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                    className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
                 </div>
 
+                {/* Notes */}
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Notes</label>
+                  <textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value.slice(0, 2000))}
+                    rows={3}
+                    autoCapitalize="sentences"
+                    inputMode="text"
+                    placeholder="Anything the team should know (e.g. flower came in wet, add 1h dry time)"
+                    className="w-full min-h-[88px] px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all resize-y"
+                  />
+                  {editNotes.length > 0 && (
+                    <p className="mt-1 text-[10px] text-muted-foreground/70 text-right tabular-nums">{editNotes.length}/2000</p>
+                  )}
+                </div>
+
+                {/* METRC (collapsible) */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setEditShowMetrc(!editShowMetrc)}
+                    className="w-full min-h-[44px] py-2 rounded-lg text-xs text-muted-foreground font-medium hover:text-foreground transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <svg className={`w-4 h-4 transition-transform ${editShowMetrc ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    {editShowMetrc ? 'Hide' : 'Edit'} tracking info
+                  </button>
+                  {editShowMetrc && (
+                    <div className="space-y-2 pt-1">
+                      <input type="text" value={editStrain} onChange={(e) => setEditStrain(e.target.value)} placeholder="Strain"
+                        className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                      <input type="text" value={editMetrcBatchId} onChange={(e) => setEditMetrcBatchId(e.target.value)} placeholder="METRC Batch ID"
+                        className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                      <input type="text" value={editLotNumber} onChange={(e) => setEditLotNumber(e.target.value)} placeholder="Lot Number"
+                        className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                      <input type="text" value={editPackageTag} onChange={(e) => setEditPackageTag(e.target.value)} placeholder="Package Tag"
+                        className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Assigned workers */}
                 {allWorkers.length > 0 && (
                   <div>
                     <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1.5">Assigned Workers</label>
@@ -636,9 +731,12 @@ export default function DashboardClient({
 
                 {editError && <p className="text-red-500 dark:text-red-400 text-xs text-center">{editError}</p>}
 
-                <button onClick={handleEditSave} disabled={editSaving || !editName.trim() || !editTargetQty}
-                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40">
-                  {editSaving ? 'Saving...' : 'Save Changes'}
+                <button
+                  onClick={handleEditSave}
+                  disabled={editSaving || !editName.trim() || (!editIsOpenEnded && (!editTargetQty || parseInt(editTargetQty) <= 0))}
+                  className="w-full py-3.5 min-h-[48px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+                >
+                  {editSaving ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </div>
