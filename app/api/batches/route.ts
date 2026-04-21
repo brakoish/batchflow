@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireSupervisorOrOwner()
 
-    const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag } = await request.json()
+    const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes } = await request.json()
 
     if (!recipeId || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
         lotNumber: lotNumber || undefined,
         strain: strain || undefined,
         packageTag: packageTag || undefined,
+        notes: notes ? String(notes).slice(0, 2000) : undefined,
         assignments: workerIds?.length
           ? { create: workerIds.map((id: string) => ({ workerId: id })) }
           : undefined,

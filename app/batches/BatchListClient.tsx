@@ -12,7 +12,7 @@ import type { Session } from '@/lib/session'
 type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number | null }
 type Assignment = { worker: { id: string; name: string } }
 type Batch = {
-  id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string
+  id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string; notes?: string | null
   recipe: { name: string }; steps: Step[]; assignments?: Assignment[]
 }
 
@@ -265,6 +265,16 @@ export default function BatchListClient({
                     {batch.strain && (
                       <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs">
                         {batch.strain}
+                      </span>
+                    )}
+                    {batch.notes && batch.notes.trim() && (
+                      <span
+                        title={batch.notes}
+                        aria-label="Has notes"
+                        className="px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs flex items-center gap-1"
+                      >
+                        <span aria-hidden="true">📝</span>
+                        <span className="font-medium">Notes</span>
                       </span>
                     )}
                     {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (

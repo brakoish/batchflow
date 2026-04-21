@@ -24,6 +24,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [lotNumber, setLotNumber] = useState('')
   const [strain, setStrain] = useState('')
   const [packageTag, setPackageTag] = useState('')
+  const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showMetrc, setShowMetrc] = useState(false)
@@ -68,6 +69,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
           workerIds: selectedWorkers.length > 0 ? selectedWorkers : undefined,
           metrcBatchId: metrcBatchId || undefined, lotNumber: lotNumber || undefined,
           strain: strain || undefined, packageTag: packageTag || undefined,
+          notes: notes.trim() || undefined,
         }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
@@ -367,6 +369,22 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
           )}
 
           {/* Tracking (collapsible) */}
+          {/* Notes */}
+          <div>
+            <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1.5">Notes <span className="text-muted-foreground/60 normal-case font-normal">(optional)</span></label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value.slice(0, 2000))}
+              rows={2}
+              placeholder="Anything the team should know (e.g. flower came in wet, add 1h dry time)"
+              disabled={loading}
+              className="w-full px-4 py-3 rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all resize-none"
+            />
+            {notes.length > 0 && (
+              <p className="mt-1 text-[10px] text-muted-foreground/70 text-right tabular-nums">{notes.length}/2000</p>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={() => { haptic('light'); setShowMetrc(!showMetrc) }}

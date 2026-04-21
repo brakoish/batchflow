@@ -9,7 +9,7 @@ import EmptyState from '@/app/components/EmptyState'
 import type { Session } from '@/lib/session'
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null }
 type Batch = {
-  id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string
+  id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string; notes?: string | null
   recipe: { name: string }; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
 }
 type ActivityLog = {
@@ -339,6 +339,15 @@ export default function DashboardClient({
                           {batch.strain && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
                               {batch.strain}
+                            </span>
+                          )}
+                          {batch.notes && batch.notes.trim() && (
+                            <span
+                              title={batch.notes}
+                              aria-label="Has notes"
+                              className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium shrink-0"
+                            >
+                              📝
                             </span>
                           )}
                           {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (
