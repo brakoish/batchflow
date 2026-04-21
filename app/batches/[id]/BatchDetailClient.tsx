@@ -140,6 +140,7 @@ export default function BatchDetailClient({
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
   const [editName, setEditName] = useState(batch.name)
+  const [editIsOpenEnded, setEditIsOpenEnded] = useState(batch.targetQuantity === null)
   const [editTargetQty, setEditTargetQty] = useState(batch.targetQuantity?.toString() || '')
   const [editDueDate, setEditDueDate] = useState(batch.dueDate?.split('T')[0] || '')
   const [editMetrcBatchId, setEditMetrcBatchId] = useState(batch.metrcBatchId || '')
@@ -380,7 +381,7 @@ export default function BatchDetailClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName,
-          targetQuantity: parseInt(editTargetQty),
+          targetQuantity: editIsOpenEnded ? null : parseInt(editTargetQty),
           dueDate: editDueDate || undefined,
           workerIds: editWorkerIds,
           metrcBatchId: editMetrcBatchId || undefined,
@@ -1239,13 +1240,43 @@ export default function BatchDetailClient({
                 </div>
 
                 <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Batch Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { haptic('medium'); setEditIsOpenEnded(false) }}
+                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                        !editIsOpenEnded
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
+                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      }`}
+                    >
+                      Fixed target
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { haptic('medium'); setEditIsOpenEnded(true) }}
+                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                        editIsOpenEnded
+                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
+                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      }`}
+                    >
+                      Open — count as we go
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
                   <input
                     type="number"
                     value={editTargetQty}
                     onChange={(e) => setEditTargetQty(e.target.value)}
                     min="1"
-                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                    disabled={editIsOpenEnded}
+                    placeholder={editIsOpenEnded ? 'Open-ended' : '0'}
+                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all disabled:opacity-40"
                   />
                 </div>
 
@@ -1296,7 +1327,7 @@ export default function BatchDetailClient({
 
                 <button
                   onClick={handleEditSave}
-                  disabled={loading || !editName.trim() || !editTargetQty}
+                  disabled={loading || !editName.trim() || (!editIsOpenEnded && (!editTargetQty || parseInt(editTargetQty) <= 0))}
                   className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
                 >
                   {loading ? 'Saving...' : 'Save Changes'}
