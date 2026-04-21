@@ -109,9 +109,9 @@ function QuickAddButtons({ remaining, current, onAdd }: { remaining: number | nu
 }
 
 export default function BatchDetailClient({
-  batch: initialBatch, session,
+  batch: initialBatch, workers, session,
 }: {
-  batch: Batch; session: Session
+  batch: Batch; workers: { id: string; name: string }[]; session: Session
 }) {
   const [batch, setBatch] = useState(initialBatch)
   const [selectedStep, setSelectedStep] = useState<BatchStep | null>(null)
@@ -1352,6 +1352,40 @@ export default function BatchDetailClient({
                     placeholder="Package Tag"
                     className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                   />
+                </div>
+
+                {/* Assigned Workers */}
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-2">Assigned Workers</label>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto rounded-lg bg-muted/50 border border-input p-2">
+                    {workers.map((w) => {
+                      const on = editWorkerIds.includes(w.id)
+                      return (
+                        <button
+                          key={w.id}
+                          type="button"
+                          onClick={() => {
+                            haptic('light')
+                            setEditWorkerIds(prev =>
+                              prev.includes(w.id) ? prev.filter(id => id !== w.id) : [...prev, w.id]
+                            )
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2.5 min-h-[40px] rounded-md text-xs font-medium transition-all active:scale-[0.97] ${
+                            on
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-card text-muted-foreground hover:bg-muted'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                            on ? 'border-emerald-500 bg-emerald-500' : 'border-muted-foreground'
+                          }`}>
+                            {on && <CheckIcon className="w-2.5 h-2.5 text-white" />}
+                          </div>
+                          <span className="text-sm">{w.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 {error && <p className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}

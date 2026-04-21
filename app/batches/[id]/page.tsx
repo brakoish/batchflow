@@ -16,33 +16,36 @@ export default async function BatchDetailPage({
 
   const { id } = await params
 
-  const batch = await prisma.batch.findUnique({
-    where: { id },
-    include: {
-      recipe: true,
-      steps: {
-        orderBy: {
-          order: 'asc',
-        },
-        include: {
-          recipeStep: { select: { notes: true } },
-          progressLogs: {
-            include: {
-              worker: {
-                select: {
-                  id: true,
-                  name: true,
-                },
+  const [batch, organization] = await Promise.all([
+    prisma.batch.findUnique({
+      where: { id },
+      include: {
+        recipe: true,
+        steps: {
+          orderBy: { order: 'asc' },
+          include: {
+            recipeStep: { select: { notes: true } },
+            progressLogs: {
+              include: {
+                worker: { select: { id: true, name: true } },
               },
+              orderBy: { createdAt: 'desc' },
+              take: 5,
             },
-            orderBy: {
-              createdAt: 'desc',
-            },
-            take: 5,
           },
         },
       },
-    },
+    }),
+    prisma.organization.findUnique({
+      where: { id: session.organizationId },
+      select: { timezone: true },
+    }),
+  ])
+
+  const workers = await prisma.worker.findMany({
+    where: { role: { in: ['WORKER', 'SUPERVISOR'] }, organizationId: session.organizationId },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
   })
 
   if (!batch) {
@@ -52,6 +55,7 @@ export default async function BatchDetailPage({
   return (
     <BatchDetailClient
       batch={JSON.parse(JSON.stringify(batch))}
+      workers={JSON.parse(JSON.stringify(workers))}
       session={session}
     />
   )
