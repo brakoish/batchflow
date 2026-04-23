@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
+import { emitBatchChanged } from '@/lib/batchEvents'
 
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
@@ -74,6 +75,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
       })
       if (!res.ok) { setError((await res.json()).error); return }
       const data = await res.json()
+      emitBatchChanged(data.batch?.id, 'create')
       router.push(`/batches/${data.batch.id}`)
     } catch { setError('Connection error') }
     finally { setLoading(false) }

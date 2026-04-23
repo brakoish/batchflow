@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { formatTimeInTz, formatDateInTz } from '@/lib/timezone'
+import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
 
 type Worker = { id: string; name: string }
@@ -127,6 +128,8 @@ export default function BatchDetailClient({
   const [pageLoading, setPageLoading] = useState(!initialBatch.id)
   const quantityRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastSaveTsRef = useRef<number>(0)
+  const editModalOpenRef = useRef<boolean>(false)
 
   // Chat state
   const [messages, setMessages] = useState<BatchMessage[]>([])
@@ -160,9 +163,16 @@ export default function BatchDetailClient({
   const [duplicateStrain, setDuplicateStrain] = useState('')
   const [duplicating, setDuplicating] = useState(false)
 
-  // Auto-refresh every 5 seconds
+  // Auto-refresh — events do the heavy lifting for same-tab mutations,
+  // polling is a 15s safety net for cross-tab/other-user changes.
   useEffect(() => {
-    const fetchBatch = async () => {
+    const fetchBatch = async (opts: { force?: boolean } = {}) => {
+      // Skip when the edit modal is open or we just saved; avoids
+      // stale-response clobber of local state.
+      if (!opts.force) {
+        if (editModalOpenRef.current) return
+        if (Date.now() - lastSaveTsRef.current < 3000) return
+      }
       try {
         const res = await fetch(`/api/batches/${batch.id}`, { cache: "no-store" })
         if (res.ok) {
@@ -188,12 +198,22 @@ export default function BatchDetailClient({
     // Initial fetch
     fetchMessages()
 
-    // Poll both batch and messages
+    // Poll every 15s as a cross-tab safety net
     pollRef.current = setInterval(() => {
       fetchBatch()
       fetchMessages()
-    }, 5000)
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+    }, 15000)
+
+    // Event-driven refresh for same-tab mutations from anywhere
+    const unsubscribe = onBatchChanged(({ batchId }) => {
+      if (batchId && batchId !== batch.id) return
+      fetchBatch({ force: true })
+    })
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+      unsubscribe()
+    }
   }, [batch.id])
   const router = useRouter()
 
@@ -209,6 +229,11 @@ export default function BatchDetailClient({
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
   }, [messages])
+
+  // Keep a ref in sync so the poll guard can read it without re-subscribing
+  useEffect(() => {
+    editModalOpenRef.current = showEditModal
+  }, [showEditModal])
 
   const showToast = (msg: string, type: 'success' | 'warning' = 'success') => {
     setToast(msg)
@@ -232,6 +257,8 @@ export default function BatchDetailClient({
         return 
       }
       setBatch(prev => ({ ...prev, status }))
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'status')
       showToast(`Batch ${labels[status]}d`)
     } catch (err) { 
       setError('Network error. Please check your connection.')
@@ -248,6 +275,7 @@ export default function BatchDetailClient({
         setError(data.error || 'Failed to delete batch')
         return 
       }
+      emitBatchChanged(batch.id, 'delete')
       showToast('Batch deleted')
       router.push('/dashboard')
     } catch (err) { 
@@ -304,6 +332,8 @@ export default function BatchDetailClient({
         }),
       }))
       setEditingLog(null)
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'log-edit')
       showToast('Log updated')
     } catch (err) {
       setError('Network error. Please check your connection.')
@@ -338,6 +368,8 @@ export default function BatchDetailClient({
         }),
       }))
       setEditingLog(null)
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'log-delete')
       showToast('Log entry deleted')
     } catch (err) {
       setError('Network error. Please check your connection.')
@@ -369,6 +401,8 @@ export default function BatchDetailClient({
           return s
         }),
       }))
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'check-complete')
       showToast(`${step.name} complete`)
     } catch (err) { 
       setError('Network error. Please check your connection.')
@@ -403,6 +437,7 @@ export default function BatchDetailClient({
       const data = await res.json()
       setBatch(data.batch)
       setShowEditModal(false)
+      lastSaveTsRef.current = Date.now()
       showToast('Batch updated')
       // Force a full refetch to ensure steps/targets are in sync
       try {
@@ -412,6 +447,7 @@ export default function BatchDetailClient({
           if (fresh.batch) setBatch(fresh.batch)
         }
       } catch {}
+      emitBatchChanged(batch.id, 'edit')
 
     } catch (err) {
       setError('Network error. Please check your connection.')
@@ -464,6 +500,7 @@ export default function BatchDetailClient({
       }
 
       const data = await res.json()
+      emitBatchChanged(data.batch?.id, 'duplicate')
       showToast('Batch duplicated successfully')
       router.push(`/batches/${data.batch.id}`)
     } catch (err) {
@@ -502,6 +539,8 @@ export default function BatchDetailClient({
         }),
       }))
 
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'log-add')
       if (data.warning) {
         showToast(data.warning, 'warning')
       } else {

@@ -7,6 +7,7 @@ import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
 import { ChevronRightIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
+import { onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
 
 type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number | null }
@@ -56,8 +57,13 @@ export default function BatchListClient({
 
   useEffect(() => {
     fetchData()
-    const id = setInterval(() => fetchData(), 5000)
-    return () => clearInterval(id)
+    // 15s safety-net polling; events cover same-tab mutations
+    const id = setInterval(() => fetchData(), 15000)
+    const unsubscribe = onBatchChanged(() => fetchData())
+    return () => {
+      clearInterval(id)
+      unsubscribe()
+    }
   }, [])
 
   const { handlers: ptrHandlers } = usePullToRefresh(() => { setRefreshing(true); fetchData(true) }, 80)

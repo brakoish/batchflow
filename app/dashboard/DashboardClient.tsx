@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
+import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null }
 type Batch = {
@@ -120,7 +121,9 @@ export default function DashboardClient({
       }
       const data = await res.json()
       setBatches(prev => prev.map(b => b.id === editingBatch.id ? data.batch : b))
+      const savedId = editingBatch.id
       setEditingBatch(null)
+      lastSaveTsRef.current = Date.now()
       // Force a full refetch to ensure steps are in sync
       try {
         const refetch = await fetch('/api/batches', { cache: "no-store" })
@@ -129,6 +132,7 @@ export default function DashboardClient({
           if (fresh.batches) setBatches(fresh.batches)
         }
       } catch {}
+      emitBatchChanged(savedId, 'dashboard-edit')
     } catch {
       setEditError('Network error')
     } finally {
@@ -136,14 +140,29 @@ export default function DashboardClient({
     }
   }
 
-  const poll = async () => {
+  const editingRef = useRef<string | null>(null)
+  useEffect(() => { editingRef.current = editingBatch?.id || null }, [editingBatch])
+  const lastSaveTsRef = useRef<number>(0)
+
+  const poll = async (opts: { force?: boolean } = {}) => {
+    // Skip list replacement while editing or just after a save to avoid
+    // clobbering fresh local state with a stale read.
+    const guarded = !opts.force && (editingRef.current || Date.now() - lastSaveTsRef.current < 3000)
     try {
       const [bRes, aRes, wRes] = await Promise.all([
         fetch('/api/batches', { cache: "no-store" }),
         fetch('/api/activity', { cache: "no-store" }),
         fetch('/api/workers/activity', { cache: "no-store" }),
       ])
-      if (bRes.ok) { const d = await bRes.json(); if (d.batches) { setBatches(d.batches); setLoading(false) } }
+      if (bRes.ok) {
+        const d = await bRes.json()
+        if (d.batches) {
+          if (!guarded) setBatches(d.batches)
+          setLoading(false)
+        }
+      }
+      // Activity and worker summary are safe to refresh — they never
+      // conflict with an open edit modal.
       if (aRes.ok) { const d = await aRes.json(); if (d.activities) setActivity(d.activities) }
       if (wRes.ok) {
         const d = await wRes.json();
@@ -157,8 +176,13 @@ export default function DashboardClient({
 
   useEffect(() => {
     poll()
-    const id = setInterval(poll, 5000)
-    return () => clearInterval(id)
+    // 15s safety-net polling; events cover the same-tab fast path
+    const id = setInterval(() => poll(), 15000)
+    const unsubscribe = onBatchChanged(() => poll({ force: true }))
+    return () => {
+      clearInterval(id)
+      unsubscribe()
+    }
   }, [])
 
   const { handlers: ptrHandlers } = usePullToRefresh(() => { setRefreshing(true); poll() }, 80)
