@@ -171,30 +171,30 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             className="w-full mt-3 px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
         </div>
 
-        {/* ── Base Unit ── */}
+        {/* ── Sellable Unit ── */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">What&apos;s the smallest thing you count?</label>
+          <label className="text-base text-foreground font-semibold block mb-1">What do you sell?</label>
           <p className="text-sm text-muted-foreground mb-3">
-            This is the individual item your workers track — one bag, one jar, one pre-roll. When someone logs &quot;+50&quot;, this is what they mean.
+            The finished product — what you set a batch target in. For pre-rolls packed in tins, that’s “Tins.” For loose flower, it might be “Bags” or “Jars.”
           </p>
           <input type="text" value={baseUnit} onChange={(e) => setBaseUnit(e.target.value)}
-            placeholder="e.g., bags, jars, pre-rolls, tins, cartridges" disabled={loading}
+            placeholder="e.g., Tins, Bags, Jars, Cartridges" disabled={loading}
             className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
           {baseUnit && (
             <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
-              ✓ Workers will log progress by counting {baseUnit}
+              ✓ Batch targets will be set in {baseUnit}
             </p>
           )}
         </div>
 
-        {/* ── Counting Units ── */}
+        {/* ── Other units ── */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">Bigger packaging units</label>
+          <label className="text-base text-foreground font-semibold block mb-1">Other units your team counts in</label>
           <p className="text-sm text-muted-foreground mb-1">
-            Do you pack {baseUnit || 'items'} into cases, boxes, or trays? Add them here so some steps can count by the bigger unit instead.
+            Add any unit a step needs to count in. These can be smaller than {baseUnit || 'a Tin'} (inputs like pre-rolls) or bigger (cases, pallets). The batch total still tracks in {baseUnit || 'your sellable unit'}.
           </p>
           <p className="text-xs text-muted-foreground/60 mb-4">
-            Example: If you pack 14 {baseUnit || 'pre-rolls'} per tin, add a &quot;Tins&quot; unit counted in {baseUnit || 'pre-rolls'} = 14. Then add a &quot;Cases&quot; unit counted in Tins = 20 — the app does the math (1 Case = 280 {baseUnit || 'pre-rolls'}).
+            Example: 14 Pre-rolls go into 1 {baseUnit || 'Tin'}, and 20 {baseUnit || 'Tins'} fit in 1 Case. The rolling step counts Pre-rolls, the filling step counts {baseUnit || 'Tins'}, the case-up step counts Cases.
           </p>
 
           {units.length === 0 ? (
@@ -212,13 +212,14 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                       placeholder="e.g., Cases, Boxes, Trays, Pallets" disabled={loading}
                       className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
                   </div>
-                  {/* What smaller unit does this count in terms of?
-                      Only shown when there's at least one earlier packaging unit
-                      to pick from — otherwise the base unit is the only choice. */}
+                  {/* Express this unit’s ratio in terms of the sellable unit or
+                      any earlier unit. Default is the sellable unit so input-style
+                      units (Pre-rolls per Tin) and output-style units (Cases per Tin
+                      via basedOn=Tins — see note below) are both expressible. */}
                   {basedOnOptions(i).length > 1 && (
                     <div>
                       <label className="text-xs text-muted-foreground font-medium block mb-1.5">
-                        Counted in
+                        Measured in
                       </label>
                       <select
                         value={u.basedOn || ''}
@@ -337,7 +338,10 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                 {/* Unit selector for COUNT steps */}
                 {step.type === 'COUNT' && units.filter(u => u.name.trim()).length > 0 && (
                   <div className="mb-3">
-                    <label className="text-xs text-muted-foreground font-medium block mb-2">Count by which unit?</label>
+                    <label className="text-xs text-muted-foreground font-medium block mb-1.5">What does the worker count on this step?</label>
+                    <p className="text-[11px] text-muted-foreground/70 mb-2">
+                      Pick the thing they physically handle. The batch total still tracks in {baseUnit || 'your sellable unit'}.
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => { haptic('light'); updateStep(i, 'unitName', '') }}
@@ -346,7 +350,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                           !step.unitName ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500' : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
                         }`}
                       >
-                        {baseUnit || 'base'} (individual)
+                        {baseUnit || 'base unit'}
                       </button>
                       {units.filter(u => u.name.trim()).map((u, idx) => (
                         <button
