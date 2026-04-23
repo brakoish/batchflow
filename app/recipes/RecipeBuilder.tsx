@@ -5,10 +5,18 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
-// basedOn: name of the unit this count is expressed in.
-//  - '' (empty) means the base unit (e.g. 'Pre-rolls').
-//  - Another packaging unit's name nests the ratio (e.g. Case basedOn='Tins', count=20).
-type UnitDef = { name: string; count: number; basedOn?: string }
+// Relations between units. Three fields:
+//  - name:   the unit being defined (Pre-rolls, Case, Tray, etc.)
+//  - count:  the number in the sentence
+//  - basedOn: which already-known unit the count is in terms of.
+//            '' means the sellable (base) unit; otherwise an earlier relation’s name.
+//  - direction:
+//      'bigger'  → sentence reads "1 {name} = {count} {basedOn}"    (Case = 20 Tins)
+//      'smaller' → sentence reads "{count} {name} = 1 {basedOn}"   (14 Pre-rolls = 1 Tin)
+// The stored ratio (base units per 1 of {name}) is computed on submit:
+//   bigger  : ratio = count × basedOnRatio
+//   smaller : ratio = basedOnRatio / count   (fractional — requires Float in DB)
+type UnitDef = { name: string; count: number; basedOn?: string; direction?: 'bigger' | 'smaller' }
 type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
 
 type EditRecipe = {
@@ -26,9 +34,20 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   // not the chain. Default basedOn='' (base unit) and surface the raw count;
   // users can switch basedOn on the fly to re-express it without needing a
   // data migration.
+  // When editing an existing recipe we only have the flat base-unit ratio,
+  // not the chain. Re-express:
+  //   ratio >= 1  → 'bigger', count = ratio (e.g. Case ratio 20 → '1 Case = 20 base')
+  //   ratio <  1  → 'smaller', count = round(1/ratio)
+  // basedOn stays '' (base) — users can nest further after loading.
   const [units, setUnits] = useState<UnitDef[]>(
     editRecipe?.units.length
-      ? editRecipe.units.map(u => ({ name: u.name, count: u.ratio, basedOn: '' }))
+      ? editRecipe.units.map(u => {
+          const r = u.ratio
+          if (r < 1 && r > 0) {
+            return { name: u.name, count: Math.round(1 / r), basedOn: '', direction: 'smaller' as const }
+          }
+          return { name: u.name, count: Math.max(1, Math.round(r)), basedOn: '', direction: 'bigger' as const }
+        })
       : []
   )
   const [steps, setSteps] = useState<StepDef[]>(
@@ -46,7 +65,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const router = useRouter()
 
   // Unit helpers
-  const addUnit = () => { haptic('light'); setUnits([...units, { name: '', count: 1, basedOn: '' }]) }
+  const addUnit = () => { haptic('light'); setUnits([...units, { name: '', count: 1, basedOn: '', direction: 'bigger' }]) }
   const removeUnit = (i: number) => {
     const removed = units[i]
     // If any later unit was based on this one, fall them back to the base unit
@@ -94,8 +113,10 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     const s = [...steps]; [s[i], s[t]] = [s[t], s[i]]; setSteps(s)
   }
 
-  // How many base units are in one of `unitName`. Walks the basedOn chain so
-  // a Case based on 20 Tins, with 14 pre-rolls per Tin, resolves to 280.
+  // How many base units are in one of `unitName`. Walks the basedOn chain,
+  // applying each relation’s direction:
+  //   bigger  → multiply by count (1 Case = 20 Tins → ratio ×= 20)
+  //   smaller → divide by count    (14 Pre-rolls = 1 Tin → 1 Pre-roll = 1/14 Tin, ratio ÷= 14)
   // Guard with a seen set so a malformed cycle can't loop forever.
   const getBaseRatio = (unitName: string): number => {
     if (!unitName || unitName === baseUnit) return 1
@@ -106,8 +127,12 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
       seen.add(currentName)
       const u = units.find(x => x.name === currentName)
       if (!u) break
-      ratio *= u.count || 1
-      // '' basedOn means we're anchored to the base unit — stop climbing.
+      const c = u.count || 1
+      if (u.direction === 'smaller') {
+        ratio /= c
+      } else {
+        ratio *= c
+      }
       if (!u.basedOn) break
       currentName = u.basedOn
     }
@@ -130,8 +155,11 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name, description: description || undefined, baseUnit,
+          // Submit each unit's ratio in base-units-per-1-of-this-unit.
+          // getBaseRatio already honors direction ('bigger' multiplies, 'smaller' divides).
           units: units.filter(u => u.name.trim()).map(u => ({
-            name: u.name, ratio: getBaseRatio(u.name),
+            name: u.name,
+            ratio: getBaseRatio(u.name),
           })),
           steps: validSteps.map(s => ({
             name: s.name, notes: s.notes || undefined, type: s.type, unitName: s.unitName || undefined,
@@ -187,82 +215,152 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
           )}
         </div>
 
-        {/* ── Other units ── */}
+        {/* ── Relations ── */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">Other units your team counts in</label>
+          <label className="text-base text-foreground font-semibold block mb-1">Relations</label>
           <p className="text-sm text-muted-foreground mb-1">
-            Add any unit a step needs to count in. These can be smaller than {baseUnit || 'a Tin'} (inputs like pre-rolls) or bigger (cases, pallets). The batch total still tracks in {baseUnit || 'your sellable unit'}.
+            Optional. Add any unit a step needs to count in — inputs flowing into your {baseUnit || 'product'}, or shipping containers going out. Just fill in the sentence.
           </p>
           <p className="text-xs text-muted-foreground/60 mb-4">
-            Example: 14 Pre-rolls go into 1 {baseUnit || 'Tin'}, and 20 {baseUnit || 'Tins'} fit in 1 Case. The rolling step counts Pre-rolls, the filling step counts {baseUnit || 'Tins'}, the case-up step counts Cases.
+            e.g., <span className="font-medium">14 Pre-rolls = 1 {baseUnit || 'Tin'}</span> · <span className="font-medium">1 Case = 20 {baseUnit || 'Tins'}</span>
           </p>
 
           {units.length === 0 ? (
             <button onClick={addUnit} disabled={loading}
               className="w-full min-h-[48px] py-3 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground font-medium hover:text-foreground hover:border-foreground/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-              <PlusIcon className="w-4 h-4" />Add a packaging unit (optional)
+              <PlusIcon className="w-4 h-4" />Add a relation
             </button>
           ) : (
             <div className="space-y-3">
-              {units.map((u, i) => (
-                <div key={i} className="rounded-xl bg-muted/30 border border-border p-4 space-y-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium block mb-1.5">What do you call it?</label>
-                    <input type="text" value={u.name} onChange={(e) => updateUnit(i, 'name', e.target.value)}
-                      placeholder="e.g., Cases, Boxes, Trays, Pallets" disabled={loading}
-                      className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
-                  </div>
-                  {/* Express this unit’s ratio in terms of the sellable unit or
-                      any earlier unit. Default is the sellable unit so input-style
-                      units (Pre-rolls per Tin) and output-style units (Cases per Tin
-                      via basedOn=Tins — see note below) are both expressible. */}
-                  {basedOnOptions(i).length > 1 && (
-                    <div>
-                      <label className="text-xs text-muted-foreground font-medium block mb-1.5">
-                        Measured in
-                      </label>
-                      <select
-                        value={u.basedOn || ''}
-                        onChange={(e) => updateUnit(i, 'basedOn', e.target.value)}
-                        disabled={loading}
-                        className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-base focus:outline-none focus:border-emerald-500 transition-all"
-                      >
-                        {basedOnOptions(i).map(opt => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
+              {units.map((u, i) => {
+                // Which known units can be the 'right side' of this sentence?
+                // The sellable unit plus every earlier relation. Excludes this
+                // relation’s own name so it can’t reference itself.
+                const rhsOptions = basedOnOptions(i)
+                return (
+                  <div key={i} className="rounded-xl bg-muted/30 border border-border p-4">
+                    {/* Sentence template: [count] [new unit] = 1 [known unit]
+                        Reads naturally for both directions:
+                          14 Pre-rolls = 1 Tin          (input)
+                          1 Case       = 20 Tins  ← inverted? No — we still write it
+                            as: 1 Case = 20 Tins but to keep the data model identical
+                            (the "new" unit is always the left side being defined),
+                            users who want to define a bigger unit write it the same
+                            way by expressing the count in the smaller direction:
+                          'A Case holds 20 Tins' → 'Cases' has count=20 basedOn=Tins.
+                        To surface that intuitively, show two layouts based on which
+                        direction is more natural: default is 'COUNT NEW-UNIT = 1 KNOWN'
+                        (fits Pre-rolls into Tins), and we provide a subtle toggle for
+                        the 'BIGGER-UNIT = COUNT KNOWN' direction (fits Cases over Tins).
+                    */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {u.direction === 'bigger' ? (
+                        <>
+                          <span className="text-sm text-muted-foreground shrink-0">1</span>
+                          <input
+                            type="text"
+                            value={u.name}
+                            onChange={(e) => updateUnit(i, 'name', e.target.value)}
+                            placeholder="Case"
+                            disabled={loading}
+                            className="flex-1 min-w-[6rem] px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
+                          />
+                          <span className="text-sm text-muted-foreground shrink-0">=</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={u.count}
+                            onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
+                            min="1"
+                            disabled={loading}
+                            className="w-20 shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base font-semibold tabular-nums text-center focus:outline-none focus:border-emerald-500 transition-all"
+                          />
+                          <select
+                            value={u.basedOn || ''}
+                            onChange={(e) => updateUnit(i, 'basedOn', e.target.value)}
+                            disabled={loading || rhsOptions.length <= 1}
+                            className="shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base focus:outline-none focus:border-emerald-500 transition-all"
+                          >
+                            {rhsOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={u.count}
+                            onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
+                            min="1"
+                            disabled={loading}
+                            className="w-20 shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base font-semibold tabular-nums text-center focus:outline-none focus:border-emerald-500 transition-all"
+                          />
+                          <input
+                            type="text"
+                            value={u.name}
+                            onChange={(e) => updateUnit(i, 'name', e.target.value)}
+                            placeholder="Pre-rolls"
+                            disabled={loading}
+                            className="flex-1 min-w-[6rem] px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
+                          />
+                          <span className="text-sm text-muted-foreground shrink-0">= 1</span>
+                          <select
+                            value={u.basedOn || ''}
+                            onChange={(e) => updateUnit(i, 'basedOn', e.target.value)}
+                            disabled={loading || rhsOptions.length <= 1}
+                            className="shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base focus:outline-none focus:border-emerald-500 transition-all"
+                          >
+                            {rhsOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </>
+                      )}
                     </div>
-                  )}
 
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium block mb-1.5">
-                      How many {u.basedOn?.trim() || baseUnit || 'units'} fit in one {u.name.trim() || 'of these'}?
-                    </label>
-                    <input type="number" inputMode="numeric" value={u.count} onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
-                      min="1" disabled={loading}
-                      className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-lg font-semibold tabular-nums focus:outline-none focus:border-emerald-500 transition-all" />
-                    {u.name.trim() && u.count > 1 && (() => {
+                    {/* Flip direction + confirmation line + remove */}
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/60">
+                      <button
+                        type="button"
+                        onClick={() => updateUnit(i, 'direction', u.direction === 'bigger' ? 'smaller' : 'bigger')}
+                        disabled={loading}
+                        className="text-[11px] text-muted-foreground hover:text-foreground transition-colors min-h-[36px] px-2"
+                      >
+                        ⇄ Flip — {u.direction === 'bigger' ? `it’s smaller than a ${u.basedOn || baseUnit || 'base unit'}` : `it’s bigger than a ${u.basedOn || baseUnit || 'base unit'}`}
+                      </button>
+                      <button
+                        onClick={() => removeUnit(i)}
+                        aria-label="Remove"
+                        className="min-h-[36px] min-w-[36px] p-1.5 rounded-lg text-muted-foreground hover:text-red-500 dark:hover:text-red-400 hover:bg-muted transition-colors flex items-center justify-center"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Confirmation: walk the chain down to the sellable unit */}
+                    {u.name.trim() && u.count > 0 && baseUnit && (() => {
                       const baseRatio = getBaseRatio(u.name)
-                      const nestsSmaller = u.basedOn && u.basedOn !== baseUnit
+                      if (!baseRatio || baseRatio === 1) return null
+                      const rhsLabel = u.basedOn || baseUnit
+                      const showExpansion = u.basedOn && u.basedOn !== baseUnit && baseRatio !== u.count
                       return (
                         <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
-                          ✓ 1 {u.name} = {u.count} {u.basedOn || baseUnit || 'units'}
-                          {nestsSmaller && baseUnit && baseRatio !== u.count && (
-                            <span className="text-muted-foreground"> = {baseRatio.toLocaleString()} {baseUnit}</span>
+                          {u.direction === 'bigger' ? (
+                            <>✓ 1 {u.name} = {u.count.toLocaleString()} {rhsLabel}{showExpansion && <span className="text-muted-foreground"> = {baseRatio.toLocaleString()} {baseUnit}</span>}</>
+                          ) : (
+                            <>✓ {u.count.toLocaleString()} {u.name} = 1 {rhsLabel}{showExpansion && <span className="text-muted-foreground"> · 1 {baseUnit} = {baseRatio.toLocaleString()} {u.name}</span>}</>
                           )}
                         </p>
                       )
                     })()}
                   </div>
-                  <button onClick={() => removeUnit(i)}
-                    className="w-full min-h-[44px] py-2.5 rounded-xl text-sm text-muted-foreground hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-1.5">
-                    <XMarkIcon className="w-4 h-4" />Remove
-                  </button>
-                </div>
-              ))}
+                )
+              })}
               <button onClick={addUnit} disabled={loading}
                 className="w-full min-h-[44px] py-2.5 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground font-medium hover:text-foreground hover:border-foreground/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                <PlusIcon className="w-4 h-4" />Add another unit
+                <PlusIcon className="w-4 h-4" />Add another relation
               </button>
             </div>
           )}
@@ -361,7 +459,13 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                             step.unitName === u.name ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500' : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
                           }`}
                         >
-                          {u.name} ({getBaseRatio(u.name).toLocaleString()} {baseUnit}/ea)
+                          {u.name} ({(() => {
+                            // Display nicely whether smaller ('14 per base') or bigger ('20 base/ea')
+                            const r = getBaseRatio(u.name)
+                            if (r >= 1) return `${Number.isInteger(r) ? r.toLocaleString() : r.toFixed(2)} ${baseUnit}/ea`
+                            if (r > 0) return `${Math.round(1 / r).toLocaleString()} per ${baseUnit}`
+                            return ''
+                          })()})
                         </button>
                       ))}
                     </div>

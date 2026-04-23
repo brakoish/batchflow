@@ -147,7 +147,9 @@ model RecipeUnit {
   recipeId    String
   recipe      Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   name        String
-  ratio       Int           @default(1)
+  // Base units per 1 of this unit. Float so fractional "smaller-than-base"
+  // units are expressible (e.g. a Pre-roll in a Tin-based recipe is ratio 1/14).
+  ratio       Float         @default(1)
   order       Int           @default(0)
   steps       RecipeStep[]
 
@@ -258,7 +260,8 @@ model BatchStep {
   order             Int
   type              StepType      @default(COUNT)
   unitLabel         String        @default("units")
-  unitRatio         Int           @default(1)
+  // Base units per 1 of this step's unit. Float for the same reason as RecipeUnit.ratio.
+  unitRatio         Float         @default(1)
   targetQuantity    Int?
   completedQuantity Int           @default(0)
   status            StepStatus    @default(LOCKED)
