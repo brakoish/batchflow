@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
-type UnitDef = { name: string; count: number }
+// basedOn: name of the unit this count is expressed in.
+//  - '' (empty) means the base unit (e.g. 'Pre-rolls').
+//  - Another packaging unit's name nests the ratio (e.g. Case basedOn='Tins', count=20).
+type UnitDef = { name: string; count: number; basedOn?: string }
 type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
 
 type EditRecipe = {
@@ -19,9 +22,13 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const [name, setName] = useState(editRecipe?.name || '')
   const [description, setDescription] = useState(editRecipe?.description || '')
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || '')
+  // When editing an existing recipe we only have the flat base-unit ratio,
+  // not the chain. Default basedOn='' (base unit) and surface the raw count;
+  // users can switch basedOn on the fly to re-express it without needing a
+  // data migration.
   const [units, setUnits] = useState<UnitDef[]>(
     editRecipe?.units.length
-      ? editRecipe.units.map(u => ({ name: u.name, count: u.ratio }))
+      ? editRecipe.units.map(u => ({ name: u.name, count: u.ratio, basedOn: '' }))
       : []
   )
   const [steps, setSteps] = useState<StepDef[]>(
@@ -39,10 +46,39 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const router = useRouter()
 
   // Unit helpers
-  const addUnit = () => { haptic('light'); setUnits([...units, { name: '', count: 1 }]) }
-  const removeUnit = (i: number) => setUnits(units.filter((_, idx) => idx !== i))
+  const addUnit = () => { haptic('light'); setUnits([...units, { name: '', count: 1, basedOn: '' }]) }
+  const removeUnit = (i: number) => {
+    const removed = units[i]
+    // If any later unit was based on this one, fall them back to the base unit
+    // so we don't leave dangling references.
+    const next = units
+      .filter((_, idx) => idx !== i)
+      .map(u => (u.basedOn === removed?.name ? { ...u, basedOn: '' } : u))
+    setUnits(next)
+  }
   const updateUnit = (i: number, field: string, value: any) => {
-    const u = [...units]; (u[i] as any)[field] = value; setUnits(u)
+    const u = [...units]; (u[i] as any)[field] = value
+    // If a user renamed a unit that later units depend on, update their basedOn
+    // to match so the chain stays intact.
+    if (field === 'name') {
+      const oldName = units[i].name
+      for (let j = i + 1; j < u.length; j++) {
+        if (u[j].basedOn === oldName) u[j].basedOn = value
+      }
+    }
+    setUnits(u)
+  }
+
+  // Options for a unit's basedOn dropdown:
+  //  - the base unit, plus any packaging unit defined *before* this one.
+  // Only earlier units are offered so we can't form circular references.
+  const basedOnOptions = (i: number): { value: string; label: string }[] => {
+    const opts = [{ value: '', label: baseUnit || 'base unit' }]
+    for (let j = 0; j < i; j++) {
+      const u = units[j]
+      if (u.name.trim()) opts.push({ value: u.name, label: u.name })
+    }
+    return opts
   }
 
   // Step helpers
@@ -58,10 +94,24 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     const s = [...steps]; [s[i], s[t]] = [s[t], s[i]]; setSteps(s)
   }
 
+  // How many base units are in one of `unitName`. Walks the basedOn chain so
+  // a Case based on 20 Tins, with 14 pre-rolls per Tin, resolves to 280.
+  // Guard with a seen set so a malformed cycle can't loop forever.
   const getBaseRatio = (unitName: string): number => {
     if (!unitName || unitName === baseUnit) return 1
-    const u = units.find(x => x.name === unitName)
-    return u?.count || 1
+    const seen = new Set<string>()
+    let currentName: string | undefined = unitName
+    let ratio = 1
+    while (currentName && !seen.has(currentName)) {
+      seen.add(currentName)
+      const u = units.find(x => x.name === currentName)
+      if (!u) break
+      ratio *= u.count || 1
+      // '' basedOn means we're anchored to the base unit — stop climbing.
+      if (!u.basedOn) break
+      currentName = u.basedOn
+    }
+    return ratio
   }
 
   const handleSubmit = async () => {
@@ -144,7 +194,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             Do you pack {baseUnit || 'items'} into cases, boxes, or trays? Add them here so some steps can count by the bigger unit instead.
           </p>
           <p className="text-xs text-muted-foreground/60 mb-4">
-            Example: If you pack 20 {baseUnit || 'bags'} per case, add a &quot;Cases&quot; unit = 20. Then a &quot;Case Up&quot; step can count by cases instead of individual {baseUnit || 'bags'}.
+            Example: If you pack 14 {baseUnit || 'pre-rolls'} per tin, add a &quot;Tins&quot; unit counted in {baseUnit || 'pre-rolls'} = 14. Then add a &quot;Cases&quot; unit counted in Tins = 20 — the app does the math (1 Case = 280 {baseUnit || 'pre-rolls'}).
           </p>
 
           {units.length === 0 ? (
@@ -162,18 +212,46 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                       placeholder="e.g., Cases, Boxes, Trays, Pallets" disabled={loading}
                       className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
                   </div>
+                  {/* What smaller unit does this count in terms of?
+                      Only shown when there's at least one earlier packaging unit
+                      to pick from — otherwise the base unit is the only choice. */}
+                  {basedOnOptions(i).length > 1 && (
+                    <div>
+                      <label className="text-xs text-muted-foreground font-medium block mb-1.5">
+                        Counted in
+                      </label>
+                      <select
+                        value={u.basedOn || ''}
+                        onChange={(e) => updateUnit(i, 'basedOn', e.target.value)}
+                        disabled={loading}
+                        className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-base focus:outline-none focus:border-emerald-500 transition-all"
+                      >
+                        {basedOnOptions(i).map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div>
                     <label className="text-xs text-muted-foreground font-medium block mb-1.5">
-                      How many {baseUnit || 'units'} fit in one {u.name.trim() || 'of these'}?
+                      How many {u.basedOn?.trim() || baseUnit || 'units'} fit in one {u.name.trim() || 'of these'}?
                     </label>
                     <input type="number" inputMode="numeric" value={u.count} onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
                       min="1" disabled={loading}
                       className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-lg font-semibold tabular-nums focus:outline-none focus:border-emerald-500 transition-all" />
-                    {u.name.trim() && u.count > 1 && (
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
-                        ✓ 1 {u.name} = {u.count} {baseUnit || 'units'}
-                      </p>
-                    )}
+                    {u.name.trim() && u.count > 1 && (() => {
+                      const baseRatio = getBaseRatio(u.name)
+                      const nestsSmaller = u.basedOn && u.basedOn !== baseUnit
+                      return (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+                          ✓ 1 {u.name} = {u.count} {u.basedOn || baseUnit || 'units'}
+                          {nestsSmaller && baseUnit && baseRatio !== u.count && (
+                            <span className="text-muted-foreground"> = {baseRatio.toLocaleString()} {baseUnit}</span>
+                          )}
+                        </p>
+                      )
+                    })()}
                   </div>
                   <button onClick={() => removeUnit(i)}
                     className="w-full min-h-[44px] py-2.5 rounded-xl text-sm text-muted-foreground hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-1.5">
@@ -279,7 +357,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                             step.unitName === u.name ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500' : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
                           }`}
                         >
-                          {u.name} ({u.count} {baseUnit}/ea)
+                          {u.name} ({getBaseRatio(u.name).toLocaleString()} {baseUnit}/ea)
                         </button>
                       ))}
                     </div>
