@@ -20,12 +20,14 @@ export default async function DashboardPage() {
     orderBy: { startDate: 'desc' },
   })
 
-  // Fetch both progress logs and audit logs
+  // Fetch both progress logs and audit logs (org-scoped)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
   const [progressLogs, auditLogs] = await Promise.all([
     prisma.progressLog.findMany({
       where: {
-        createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        createdAt: { gte: sevenDaysAgo },
+        batchStep: {
+          batch: { organizationId: session.organizationId },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -36,11 +38,10 @@ export default async function DashboardPage() {
     }),
     prisma.logAudit.findMany({
       where: {
-        createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        },
-        action: {
-          in: ['edit', 'delete'],
+        createdAt: { gte: sevenDaysAgo },
+        action: { in: ['edit', 'delete'] },
+        batchStep: {
+          batch: { organizationId: session.organizationId },
         },
       },
       orderBy: { createdAt: 'desc' },

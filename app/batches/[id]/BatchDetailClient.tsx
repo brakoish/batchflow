@@ -12,6 +12,7 @@ import {
   DocumentDuplicateIcon,
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
+import { formatTimeInTz, formatDateInTz } from '@/lib/timezone'
 import type { Session } from '@/lib/session'
 
 type Worker = { id: string; name: string }
@@ -110,9 +111,9 @@ function QuickAddButtons({ remaining, current, onAdd }: { remaining: number | nu
 }
 
 export default function BatchDetailClient({
-  batch: initialBatch, workers, session,
+  batch: initialBatch, workers, session, orgTimezone,
 }: {
-  batch: Batch; workers: { id: string; name: string }[]; session: Session
+  batch: Batch; workers: { id: string; name: string }[]; session: Session; orgTimezone: string
 }) {
   const [batch, setBatch] = useState(initialBatch)
   const [selectedStep, setSelectedStep] = useState<BatchStep | null>(null)
@@ -589,17 +590,23 @@ export default function BatchDetailClient({
 
   const formatLogTimestamp = (dateStr: string) => {
     const date = new Date(dateStr)
-    const now = new Date()
-    const isToday = date.toDateString() === now.toDateString()
+    // Compare "today" in the org's timezone, not the browser's
+    const todayInOrgTz = formatDateInTz(new Date(), orgTimezone)
+    const dateInOrgTz = formatDateInTz(date, orgTimezone)
+    const isToday = todayInOrgTz === dateInOrgTz
 
-    const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const timeStr = formatTimeInTz(date, orgTimezone)
 
     if (isToday) {
       return timeStr
-    } else {
-      const monthDay = date.toLocaleDateString([], { month: 'short', day: 'numeric' })
-      return `${monthDay} · ${timeStr}`
     }
+    // Short month/day in org tz (e.g., "Apr 23")
+    const monthDay = new Intl.DateTimeFormat('en-US', {
+      timeZone: orgTimezone,
+      month: 'short',
+      day: 'numeric',
+    }).format(date)
+    return `${monthDay} · ${timeStr}`
   }
 
   return (

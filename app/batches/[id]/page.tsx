@@ -52,11 +52,14 @@ export default async function BatchDetailPage({
     redirect('/batches')
   }
 
+  const orgTimezone = organization?.timezone || 'America/New_York'
+
   return (
     <BatchDetailClient
       batch={JSON.parse(JSON.stringify(batch))}
       workers={JSON.parse(JSON.stringify(workers))}
       session={session}
+      orgTimezone={orgTimezone}
     />
   )
 }
