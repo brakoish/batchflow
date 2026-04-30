@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
+import EditBatchModal from '@/app/components/EditBatchModal'
 import {
   CheckCircleIcon,
   CheckIcon,
@@ -142,20 +143,9 @@ export default function BatchDetailClient({
   const [editingLog, setEditingLog] = useState<ProgressLog | null>(null)
   const [editQuantity, setEditQuantity] = useState('')
   const [editNote, setEditNote] = useState('')
-  
+
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
-  const [editName, setEditName] = useState(batch.name)
-  const [editIsOpenEnded, setEditIsOpenEnded] = useState(batch.targetQuantity === null)
-  const [editTargetQty, setEditTargetQty] = useState(batch.targetQuantity?.toString() || '')
-  const [editPriority, setEditPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>((batch as any).priority || 'NORMAL')
-  const [editDueDate, setEditDueDate] = useState(batch.dueDate?.split('T')[0] || '')
-  const [editMetrcBatchId, setEditMetrcBatchId] = useState(batch.metrcBatchId || '')
-  const [editLotNumber, setEditLotNumber] = useState(batch.lotNumber || '')
-  const [editStrain, setEditStrain] = useState(batch.strain || '')
-  const [editPackageTag, setEditPackageTag] = useState(batch.packageTag || '')
-  const [editNotes, setEditNotes] = useState(batch.notes || '')
-  const [editWorkerIds, setEditWorkerIds] = useState<string[]>(batch.assignments?.map(a => a.worker.id) || [])
 
   // Duplicate modal state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
@@ -413,51 +403,6 @@ export default function BatchDetailClient({
     finally { setLoading(false) }
   }
 
-  const handleEditSave = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch(`/api/batches/${batch.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editName,
-          targetQuantity: editIsOpenEnded ? null : parseInt(editTargetQty),
-          priority: editPriority,
-          dueDate: editDueDate || undefined,
-          workerIds: editWorkerIds,
-          metrcBatchId: editMetrcBatchId || undefined,
-          lotNumber: editLotNumber || undefined,
-          strain: editStrain || undefined,
-          packageTag: editPackageTag || undefined,
-          notes: editNotes,
-        }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: 'Server error' }))
-        setError(data.error || 'Failed to save changes')
-        return
-      }
-      const data = await res.json()
-      setBatch(data.batch)
-      setShowEditModal(false)
-      lastSaveTsRef.current = Date.now()
-      showToast('Batch updated')
-      // Force a full refetch to ensure steps/targets are in sync
-      try {
-        const refetch = await fetch(`/api/batches/${batch.id}`, { cache: "no-store" })
-        if (refetch.ok) {
-          const fresh = await refetch.json()
-          if (fresh.batch) setBatch(fresh.batch)
-        }
-      } catch {}
-      emitBatchChanged(batch.id, 'edit')
-
-    } catch (err) {
-      setError('Network error. Please check your connection.')
-    }
-    finally { setLoading(false) }
-  }
 
   const handleOpenDuplicate = () => {
     haptic('light')
@@ -816,21 +761,7 @@ export default function BatchDetailClient({
                 </button>
               )}
               {session.role === 'OWNER' && (
-                <button onClick={() => {
-                  // Re-sync edit fields from the latest batch before opening
-                  setEditName(batch.name)
-                  setEditIsOpenEnded(batch.targetQuantity === null)
-                  setEditTargetQty(batch.targetQuantity?.toString() || '')
-                  setEditPriority((batch as any).priority || 'NORMAL')
-                  setEditDueDate(batch.dueDate?.split('T')[0] || '')
-                  setEditMetrcBatchId(batch.metrcBatchId || '')
-                  setEditLotNumber(batch.lotNumber || '')
-                  setEditStrain(batch.strain || '')
-                  setEditPackageTag(batch.packageTag || '')
-                  setEditNotes(batch.notes || '')
-                  setEditWorkerIds(batch.assignments?.map(a => a.worker.id) || [])
-                  setShowEditModal(true)
-                }}
+                <button onClick={() => setShowEditModal(true)}
                   className="px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground/80 text-xs font-medium transition-all">
                   Edit Batch
                 </button>
@@ -1394,234 +1325,23 @@ export default function BatchDetailClient({
       )}
 
       {/* Edit Batch Modal */}
-      {showEditModal && session.role === 'OWNER' && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
-          <div
-            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-sm font-semibold text-foreground">Edit Batch</p>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Form */}
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Batch Type</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { haptic('medium'); setEditIsOpenEnded(false) }}
-                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
-                        !editIsOpenEnded
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
-                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
-                      }`}
-                    >
-                      Fixed target
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { haptic('medium'); setEditIsOpenEnded(true) }}
-                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
-                        editIsOpenEnded
-                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
-                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
-                      }`}
-                    >
-                      Open — count as we go
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
-                  <input
-                    type="number"
-                    value={editTargetQty}
-                    onChange={(e) => setEditTargetQty(e.target.value)}
-                    min="1"
-                    disabled={editIsOpenEnded}
-                    placeholder={editIsOpenEnded ? 'Open-ended' : '0'}
-                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all disabled:opacity-40"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-2">Priority</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { haptic('light'); setEditPriority('LOW') }}
-                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
-                        editPriority === 'LOW'
-                          ? 'bg-muted/80 text-muted-foreground border-2 border-border'
-                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
-                      }`}
-                    >
-                      Low
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { haptic('light'); setEditPriority('NORMAL') }}
-                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
-                        editPriority === 'NORMAL'
-                          ? 'bg-muted/80 text-foreground border-2 border-foreground/30'
-                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
-                      }`}
-                    >
-                      Normal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { haptic('light'); setEditPriority('HIGH') }}
-                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
-                        editPriority === 'HIGH'
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
-                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
-                      }`}
-                    >
-                      High
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { haptic('light'); setEditPriority('URGENT') }}
-                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
-                        editPriority === 'URGENT'
-                          ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
-                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
-                      }`}
-                    >
-                      Urgent
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Due Date</label>
-                  <input
-                    type="date"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                  />
-                </div>
-
-                {/* METRC Fields */}
-                <div className="rounded-lg bg-muted/50 border border-input p-3 space-y-2">
-                  <p className="text-[10px] text-foreground font-semibold uppercase tracking-wider">METRC Fields</p>
-                  <input
-                    type="text"
-                    value={editMetrcBatchId}
-                    onChange={(e) => setEditMetrcBatchId(e.target.value)}
-                    placeholder="METRC Batch ID"
-                    className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                  />
-                  <input
-                    type="text"
-                    value={editLotNumber}
-                    onChange={(e) => setEditLotNumber(e.target.value)}
-                    placeholder="Lot Number"
-                    className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                  />
-                  <input
-                    type="text"
-                    value={editStrain}
-                    onChange={(e) => setEditStrain(e.target.value)}
-                    placeholder="Strain"
-                    className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                  />
-                  <input
-                    type="text"
-                    value={editPackageTag}
-                    onChange={(e) => setEditPackageTag(e.target.value)}
-                    placeholder="Package Tag"
-                    className="w-full px-3 py-2 rounded-md bg-card border border-input text-foreground text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                  />
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Notes</label>
-                  <textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value.slice(0, 2000))}
-                    rows={3}
-                    placeholder="Anything the team should know (e.g. flower came in wet, add 1h dry time)"
-                    autoCapitalize="sentences"
-                    inputMode="text"
-                    className="w-full min-h-[88px] px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all resize-y"
-                  />
-                  <p className="mt-1 text-[10px] text-muted-foreground/70 text-right tabular-nums">{editNotes.length}/2000</p>
-                </div>
-
-                {/* Assigned Workers */}
-                <div>
-                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-2">Assigned Workers</label>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto rounded-lg bg-muted/50 border border-input p-2">
-                    {workers.map((w) => {
-                      const on = editWorkerIds.includes(w.id)
-                      return (
-                        <button
-                          key={w.id}
-                          type="button"
-                          onClick={() => {
-                            haptic('light')
-                            setEditWorkerIds(prev =>
-                              prev.includes(w.id) ? prev.filter(id => id !== w.id) : [...prev, w.id]
-                            )
-                          }}
-                          className={`w-full flex items-center gap-2 px-3 py-2.5 min-h-[40px] rounded-md text-xs font-medium transition-all active:scale-[0.97] ${
-                            on
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                              : 'bg-card text-muted-foreground hover:bg-muted'
-                          }`}
-                        >
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                            on ? 'border-emerald-500 bg-emerald-500' : 'border-muted-foreground'
-                          }`}>
-                            {on && <CheckIcon className="w-2.5 h-2.5 text-white" />}
-                          </div>
-                          <span className="text-sm">{w.name}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {error && <p className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
-
-                <button
-                  onClick={handleEditSave}
-                  disabled={loading || !editName.trim() || (!editIsOpenEnded && (!editTargetQty || parseInt(editTargetQty) <= 0))}
-                  className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
-                >
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {session.role === 'OWNER' && (
+        <EditBatchModal
+          batch={showEditModal ? batch : null}
+          workers={workers}
+          onClose={() => setShowEditModal(false)}
+          onSaved={(updated) => {
+            setBatch(updated as Batch)
+            lastSaveTsRef.current = Date.now()
+            showToast('Batch updated')
+            // Force a full refetch to ensure steps/targets are in sync
+            fetch(`/api/batches/${batch.id}`, { cache: "no-store" })
+              .then(res => res.ok ? res.json() : null)
+              .then(fresh => { if (fresh?.batch) setBatch(fresh.batch) })
+              .catch(() => {})
+            emitBatchChanged(updated.id, 'edit')
+          }}
+        />
       )}
     </AppShell>
   )
