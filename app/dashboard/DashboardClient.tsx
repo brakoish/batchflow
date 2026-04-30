@@ -63,6 +63,7 @@ export default function DashboardClient({
   const [editMetrcBatchId, setEditMetrcBatchId] = useState('')
   const [editPackageTag, setEditPackageTag] = useState('')
   const [editNotes, setEditNotes] = useState('')
+  const [editPriority, setEditPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>('NORMAL')
   const [editShowMetrc, setEditShowMetrc] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
@@ -87,6 +88,7 @@ export default function DashboardClient({
       setEditMetrcBatchId((editingBatch as any).metrcBatchId || '')
       setEditPackageTag((editingBatch as any).packageTag || '')
       setEditNotes(editingBatch.notes || '')
+      setEditPriority(((editingBatch as any).priority as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT') || 'NORMAL')
       setEditShowMetrc(false)
       setEditWorkerIds(editingBatch.assignments?.map(a => a.worker.id) || [])
       setEditError('')
@@ -111,6 +113,7 @@ export default function DashboardClient({
           metrcBatchId: editMetrcBatchId || undefined,
           packageTag: editPackageTag || undefined,
           notes: editNotes,
+          priority: editPriority,
           workerIds: editWorkerIds,
         }),
       })
@@ -685,6 +688,57 @@ export default function DashboardClient({
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Due Date</label>
                   <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-lg bg-muted border border-input text-foreground text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1.5">Priority</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditPriority('LOW')}
+                      className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        editPriority === 'LOW'
+                          ? 'bg-muted/80 text-muted-foreground border-2 border-border'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Low
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditPriority('NORMAL')}
+                      className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        editPriority === 'NORMAL'
+                          ? 'bg-muted/80 text-foreground border-2 border-foreground/30'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Normal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditPriority('HIGH')}
+                      className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        editPriority === 'HIGH'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      High
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditPriority('URGENT')}
+                      className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        editPriority === 'URGENT'
+                          ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Urgent
+                    </button>
+                  </div>
                 </div>
 
                 {/* Notes */}
