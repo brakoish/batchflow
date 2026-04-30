@@ -44,10 +44,15 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireSupervisorOrOwner()
 
-    const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes } = await request.json()
+    const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes, priority } = await request.json()
 
     if (!recipeId || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Validate priority if provided
+    if (priority && !['LOW', 'NORMAL', 'HIGH', 'URGENT'].includes(priority)) {
+      return NextResponse.json({ error: 'Invalid priority value' }, { status: 400 })
     }
 
     const recipe = await prisma.recipe.findUnique({
@@ -74,6 +79,7 @@ export async function POST(request: NextRequest) {
         name,
         targetQuantity: targetQuantity ?? null,
         baseUnit: recipe.baseUnit,
+        priority: priority || 'NORMAL',
         organizationId: session.user.organizationId,
         startDate: startDate ? new Date(startDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : undefined,

@@ -10,6 +10,7 @@ import {
   XMarkIcon,
   ChatBubbleLeftRightIcon,
   DocumentDuplicateIcon,
+  FlagIcon,
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { formatTimeInTz, formatDateInTz } from '@/lib/timezone'
@@ -147,6 +148,7 @@ export default function BatchDetailClient({
   const [editName, setEditName] = useState(batch.name)
   const [editIsOpenEnded, setEditIsOpenEnded] = useState(batch.targetQuantity === null)
   const [editTargetQty, setEditTargetQty] = useState(batch.targetQuantity?.toString() || '')
+  const [editPriority, setEditPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>((batch as any).priority || 'NORMAL')
   const [editDueDate, setEditDueDate] = useState(batch.dueDate?.split('T')[0] || '')
   const [editMetrcBatchId, setEditMetrcBatchId] = useState(batch.metrcBatchId || '')
   const [editLotNumber, setEditLotNumber] = useState(batch.lotNumber || '')
@@ -160,6 +162,7 @@ export default function BatchDetailClient({
   const [duplicateName, setDuplicateName] = useState('')
   const [duplicateIsOpenEnded, setDuplicateIsOpenEnded] = useState(batch.targetQuantity === null)
   const [duplicateTargetQty, setDuplicateTargetQty] = useState('')
+  const [duplicatePriority, setDuplicatePriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>((batch as any).priority || 'NORMAL')
   const [duplicateStrain, setDuplicateStrain] = useState('')
   const [duplicating, setDuplicating] = useState(false)
 
@@ -420,6 +423,7 @@ export default function BatchDetailClient({
         body: JSON.stringify({
           name: editName,
           targetQuantity: editIsOpenEnded ? null : parseInt(editTargetQty),
+          priority: editPriority,
           dueDate: editDueDate || undefined,
           workerIds: editWorkerIds,
           metrcBatchId: editMetrcBatchId || undefined,
@@ -460,6 +464,7 @@ export default function BatchDetailClient({
     setDuplicateName(`${batch.name} (copy)`)
     setDuplicateIsOpenEnded(batch.targetQuantity === null)
     setDuplicateTargetQty(batch.targetQuantity?.toString() || '')
+    setDuplicatePriority((batch as any).priority || 'NORMAL')
     setDuplicateStrain(batch.strain || '')
     setShowDuplicateModal(true)
     setError('')
@@ -488,6 +493,7 @@ export default function BatchDetailClient({
           recipeId: batch.recipe.id,
           name: duplicateName,
           targetQuantity: isOpenEnded ? null : parseInt(duplicateTargetQty),
+          priority: duplicatePriority,
           strain: duplicateStrain || undefined,
           workerIds: batch.assignments?.map(a => a.worker.id) || [],
         }),
@@ -687,6 +693,35 @@ export default function BatchDetailClient({
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-foreground">{batch.recipe.name}</span>
             <span className="text-muted-foreground/30">·</span>
+            {(() => {
+              const priority = (batch as any).priority || 'NORMAL'
+              if (priority === 'URGENT') {
+                return (
+                  <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20">
+                    <FlagIcon className="w-3 h-3" />
+                    Urgent
+                  </span>
+                )
+              }
+              if (priority === 'HIGH') {
+                return (
+                  <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    <FlagIcon className="w-3 h-3" />
+                    High
+                  </span>
+                )
+              }
+              if (priority === 'LOW') {
+                return (
+                  <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    <FlagIcon className="w-3 h-3" />
+                    Low
+                  </span>
+                )
+              }
+              return null
+            })()}
+            {(batch as any).priority === 'URGENT' || (batch as any).priority === 'HIGH' || (batch as any).priority === 'LOW' ? <span className="text-muted-foreground/30">·</span> : null}
             {isOpenEnded ? (
               <>
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">Open</span>
@@ -786,6 +821,7 @@ export default function BatchDetailClient({
                   setEditName(batch.name)
                   setEditIsOpenEnded(batch.targetQuantity === null)
                   setEditTargetQty(batch.targetQuantity?.toString() || '')
+                  setEditPriority((batch as any).priority || 'NORMAL')
                   setEditDueDate(batch.dueDate?.split('T')[0] || '')
                   setEditMetrcBatchId(batch.metrcBatchId || '')
                   setEditLotNumber(batch.lotNumber || '')
@@ -1278,6 +1314,56 @@ export default function BatchDetailClient({
                 </div>
 
                 <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-2">Priority</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { haptic('light'); setDuplicatePriority('LOW') }}
+                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        duplicatePriority === 'LOW'
+                          ? 'bg-muted/80 text-muted-foreground border-2 border-border'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Low
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { haptic('light'); setDuplicatePriority('NORMAL') }}
+                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        duplicatePriority === 'NORMAL'
+                          ? 'bg-muted/80 text-foreground border-2 border-foreground/30'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Normal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { haptic('light'); setDuplicatePriority('HIGH') }}
+                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        duplicatePriority === 'HIGH'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      High
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { haptic('light'); setDuplicatePriority('URGENT') }}
+                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        duplicatePriority === 'URGENT'
+                          ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Urgent
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Strain (Optional)</label>
                   <input
                     type="text"
@@ -1379,6 +1465,56 @@ export default function BatchDetailClient({
                     placeholder={editIsOpenEnded ? 'Open-ended' : '0'}
                     className="w-full px-3 py-2 rounded-lg bg-muted border border-input text-foreground text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all disabled:opacity-40"
                   />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-2">Priority</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { haptic('light'); setEditPriority('LOW') }}
+                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        editPriority === 'LOW'
+                          ? 'bg-muted/80 text-muted-foreground border-2 border-border'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Low
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { haptic('light'); setEditPriority('NORMAL') }}
+                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        editPriority === 'NORMAL'
+                          ? 'bg-muted/80 text-foreground border-2 border-foreground/30'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Normal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { haptic('light'); setEditPriority('HIGH') }}
+                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        editPriority === 'HIGH'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      High
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { haptic('light'); setEditPriority('URGENT') }}
+                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                        editPriority === 'URGENT'
+                          ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
+                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      }`}
+                    >
+                      Urgent
+                    </button>
+                  </div>
                 </div>
 
                 <div>

@@ -106,11 +106,17 @@ export async function PATCH(
     }
     
     // Handle full batch edits
-    const { name, targetQuantity, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes } = body
-    
+    const { name, targetQuantity, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes, priority } = body
+
+    // Validate priority if provided
+    if (priority && !['LOW', 'NORMAL', 'HIGH', 'URGENT'].includes(priority)) {
+      return NextResponse.json({ error: 'Invalid priority value' }, { status: 400 })
+    }
+
     // Build update data
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
+    if (priority !== undefined) updateData.priority = priority
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null
     if (metrcBatchId !== undefined) updateData.metrcBatchId = metrcBatchId || null
     if (lotNumber !== undefined) updateData.lotNumber = lotNumber || null

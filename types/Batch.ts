@@ -8,6 +8,16 @@ export enum BatchStatus {
 }
 
 /**
+ * BatchPriority - Priority level for a batch
+ */
+export enum BatchPriority {
+  LOW = 'LOW',
+  NORMAL = 'NORMAL',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+}
+
+/**
  * Batch - A production run of a recipe
  */
 export interface Batch {
@@ -28,6 +38,9 @@ export interface Batch {
 
   /** Current status of the batch */
   status: BatchStatus;
+
+  /** Priority level of the batch */
+  priority: BatchPriority;
 
   /** When the batch was started */
   startDate: Date;

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
-import { ChevronRightIcon } from '@heroicons/react/24/solid'
+import { ChevronRightIcon, FlagIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
@@ -30,7 +30,8 @@ export default function BatchListClient({
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(!initialBatches.length)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'newest' | 'dueDate' | 'progress'>('newest')
+  const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
+  const [priorityFilter, setPriorityFilter] = useState(false)
 
   const fetchData = async (showLoading = false) => {
     if (showLoading) setRefreshing(true)
@@ -148,10 +149,22 @@ export default function BatchListClient({
               aria-label="Sort batches"
               className="shrink-0 min-h-[44px] px-3 rounded-lg bg-muted/50 border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             >
+              <option value="priority">Priority</option>
               <option value="newest">Newest</option>
               <option value="dueDate">Due date</option>
               <option value="progress">Progress</option>
             </select>
+            <button
+              onClick={() => { haptic('light'); setPriorityFilter(!priorityFilter) }}
+              className={`shrink-0 flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg border text-sm font-medium transition-all active:scale-[0.96] ${
+                priorityFilter
+                  ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
+                  : 'bg-muted/50 border-input text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <FlagIcon className="w-4 h-4" />
+              {priorityFilter ? 'All' : 'High+'}
+            </button>
           </div>
         </div>
 
@@ -163,19 +176,41 @@ export default function BatchListClient({
             ))}
           </div>
         ) : (() => {
-            const filteredBatches = batches.filter((b) => {
+            let filteredBatches = batches.filter((b) => {
               const query = searchQuery.toLowerCase()
-              return (
+              const matchesSearch = (
                 b.name.toLowerCase().includes(query) ||
                 b.recipe.name.toLowerCase().includes(query) ||
                 (b.strain && b.strain.toLowerCase().includes(query))
               )
+              if (!matchesSearch) return false
+
+              // Priority filter: only HIGH or URGENT
+              if (priorityFilter) {
+                const priority = (b as any).priority || 'NORMAL'
+                return priority === 'HIGH' || priority === 'URGENT'
+              }
+              return true
             })
 
-            // Apply sort. 'newest' is the default API order (startDate desc)
-            // so we leave it untouched. Dashboard uses identical rules — keep
+            // Apply sort. Dashboard uses identical rules — keep
             // these two surfaces in sync when tweaking.
-            if (sortBy === 'dueDate') {
+            if (sortBy === 'priority') {
+              const priorityOrder: Record<string, number> = { URGENT: 4, HIGH: 3, NORMAL: 2, LOW: 1 }
+              filteredBatches.sort((a, b) => {
+                const aPriority = (a as any).priority || 'NORMAL'
+                const bPriority = (b as any).priority || 'NORMAL'
+                const diff = priorityOrder[bPriority] - priorityOrder[aPriority]
+                // Secondary sort by dueDate for same priority
+                if (diff !== 0) return diff
+                const aDate = a.dueDate ? new Date(a.dueDate.split('T')[0] + 'T00:00:00') : null
+                const bDate = b.dueDate ? new Date(b.dueDate.split('T')[0] + 'T00:00:00') : null
+                if (!aDate && !bDate) return 0
+                if (!aDate) return 1
+                if (!bDate) return -1
+                return aDate.getTime() - bDate.getTime()
+              })
+            } else if (sortBy === 'dueDate') {
               const today = new Date()
               today.setHours(0, 0, 0, 0)
               filteredBatches.sort((a, b) => {
@@ -220,12 +255,16 @@ export default function BatchListClient({
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const pct = Math.round((completedSteps / batch.steps.length) * 100)
               const isMyTurn = !!firstIncomplete
+              const priority = (batch as any).priority || 'NORMAL'
+              const isUrgent = priority === 'URGENT'
 
               return (
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className="block bg-card border border-border rounded-xl p-5 hover:border-primary/30 active:scale-[0.99] transition-all duration-150"
+                  className={`block bg-card border rounded-xl p-5 hover:border-primary/30 active:scale-[0.99] transition-all duration-150 ${
+                    isUrgent ? 'border-l-4 border-l-red-500 border-t border-r border-b border-border' : 'border-border'
+                  }`}
                 >
                   {/* Top Row */}
                   <div className="flex items-start justify-between mb-4">
@@ -264,6 +303,24 @@ export default function BatchListClient({
                     ) : (
                       <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold">
                         WAITING
+                      </span>
+                    )}
+                    {priority === 'URGENT' && (
+                      <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
+                        <FlagIcon className="w-3 h-3" />
+                        URGENT
+                      </span>
+                    )}
+                    {priority === 'HIGH' && (
+                      <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold">
+                        <FlagIcon className="w-3 h-3" />
+                        HIGH
+                      </span>
+                    )}
+                    {priority === 'LOW' && (
+                      <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs">
+                        <FlagIcon className="w-3 h-3" />
+                        Low
                       </span>
                     )}
                     {batch.strain && (

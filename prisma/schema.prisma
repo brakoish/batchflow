@@ -19,6 +19,13 @@ enum BatchStatus {
   CANCELLED
 }
 
+enum BatchPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 enum StepStatus {
   LOCKED
   IN_PROGRESS
@@ -193,6 +200,7 @@ model Batch {
   targetQuantity  Int?
   baseUnit        String        @default("units")
   status          BatchStatus   @default(ACTIVE)
+  priority        BatchPriority @default(NORMAL)
   organizationId  String
   organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   startDate       DateTime      @default(now())
@@ -214,6 +222,7 @@ model Batch {
 
   @@index([recipeId])
   @@index([status])
+  @@index([priority])
   @@index([organizationId])
 }
 

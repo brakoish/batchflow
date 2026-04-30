@@ -18,6 +18,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [name, setName] = useState('')
   const [batchType, setBatchType] = useState<'fixed' | 'open'>('fixed')
   const [targetQuantity, setTargetQuantity] = useState('')
+  const [priority, setPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>('NORMAL')
   const [selectedDueDate, setSelectedDueDate] = useState<string | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([])
@@ -66,6 +67,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         body: JSON.stringify({
           recipeId: selectedId, name,
           targetQuantity: batchType === 'open' ? null : parseInt(targetQuantity),
+          priority,
           dueDate,
           workerIds: selectedWorkers.length > 0 ? selectedWorkers : undefined,
           metrcBatchId: metrcBatchId || undefined, lotNumber: lotNumber || undefined,
@@ -165,6 +167,57 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             {batchType === 'open' && (
               <p className="text-xs text-muted-foreground/70 mt-2">Workers will log what they produce. Mark the batch done when the run is finished.</p>
             )}
+          </div>
+
+          {/* Priority */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">Priority</label>
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={() => { haptic('light'); setPriority('LOW') }}
+                disabled={loading}
+                className={`min-h-[48px] px-2 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] ${
+                  priority === 'LOW'
+                    ? 'bg-muted/80 text-muted-foreground border-2 border-border'
+                    : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                }`}
+              >
+                Low
+              </button>
+              <button
+                onClick={() => { haptic('light'); setPriority('NORMAL') }}
+                disabled={loading}
+                className={`min-h-[48px] px-2 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] ${
+                  priority === 'NORMAL'
+                    ? 'bg-muted/80 text-foreground border-2 border-foreground/30'
+                    : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                }`}
+              >
+                Normal
+              </button>
+              <button
+                onClick={() => { haptic('light'); setPriority('HIGH') }}
+                disabled={loading}
+                className={`min-h-[48px] px-2 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] ${
+                  priority === 'HIGH'
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
+                    : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                }`}
+              >
+                High
+              </button>
+              <button
+                onClick={() => { haptic('light'); setPriority('URGENT') }}
+                disabled={loading}
+                className={`min-h-[48px] px-2 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] ${
+                  priority === 'URGENT'
+                    ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
+                    : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                }`}
+              >
+                Urgent
+              </button>
+            </div>
           </div>
 
           {/* Quantity (only shown for fixed batches) */}
