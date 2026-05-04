@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "BatchFlow",
   "short_name": "BatchFlow",
   "description": "Factory production workflow tracker for cannabis processing teams",
@@ -8,16 +9,57 @@
   "theme_color": "#0A0A0F",
   "orientation": "portrait",
   "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "business"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My Batches",
+      "short_name": "Batches",
+      "description": "View your active batches",
+      "url": "/batches",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Clock In/Out",
+      "short_name": "Clock",
+      "description": "Manage your shift",
+      "url": "/shift",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Production overview",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }
