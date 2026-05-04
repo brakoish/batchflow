@@ -106,11 +106,14 @@ export async function POST(request: NextRequest) {
     clearAttempts(rateLimitKey)
 
     const cookieStore = await cookies()
+    const sevenDays = 60 * 60 * 24 * 7
     cookieStore.set('workerId', worker.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+      maxAge: sevenDays,
+      expires: new Date(Date.now() + sevenDays * 1000), // iOS PWA needs explicit expires
     })
 
     return NextResponse.json({

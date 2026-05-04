@@ -25,11 +25,14 @@ export async function GET(request: NextRequest) {
   }
 
   const cookieStore = await cookies()
+  const sevenDays = 60 * 60 * 24 * 7
   cookieStore.set('workerId', worker.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+    maxAge: sevenDays,
+    expires: new Date(Date.now() + sevenDays * 1000), // iOS PWA needs explicit expires
   })
 
   // Redirect to dashboard
