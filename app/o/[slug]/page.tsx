@@ -143,7 +143,10 @@ export default function OrgLoginPage() {
       </div>
 
       {/* PIN Dots */}
-      <div className="flex justify-center gap-3 mb-8">
+      <div
+        key={error ? `err-${error}` : 'ok'}
+        className={`flex justify-center gap-3 mb-8 ${error ? 'animate-shake' : ''}`}
+      >
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}

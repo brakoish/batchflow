@@ -466,42 +466,54 @@ export default function BatchDetailClient({
       setError('Enter a valid quantity'); return
     }
     haptic('medium')
-    setLoading(true); setError('')
+    const qty = parseInt(quantity)
+    const stepBeingLogged = selectedStep
+    const noteBeingLogged = note || undefined
+
+    // Optimistic update: close modal + apply to UI immediately so workers
+    // get instant feedback even on flaky warehouse wifi.
+    const snapshot = batch
+    setBatch(prev => ({
+      ...prev,
+      steps: prev.steps.map((s) => {
+        if (s.id === stepBeingLogged.id) {
+          const newQty = s.completedQuantity + qty
+          return { ...s, completedQuantity: newQty, status: newQty >= s.targetQuantity ? 'COMPLETED' : s.status }
+        }
+        if (s.order === stepBeingLogged.order + 1 && s.status === 'LOCKED') return { ...s, status: 'IN_PROGRESS' }
+        return s
+      }),
+    }))
+    setSelectedStep(null); setQuantity(''); setNote(''); setError('')
+    showToast(`Logged ${qty} units`)
 
     try {
-      const res = await fetch(`/api/batches/${batch.id}/steps/${selectedStep.id}/log`, {
+      const res = await fetch(`/api/batches/${batch.id}/steps/${stepBeingLogged.id}/log`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity: parseInt(quantity), note: note || undefined }),
+        body: JSON.stringify({ quantity: qty, note: noteBeingLogged }),
       })
-      if (!res.ok) { setError((await res.json()).error); return }
+      if (!res.ok) {
+        // Rollback on server rejection
+        haptic('heavy')
+        setBatch(snapshot)
+        const errMsg = (await res.json().catch(() => ({}))).error || 'Failed to log progress'
+        showToast(errMsg, 'warning')
+        return
+      }
 
       const data = await res.json()
-      const qty = parseInt(quantity)
-      setBatch(prev => ({
-        ...prev,
-        steps: prev.steps.map((s) => {
-          if (s.id === selectedStep.id) {
-            const newQty = s.completedQuantity + qty
-            return { ...s, completedQuantity: newQty, status: newQty >= s.targetQuantity ? 'COMPLETED' : s.status }
-          }
-          if (s.order === selectedStep.order + 1 && s.status === 'LOCKED') return { ...s, status: 'IN_PROGRESS' }
-          return s
-        }),
-      }))
-
       lastSaveTsRef.current = Date.now()
       emitBatchChanged(batch.id, 'log-add')
       if (data.warning) {
         showToast(data.warning, 'warning')
-      } else {
-        showToast(`Logged ${qty} units`)
       }
-      setSelectedStep(null); setQuantity(''); setNote('')
     } catch (err) {
-      setError('Network error. Please check your connection.')
+      // Network failure: rollback and warn
+      haptic('heavy')
+      setBatch(snapshot)
+      showToast('Network error — progress not saved. Try again.', 'warning')
     }
-    finally { setLoading(false) }
   }
 
   const getPrevCompleted = (order: number) => {
@@ -1066,6 +1078,8 @@ export default function BatchDetailClient({
               <input
                 ref={quantityRef}
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="Quantity"
@@ -1130,6 +1144,8 @@ export default function BatchDetailClient({
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Quantity</label>
                   <input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={editQuantity}
                     onChange={(e) => setEditQuantity(e.target.value)}
                     className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-xl font-semibold tabular-nums placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
@@ -1235,6 +1251,8 @@ export default function BatchDetailClient({
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
                   <input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={duplicateTargetQty}
                     onChange={(e) => setDuplicateTargetQty(e.target.value)}
                     min="1"
