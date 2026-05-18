@@ -126,6 +126,7 @@ model Worker {
   progressLogs   ProgressLog[]
   assignments    BatchAssignment[]
   shifts         Shift[]
+  correctionRequests ShiftCorrectionRequest[]
   logAudits      LogAudit[]
   batchMessages  BatchMessage[]
   pushSubscriptions PushSubscription[]
@@ -239,24 +240,51 @@ model BatchAssignment {
   @@index([workerId])
 }
 
+enum CorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum ShiftStatus {
   ACTIVE
   COMPLETED
 }
 
 model Shift {
-  id          String      @id @default(cuid())
-  workerId    String
-  worker      Worker      @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  status      ShiftStatus @default(ACTIVE)
-  startedAt   DateTime    @default(now())
-  endedAt     DateTime?
-  notes       String?
-  createdAt   DateTime    @default(now())
+  id                 String                   @id @default(cuid())
+  workerId           String
+  worker             Worker                   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  status             ShiftStatus              @default(ACTIVE)
+  startedAt          DateTime                 @default(now())
+  endedAt            DateTime?
+  notes              String?
+  createdAt          DateTime                 @default(now())
+  correctionRequests ShiftCorrectionRequest[]
 
   @@index([workerId])
   @@index([status])
   @@index([startedAt])
+}
+
+model ShiftCorrectionRequest {
+  id             String           @id @default(cuid())
+  shiftId        String
+  shift          Shift            @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  workerId       String
+  worker         Worker           @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  requestedStart DateTime
+  requestedEnd   DateTime?
+  reason         String?
+  status         CorrectionStatus @default(PENDING)
+  reviewedById   String?
+  reviewNote     String?
+  createdAt      DateTime         @default(now())
+  reviewedAt     DateTime?
+
+  @@index([shiftId])
+  @@index([workerId])
+  @@index([status])
 }
 
 model BatchStep {

@@ -35,6 +35,41 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Correction requests
+  const [corrections, setCorrections] = useState<any[]>([])
+  const [corrLoading, setCorrLoading] = useState(false)
+
+  const fetchCorrections = async () => {
+    setCorrLoading(true)
+    try {
+      const res = await fetch('/api/shifts/corrections?status=PENDING', { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        setCorrections(data.requests || [])
+      }
+    } catch {}
+    setCorrLoading(false)
+  }
+
+  const handleReviewCorrection = async (id: string, action: 'APPROVED' | 'REJECTED') => {
+    haptic('medium')
+    try {
+      const res = await fetch(`/api/shifts/corrections/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (res.ok) {
+        setCorrections((prev) => prev.filter((c) => c.id !== id))
+        if (action === 'APPROVED') {
+          fetchShifts()
+          setSuccess('Shift updated from correction')
+          setTimeout(() => setSuccess(''), 3000)
+        }
+      }
+    } catch {}
+  }
+
   // Weekly summary state
   const [viewMode, setViewMode] = useState<'shifts' | 'weekly'>('shifts')
   const [weeklyData, setWeeklyData] = useState<WeeklySummary[]>([])
@@ -101,6 +136,10 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
       fetchWeeklySummary()
     }
   }, [filterWorker, dateFrom, dateTo, viewMode, currentWeekStart])
+
+  useEffect(() => {
+    fetchCorrections()
+  }, [])
 
   const totalHours = shifts.reduce((sum, s) => sum + s.hours, 0)
 
@@ -234,6 +273,51 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
 
   return (
     <div className="space-y-4">
+      {/* Pending Correction Requests */}
+      {corrections.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-amber-500/20">
+            <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+              ⏳ {corrections.length} Pending Correction{corrections.length > 1 ? 's' : ''}
+            </h3>
+          </div>
+          <ul className="divide-y divide-amber-500/10">
+            {corrections.map((c) => (
+              <li key={c.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">{c.worker?.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Original: {formatTimeInTz(c.shift.startedAt, timezone)}
+                    {c.shift.endedAt ? ` → ${formatTimeInTz(c.shift.endedAt, timezone)}` : ' (no end)'}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                    Requested: {formatTimeInTz(c.requestedStart, timezone)}
+                    {c.requestedEnd ? ` → ${formatTimeInTz(c.requestedEnd, timezone)}` : ' (no end)'}
+                  </p>
+                  {c.reason && (
+                    <p className="text-xs text-muted-foreground mt-0.5 italic">“{c.reason}”</p>
+                  )}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => handleReviewCorrection(c.id, 'APPROVED')}
+                    className="px-4 py-2 min-h-[40px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold active:scale-95 transition-all"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReviewCorrection(c.id, 'REJECTED')}
+                    className="px-4 py-2 min-h-[40px] rounded-xl bg-muted hover:bg-muted/70 text-foreground text-sm font-medium active:scale-95 transition-all"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* View Mode Toggle */}
       <div className="flex items-center justify-center gap-1 p-1 bg-muted rounded-lg w-fit mx-auto">
         <button

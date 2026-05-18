@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
-import { ChevronLeftIcon, ClockIcon, ArrowDownTrayIcon, ShareIcon } from '@heroicons/react/24/solid'
+import { ChevronLeftIcon, ClockIcon, ArrowDownTrayIcon, ShareIcon, PencilSquareIcon, XMarkIcon } from '@heroicons/react/24/solid'
 import { formatDuration } from '@/lib/format'
 import { formatDateInTz, formatTimeInTz } from '@/lib/timezone'
 import { haptic } from '@/lib/haptic'
@@ -15,6 +15,7 @@ type Shift = {
   startedAt: string
   endedAt: string | null
   hours: number
+  hasPendingCorrection?: boolean
 }
 
 // Get the Monday of the week containing the given date, anchored to org timezone.
@@ -39,6 +40,13 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
   const [sharing, setSharing] = useState(false)
   const [shareMsg, setShareMsg] = useState<string | null>(null)
   const shareCardRef = useRef<HTMLDivElement>(null)
+  // Correction request modal
+  const [correctionShift, setCorrectionShift] = useState<Shift | null>(null)
+  const [corrStart, setCorrStart] = useState('')
+  const [corrEnd, setCorrEnd] = useState('')
+  const [corrReason, setCorrReason] = useState('')
+  const [corrSubmitting, setCorrSubmitting] = useState(false)
+  const [corrMsg, setCorrMsg] = useState<string | null>(null)
 
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 7)
@@ -48,14 +56,74 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
     try {
       const from = weekStart.toISOString()
       const to = weekEnd.toISOString()
-      const res = await fetch(`/api/shifts/my?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { cache: 'no-store' })
-      if (res.ok) {
-        const data = await res.json()
-        setShifts(data.shifts || [])
+      const [shiftsRes, corrRes] = await Promise.all([
+        fetch(`/api/shifts/my?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { cache: 'no-store' }),
+        fetch('/api/shifts/corrections', { cache: 'no-store' }),
+      ])
+      if (shiftsRes.ok) {
+        const data = await shiftsRes.json()
+        const corrData = corrRes.ok ? await corrRes.json() : { requests: [] }
+        const pendingShiftIds = new Set(
+          (corrData.requests || []).filter((r: any) => r.status === 'PENDING').map((r: any) => r.shiftId)
+        )
+        const allShifts: Shift[] = (data.shifts || []).map((s: Shift) => ({
+          ...s,
+          hasPendingCorrection: pendingShiftIds.has(s.id),
+        }))
+        setShifts(allShifts)
         setTimezone(data.timezone || 'America/New_York')
       }
     } catch {}
     setLoading(false)
+  }
+
+  const openCorrectionModal = (shift: Shift) => {
+    haptic('light')
+    const toLocalInput = (iso: string) => {
+      const d = new Date(iso)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+    }
+    setCorrectionShift(shift)
+    setCorrStart(toLocalInput(shift.startedAt))
+    setCorrEnd(shift.endedAt ? toLocalInput(shift.endedAt) : '')
+    setCorrReason('')
+    setCorrMsg(null)
+  }
+
+  const submitCorrection = async () => {
+    if (!correctionShift || !corrStart) return
+    setCorrSubmitting(true)
+    setCorrMsg(null)
+    try {
+      const res = await fetch('/api/shifts/corrections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shiftId: correctionShift.id,
+          requestedStart: new Date(corrStart).toISOString(),
+          requestedEnd: corrEnd ? new Date(corrEnd).toISOString() : null,
+          reason: corrReason || null,
+        }),
+      })
+      if (res.ok) {
+        haptic('medium')
+        setCorrMsg('✓ Request submitted — your supervisor will review it.')
+        setShifts((prev) =>
+          prev.map((s) => (s.id === correctionShift.id ? { ...s, hasPendingCorrection: true } : s))
+        )
+        setTimeout(() => setCorrectionShift(null), 2000)
+      } else {
+        const data = await res.json()
+        haptic('heavy')
+        setCorrMsg(data.error || 'Failed to submit. Try again.')
+      }
+    } catch {
+      haptic('heavy')
+      setCorrMsg('Connection error. Try again.')
+    } finally {
+      setCorrSubmitting(false)
+    }
   }
 
   useEffect(() => {
@@ -320,7 +388,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
                   </div>
                   <ul className="divide-y divide-border">
                     {dayShifts.map((s) => (
-                      <li key={s.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                      <li key={s.id} className="px-4 py-3 flex items-center gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-foreground tabular-nums">
                             {formatTimeInTz(s.startedAt, timezone)}
@@ -331,10 +399,23 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
                               <span className="text-emerald-600 dark:text-emerald-400 font-medium">In progress</span>
                             )}
                           </p>
+                          {s.hasPendingCorrection && (
+                            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">Correction pending review</p>
+                          )}
                         </div>
                         <p className="text-sm font-semibold text-foreground tabular-nums shrink-0">
                           {formatDuration(s.hours)}
                         </p>
+                        {!s.hasPendingCorrection && (
+                          <button
+                            onClick={() => openCorrectionModal(s)}
+                            title="Request correction"
+                            aria-label="Request correction"
+                            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all"
+                          >
+                            <PencilSquareIcon className="w-4 h-4" />
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -345,8 +426,77 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
         )}
 
         <p className="mt-6 text-[11px] text-muted-foreground/70 text-center">
-          Need a correction? Ask your supervisor — they can edit shifts from the Timesheets page.
+          Tap the ✏ icon on any shift to request a time correction.
         </p>
+
+        {/* Correction Request Modal */}
+        {correctionShift && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCorrectionShift(null)} />
+            <div className="relative w-full max-w-md bg-card border border-border rounded-t-3xl sm:rounded-3xl p-6 pb-10 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-foreground">Request Correction</h2>
+                <button
+                  onClick={() => setCorrectionShift(null)}
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground -mt-1">
+                Original: {formatTimeInTz(correctionShift.startedAt, timezone)}
+                {correctionShift.endedAt
+                  ? ` → ${formatTimeInTz(correctionShift.endedAt, timezone)}`
+                  : ' (no clock-out)'}
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Correct start time</label>
+                  <input
+                    type="datetime-local"
+                    value={corrStart}
+                    onChange={(e) => setCorrStart(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Correct end time</label>
+                  <input
+                    type="datetime-local"
+                    value={corrEnd}
+                    onChange={(e) => setCorrEnd(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Reason (optional)</label>
+                  <input
+                    type="text"
+                    value={corrReason}
+                    onChange={(e) => setCorrReason(e.target.value)}
+                    placeholder="e.g. Forgot to clock out"
+                    className="w-full px-3 py-2.5 rounded-xl bg-muted border border-input text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+
+              {corrMsg && (
+                <p className={`text-sm font-medium ${
+                  corrMsg.startsWith('✓') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
+                }`}>{corrMsg}</p>
+              )}
+
+              <button
+                onClick={submitCorrection}
+                disabled={corrSubmitting || !corrStart}
+                className="w-full min-h-[52px] rounded-2xl bg-foreground text-background font-semibold text-base active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {corrSubmitting ? 'Submitting…' : 'Submit Request'}
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/*
