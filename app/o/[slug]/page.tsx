@@ -12,11 +12,27 @@ export default function OrgLoginPage() {
   const [success, setSuccess] = useState(false)
   const [orgName, setOrgName] = useState<string | null>(null)
   const [orgNotFound, setOrgNotFound] = useState(false)
+  const [checking, setChecking] = useState(true)
   const router = useRouter()
   const params = useParams()
   const slug = params.slug as string
 
+  // If already logged in, skip the PIN pad
   useEffect(() => {
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.user?.id) {
+          router.replace(data.user.role === 'OWNER' ? '/dashboard' : '/batches')
+        } else {
+          setChecking(false)
+        }
+      })
+      .catch(() => setChecking(false))
+  }, [router])
+
+  useEffect(() => {
+    if (checking) return
     // Fetch organization info
     const fetchOrg = async () => {
       try {
@@ -34,7 +50,7 @@ export default function OrgLoginPage() {
       }
     }
     fetchOrg()
-  }, [slug])
+  }, [slug, checking])
 
   const handleNumberClick = (num: string) => {
     if (pin.length < 4 && !loading && !orgNotFound) {
@@ -100,6 +116,14 @@ export default function OrgLoginPage() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   })
+
+  if (checking) {
+    return (
+      <div className="min-h-dvh bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   if (orgNotFound) {
     return (
