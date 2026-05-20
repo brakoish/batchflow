@@ -17,6 +17,14 @@ function csvEscape(value: string | number): string {
   return '"' + String(value).replace(/"/g, '""') + '"'
 }
 
+function htmlEscape(value: string | number): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function getLocalParts(date: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -63,12 +71,76 @@ function monthRange(month: string, timezone: string) {
   }
 }
 
+function buildCsv(rows: any[], headers: string[]): string {
+  return [
+    headers.join(','),
+    ...rows.map((row) => headers.map((h) => csvEscape(row[h] ?? '')).join(',')),
+  ].join('\n')
+}
+
+function buildFormattedSheet(rows: any[], headers: string[], month: string): string {
+  const totalHours = rows.reduce((sum, row) => sum + (row['Hours Decimal'] || 0), 0)
+  const totalUnits = rows.reduce((sum, row) => sum + (row['Total Units'] || 0), 0)
+  let lastWeek = ''
+
+  const body = rows.map((row) => {
+    const isNewWeek = row.Week !== lastWeek
+    lastWeek = row.Week
+
+    return `
+      <tr class="${isNewWeek ? 'week-start' : ''}">
+        ${headers.map((header) => {
+          const value = row[header] ?? ''
+          const numeric = header === 'Total Units' || header === 'Hours Decimal'
+          const wrap = header === 'Work Summary' || header === 'Notes'
+          return `<td class="${numeric ? 'number' : ''} ${wrap ? 'wrap' : ''}">${htmlEscape(value)}</td>`
+        }).join('')}
+      </tr>
+    `
+  }).join('')
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d1d5db; padding: 8px 10px; font-size: 12px; vertical-align: top; }
+    th { background: #111827; color: #ffffff; font-weight: 700; text-align: left; }
+    .title { background: #f3f4f6; font-size: 18px; font-weight: 700; }
+    .meta { background: #f9fafb; color: #374151; }
+    .week-start td { border-top: 3px solid #2563eb; }
+    .number { text-align: right; mso-number-format: "0.00"; }
+    .wrap { white-space: normal; width: 360px; }
+    .total td { background: #ecfdf5; font-weight: 700; border-top: 2px solid #059669; }
+  </style>
+</head>
+<body>
+  <table>
+    <tr><td class="title" colspan="${headers.length}">BatchFlow Monthly Timesheet</td></tr>
+    <tr><td class="meta" colspan="${headers.length}">Month: ${htmlEscape(month)}</td></tr>
+    <tr><td class="meta" colspan="${headers.length}">Grouped by week. Work summaries are matched to logs created during each worker shift.</td></tr>
+    <tr>${headers.map((header) => `<th>${htmlEscape(header)}</th>`).join('')}</tr>
+    ${body || `<tr><td colspan="${headers.length}">No shifts found for this month.</td></tr>`}
+    <tr class="total">
+      <td colspan="7">Monthly Total</td>
+      <td class="number">${totalHours.toFixed(2)}</td>
+      <td class="number">${totalUnits}</td>
+      <td colspan="2"></td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await requireOwner()
 
     const { searchParams } = new URL(request.url)
     const workerId = searchParams.get('workerId')
+    const format = searchParams.get('format')
 
     const organization = await prisma.organization.findUnique({
       where: { id: session.user.organizationId },
@@ -149,6 +221,7 @@ export async function GET(request: NextRequest) {
         'Clock In': formatTimeInTz(shift.startedAt, timezone),
         'Clock Out': shift.endedAt ? formatTimeInTz(shift.endedAt, timezone) : 'Active',
         Hours: shift.endedAt ? formatDuration(rawHours) : 'Active',
+        'Hours Decimal': shift.endedAt ? Math.round(rawHours * 100) / 100 : 0,
         'Total Units': totalUnits,
         'Work Summary': workSummary,
         Notes: shift.notes || '',
@@ -163,14 +236,23 @@ export async function GET(request: NextRequest) {
       'Clock In',
       'Clock Out',
       'Hours',
+      'Hours Decimal',
       'Total Units',
       'Work Summary',
       'Notes',
     ]
-    const csv = [
-      headers.join(','),
-      ...rows.map((row) => headers.map((h) => csvEscape((row as any)[h] ?? '')).join(',')),
-    ].join('\n')
+
+    if (format === 'sheet') {
+      return new NextResponse(buildFormattedSheet(rows, headers, month), {
+        headers: {
+          'Content-Type': 'application/vnd.ms-excel; charset=utf-8',
+          'Content-Disposition': `attachment; filename="timesheet-${month}-weekly-summary.xls"`,
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      })
+    }
+
+    const csv = buildCsv(rows, headers)
 
     return new NextResponse(csv, {
       headers: {

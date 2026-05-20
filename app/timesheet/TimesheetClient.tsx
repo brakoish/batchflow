@@ -194,6 +194,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
     const params = new URLSearchParams()
     if (filterWorker) params.append('workerId', filterWorker)
     if (exportMonth) params.append('month', exportMonth)
+    params.append('format', 'sheet')
     
     window.open(`/api/timesheet/export?${params}`, '_blank')
   }
@@ -376,13 +377,13 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
           value={exportMonth}
           onChange={(e) => setExportMonth(e.target.value)}
           className="w-full sm:w-auto px-3 py-3 min-h-[44px] rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
-          aria-label="CSV export month"
+          aria-label="Sheet export month"
         />
         <button
           onClick={handleExport}
           className="w-full sm:w-auto px-4 py-3 min-h-[44px] rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
-          Export Monthly CSV
+          Export Formatted Sheet
         </button>
       </div>
 
