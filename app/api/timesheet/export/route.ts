@@ -17,7 +17,7 @@ function csvEscape(value: string | number): string {
   return '"' + String(value).replace(/"/g, '""') + '"'
 }
 
-function htmlEscape(value: string | number): string {
+function xmlEscape(value: string | number): string {
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -81,57 +81,124 @@ function buildCsv(rows: any[], headers: string[]): string {
 function buildFormattedSheet(rows: any[], headers: string[], month: string): string {
   const totalHours = rows.reduce((sum, row) => sum + (row['Hours Decimal'] || 0), 0)
   const totalUnits = rows.reduce((sum, row) => sum + (row['Total Units'] || 0), 0)
-  let lastWeek = ''
+  const summaryHeaders = ['Worker', 'Week', 'Shifts', 'Hours', 'Total Units', 'Batches / Steps Worked', 'Notes']
+  const workerWeekMap = new Map<string, any>()
 
-  const body = rows.map((row) => {
-    const isNewWeek = row.Week !== lastWeek
-    lastWeek = row.Week
+  for (const row of rows) {
+    const key = `${row.Worker}__${row.Week}`
+    const existing = workerWeekMap.get(key) || {
+      Worker: row.Worker,
+      Week: row.Week,
+      Shifts: 0,
+      Hours: 0,
+      'Total Units': 0,
+      'Batches / Steps Worked': new Set<string>(),
+      Notes: new Set<string>(),
+    }
 
-    return `
-      <tr class="${isNewWeek ? 'week-start' : ''}">
-        ${headers.map((header) => {
-          const value = row[header] ?? ''
-          const numeric = header === 'Total Units' || header === 'Hours Decimal'
-          const wrap = header === 'Work Summary' || header === 'Notes'
-          return `<td class="${numeric ? 'number' : ''} ${wrap ? 'wrap' : ''}">${htmlEscape(value)}</td>`
-        }).join('')}
-      </tr>
-    `
-  }).join('')
+    existing.Shifts += 1
+    existing.Hours += row['Hours Decimal'] || 0
+    existing['Total Units'] += row['Total Units'] || 0
+    if (row['Work Summary'] && row['Work Summary'] !== 'No production logs during shift') {
+      row['Work Summary'].split('; ').forEach((item: string) => existing['Batches / Steps Worked'].add(item))
+    }
+    if (row.Notes) existing.Notes.add(row.Notes)
+    workerWeekMap.set(key, existing)
+  }
 
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <style>
-    body { font-family: Arial, sans-serif; color: #111827; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #d1d5db; padding: 8px 10px; font-size: 12px; vertical-align: top; }
-    th { background: #111827; color: #ffffff; font-weight: 700; text-align: left; }
-    .title { background: #f3f4f6; font-size: 18px; font-weight: 700; }
-    .meta { background: #f9fafb; color: #374151; }
-    .week-start td { border-top: 3px solid #2563eb; }
-    .number { text-align: right; mso-number-format: "0.00"; }
-    .wrap { white-space: normal; width: 360px; }
-    .total td { background: #ecfdf5; font-weight: 700; border-top: 2px solid #059669; }
-  </style>
-</head>
-<body>
-  <table>
-    <tr><td class="title" colspan="${headers.length}">BatchFlow Monthly Timesheet</td></tr>
-    <tr><td class="meta" colspan="${headers.length}">Month: ${htmlEscape(month)}</td></tr>
-    <tr><td class="meta" colspan="${headers.length}">Grouped by week. Work summaries are matched to logs created during each worker shift.</td></tr>
-    <tr>${headers.map((header) => `<th>${htmlEscape(header)}</th>`).join('')}</tr>
-    ${body || `<tr><td colspan="${headers.length}">No shifts found for this month.</td></tr>`}
-    <tr class="total">
-      <td colspan="7">Monthly Total</td>
-      <td class="number">${totalHours.toFixed(2)}</td>
-      <td class="number">${totalUnits}</td>
-      <td colspan="2"></td>
-    </tr>
-  </table>
-</body>
-</html>`
+  const summaryRows = Array.from(workerWeekMap.values())
+    .sort((a, b) => a.Worker.localeCompare(b.Worker) || a.Week.localeCompare(b.Week))
+    .map((row) => ({
+      ...row,
+      Hours: Math.round(row.Hours * 100) / 100,
+      'Batches / Steps Worked': Array.from(row['Batches / Steps Worked']).join('; ') || 'No production logs during shifts',
+      Notes: Array.from(row.Notes).join('; '),
+    }))
+
+  const columnWidths: Record<string, number> = {
+    Month: 70,
+    Week: 135,
+    Worker: 135,
+    Date: 80,
+    'Clock In': 80,
+    'Clock Out': 80,
+    Hours: 75,
+    'Hours Decimal': 90,
+    'Total Units': 80,
+    'Work Summary': 300,
+    Notes: 180,
+    Shifts: 60,
+    'Batches / Steps Worked': 360,
+  }
+
+  const cell = (value: string | number, style = 'Cell') => {
+    const type = typeof value === 'number' ? 'Number' : 'String'
+    return `<Cell ss:StyleID="${style}"><Data ss:Type="${type}">${xmlEscape(value)}</Data></Cell>`
+  }
+
+  const rowXml = (values: (string | number)[], style = 'Cell') => (
+    `<Row>${values.map((value) => cell(value, style)).join('')}</Row>`
+  )
+
+  const worksheet = (name: string, sheetHeaders: string[], sheetRows: any[], totalRow?: (string | number)[]) => `
+    <Worksheet ss:Name="${xmlEscape(name)}">
+      <Table>
+        ${sheetHeaders.map((header) => `<Column ss:Width="${columnWidths[header] || 100}" />`).join('')}
+        <Row><Cell ss:MergeAcross="${sheetHeaders.length - 1}" ss:StyleID="Title"><Data ss:Type="String">BatchFlow Monthly Timesheet</Data></Cell></Row>
+        <Row><Cell ss:MergeAcross="${sheetHeaders.length - 1}" ss:StyleID="Meta"><Data ss:Type="String">Month: ${xmlEscape(month)}</Data></Cell></Row>
+        <Row><Cell ss:MergeAcross="${sheetHeaders.length - 1}" ss:StyleID="Meta"><Data ss:Type="String">${name === 'Worker Summary' ? 'Per-worker monthly view grouped by week.' : 'Shift-level detail grouped by week.'}</Data></Cell></Row>
+        ${rowXml(sheetHeaders, 'Header')}
+        ${sheetRows.map((row) => rowXml(sheetHeaders.map((header) => row[header] ?? ''), 'Cell')).join('')}
+        ${totalRow ? rowXml(totalRow, 'Total') : ''}
+      </Table>
+      <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+        <FreezePanes/>
+        <FrozenNoSplit/>
+        <SplitHorizontal>4</SplitHorizontal>
+        <TopRowBottomPane>4</TopRowBottomPane>
+        <ActivePane>2</ActivePane>
+      </WorksheetOptions>
+    </Worksheet>
+  `
+
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Styles>
+    <Style ss:ID="Cell">
+      <Alignment ss:Vertical="Top" ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/>
+      </Borders>
+      <Font ss:FontName="Arial" ss:Size="10"/>
+    </Style>
+    <Style ss:ID="Title">
+      <Font ss:FontName="Arial" ss:Size="16" ss:Bold="1"/>
+      <Interior ss:Color="#F3F4F6" ss:Pattern="Solid"/>
+    </Style>
+    <Style ss:ID="Meta">
+      <Font ss:FontName="Arial" ss:Size="10" ss:Color="#374151"/>
+      <Interior ss:Color="#F9FAFB" ss:Pattern="Solid"/>
+    </Style>
+    <Style ss:ID="Header">
+      <Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
+      <Interior ss:Color="#111827" ss:Pattern="Solid"/>
+      <Alignment ss:Vertical="Top" ss:WrapText="1"/>
+    </Style>
+    <Style ss:ID="Total">
+      <Font ss:FontName="Arial" ss:Size="10" ss:Bold="1"/>
+      <Interior ss:Color="#ECFDF5" ss:Pattern="Solid"/>
+    </Style>
+  </Styles>
+  ${worksheet('Weekly Detail', headers, rows, ['Monthly Total', '', '', '', '', '', '', totalHours.toFixed(2), totalUnits, '', ''])}
+  ${worksheet('Worker Summary', summaryHeaders, summaryRows, ['Monthly Total', '', rows.length, totalHours.toFixed(2), totalUnits, '', ''])}
+</Workbook>`
 }
 
 export async function GET(request: NextRequest) {
