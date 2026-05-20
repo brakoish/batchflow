@@ -181,6 +181,12 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Timesheet export error:', error)
+    if (error instanceof Error && error.message.includes('Owner access required')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
