@@ -26,6 +26,10 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [timezone, setTimezone] = useState('America/New_York')
   const [filterWorker, setFilterWorker] = useState('')
+  const [exportMonth, setExportMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(false)
@@ -189,8 +193,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const handleExport = () => {
     const params = new URLSearchParams()
     if (filterWorker) params.append('workerId', filterWorker)
-    if (dateFrom) params.append('startDate', dateFrom)
-    if (dateTo) params.append('endDate', dateTo)
+    if (exportMonth) params.append('month', exportMonth)
     
     window.open(`/api/timesheet/export?${params}`, '_blank')
   }
@@ -368,11 +371,18 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
             className="flex-1 min-w-0 px-3 py-3 min-h-[44px] rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
           />
         </div>
+        <input
+          type="month"
+          value={exportMonth}
+          onChange={(e) => setExportMonth(e.target.value)}
+          className="w-full sm:w-auto px-3 py-3 min-h-[44px] rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+          aria-label="CSV export month"
+        />
         <button
           onClick={handleExport}
           className="w-full sm:w-auto px-4 py-3 min-h-[44px] rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
-          Export CSV
+          Export Monthly CSV
         </button>
       </div>
 
