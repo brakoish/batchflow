@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
 import RecipeBuilder from './RecipeBuilder'
 import EmptyState from '@/app/components/EmptyState'
+import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
@@ -12,26 +13,49 @@ type Recipe = {
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
   _count: { batches: number }
 }
+type ConfirmAction = {
+  title: string
+  message?: string
+  confirmLabel: string
+  confirmStyle?: 'danger' | 'primary'
+  onConfirm: () => void
+}
 
 export default function RecipesClient({ initialRecipes }: { initialRecipes: Recipe[] }) {
   const [recipes, setRecipes] = useState(initialRecipes)
   const [editId, setEditId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const router = useRouter()
 
   const editRecipe = editId ? recipes.find(r => r.id === editId) || null : null
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this recipe?')) return
+    const recipe = recipes.find(r => r.id === id)
+    setConfirmAction({
+      title: 'Delete recipe?',
+      message: recipe?._count.batches
+        ? 'Recipes connected to batches usually cannot be deleted. If blocked, keep it for history.'
+        : `Delete ${recipe?.name || 'this recipe'} from your recipe list.`,
+      confirmLabel: 'Delete Recipe',
+      confirmStyle: 'danger',
+      onConfirm: () => performDelete(id),
+    })
+  }
+
+  const performDelete = async (id: string) => {
+    setConfirmAction(null)
     setDeleting(id)
+    setError('')
     try {
       const res = await fetch(`/api/recipes/${id}`, { method: 'DELETE' })
       if (res.ok) {
         setRecipes(recipes.filter(r => r.id !== id))
       } else {
-        alert((await res.json()).error || 'Failed to delete')
+        setError((await res.json()).error || 'Failed to delete')
       }
-    } catch { alert('Connection error') }
+    } catch { setError('Connection error') }
     finally { setDeleting(null) }
   }
 
@@ -52,6 +76,12 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
         >
           Cancel editing — create new instead
         </button>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+          <p className="text-sm font-medium text-red-500 dark:text-red-400">{error}</p>
+        </div>
       )}
 
       {/* Existing Recipes */}
@@ -131,6 +161,16 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        confirmStyle={confirmAction?.confirmStyle}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.onConfirm()}
+      />
     </div>
   )
 }

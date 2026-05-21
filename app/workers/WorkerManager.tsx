@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { haptic } from '@/lib/haptic'
+import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Worker = {
   id: string
@@ -10,11 +11,19 @@ type Worker = {
   pin: string
   role: string
 }
+type ConfirmAction = {
+  title: string
+  message?: string
+  confirmLabel: string
+  confirmStyle?: 'danger' | 'primary'
+  onConfirm: () => void
+}
 
 export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
   const [role, setRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
+  const [showAddForm, setShowAddForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -24,6 +33,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [editRole, setEditRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
   const [showEditModal, setShowEditModal] = useState(false)
   const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const router = useRouter()
 
   const generatePin = () => {
@@ -49,6 +59,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       if (!res.ok) { setError(data.error); return }
       setSuccess(`Created: ${data.worker.name} / PIN: ${data.worker.pin}`)
       setName(''); setPin(''); setRole('WORKER')
+      setShowAddForm(false)
       router.refresh()
       setTimeout(() => setSuccess(''), 5000)
     } catch { setError('Connection error') }
@@ -102,7 +113,17 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   }
 
   const handleDeleteWorker = async (worker: Worker) => {
-    if (!confirm(`Delete ${worker.name}? This cannot be undone.`)) return
+    setConfirmAction({
+      title: `Delete ${worker.name}?`,
+      message: 'This removes the worker from the team and cannot be undone.',
+      confirmLabel: 'Delete Worker',
+      confirmStyle: 'danger',
+      onConfirm: () => performDeleteWorker(worker),
+    })
+  }
+
+  const performDeleteWorker = async (worker: Worker) => {
+    setConfirmAction(null)
     setLoading(true)
 
     try {
@@ -130,7 +151,21 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Team</h2>
+          <p className="text-sm text-muted-foreground">{workers.length} worker{workers.length === 1 ? '' : 's'}</p>
+        </div>
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="min-h-[44px] px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all"
+        >
+          {showAddForm ? 'Close' : '+ Worker'}
+        </button>
+      </div>
+
       {/* Add Worker */}
+      {showAddForm && (
       <div className="bg-card border border-border rounded-lg p-4 space-y-4">
         <h2 className="text-sm font-medium text-foreground">Add Worker</h2>
         
@@ -199,6 +234,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
         </button>
         <p className="text-xs text-muted-foreground text-center">Leave PIN blank for auto-generation</p>
       </div>
+      )}
 
       {/* Edit Worker Modal */}
       {showEditModal && editingWorker && (
@@ -276,7 +312,6 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
 
       {/* Worker List */}
       <div className="space-y-3">
-        <h2 className="text-sm font-medium text-foreground">Team ({workers.length})</h2>
         {workers.map((worker) => (
           <div key={worker.id} className="bg-card border border-border rounded-lg p-4 flex items-center justify-between">
             <div>
@@ -325,6 +360,16 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           </div>
         ))}
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        confirmStyle={confirmAction?.confirmStyle}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.onConfirm()}
+      />
     </div>
   )
 }

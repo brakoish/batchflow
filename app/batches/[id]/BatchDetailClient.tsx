@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
 import EditBatchModal from '@/app/components/EditBatchModal'
+import ConfirmModal from '@/app/components/ConfirmModal'
 import {
   CheckCircleIcon,
   CheckIcon,
@@ -46,6 +47,13 @@ type BatchMessage = {
   message: string
   createdAt: string
   worker: Worker
+}
+type ConfirmAction = {
+  title: string
+  message?: string
+  confirmLabel: string
+  confirmStyle?: 'danger' | 'primary'
+  onConfirm: () => void
 }
 
 // Smart increment buttons that adapt to remaining quantity
@@ -127,6 +135,7 @@ export default function BatchDetailClient({
   const [toast, setToast] = useState('')
   const [toastType, setToastType] = useState<'success' | 'warning'>('success')
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [pageLoading, setPageLoading] = useState(!initialBatch.id)
   const quantityRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -237,7 +246,22 @@ export default function BatchDetailClient({
 
   const handleStatusChange = async (status: string) => {
     const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
-    if (!confirm(`Are you sure you want to ${labels[status] || status} this batch?`)) return
+    setConfirmAction({
+      title: `${labels[status]?.charAt(0).toUpperCase()}${labels[status]?.slice(1) || status} batch?`,
+      message: status === 'CANCELLED'
+        ? 'This removes it from active production. You can reopen it later if needed.'
+        : status === 'COMPLETED'
+        ? 'This marks the production run complete for the team.'
+        : 'This moves the batch back into active production.',
+      confirmLabel: status === 'CANCELLED' ? 'Cancel Batch' : status === 'COMPLETED' ? 'Mark Complete' : 'Reopen',
+      confirmStyle: status === 'CANCELLED' ? 'danger' : 'primary',
+      onConfirm: () => performStatusChange(status),
+    })
+  }
+
+  const performStatusChange = async (status: string) => {
+    const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
+    setConfirmAction(null)
     setError('')
     try {
       const res = await fetch(`/api/batches/${batch.id}`, {
@@ -260,7 +284,17 @@ export default function BatchDetailClient({
   }
 
   const handleDeleteBatch = async () => {
-    if (!confirm('Permanently delete this cancelled batch? This cannot be undone.')) return
+    setConfirmAction({
+      title: 'Delete cancelled batch?',
+      message: 'This permanently deletes the batch and cannot be undone.',
+      confirmLabel: 'Delete',
+      confirmStyle: 'danger',
+      onConfirm: performDeleteBatch,
+    })
+  }
+
+  const performDeleteBatch = async () => {
+    setConfirmAction(null)
     setError('')
     try {
       const res = await fetch(`/api/batches/${batch.id}`, { method: 'DELETE' })
@@ -337,7 +371,17 @@ export default function BatchDetailClient({
   }
 
   const handleDeleteLog = async (logId: string, stepId: string, qty: number) => {
-    if (!confirm(`Delete this log entry (+${qty})?`)) return
+    setConfirmAction({
+      title: 'Delete log entry?',
+      message: `Remove +${qty.toLocaleString()} from this step. This updates the batch progress immediately.`,
+      confirmLabel: 'Delete Log',
+      confirmStyle: 'danger',
+      onConfirm: () => performDeleteLog(logId, stepId, qty),
+    })
+  }
+
+  const performDeleteLog = async (logId: string, stepId: string, qty: number) => {
+    setConfirmAction(null)
     setError('')
     setLoading(true)
     try {
@@ -1117,6 +1161,16 @@ export default function BatchDetailClient({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        confirmStyle={confirmAction?.confirmStyle}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.onConfirm()}
+      />
 
       {/* Log Modal */}
       {selectedStep && (

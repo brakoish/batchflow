@@ -56,6 +56,7 @@ export default function DashboardClient({
   const [filterRecipe, setFilterRecipe] = useState('')
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null)
   const [allWorkers, setAllWorkers] = useState<{ id: string; name: string }[]>([])
+  const [mobileTab, setMobileTab] = useState<'batches' | 'activity' | 'team'>('batches')
 
   useEffect(() => {
     // Fetch workers list for assignment
@@ -112,6 +113,7 @@ export default function DashboardClient({
   const { handlers: ptrHandlers } = usePullToRefresh(() => { setRefreshing(true); poll() }, 80)
 
   const totalUnits = activity.reduce((sum, l) => sum + (l.type === 'log' ? (l.quantity || 0) : 0), 0)
+  const activeBatchCount = batches.filter(b => b.status === 'ACTIVE').length
 
   // Extract unique recipe names for filter dropdown
   const uniqueRecipes = Array.from(new Set(batches.map(b => b.recipe.name))).sort()
@@ -185,27 +187,67 @@ export default function DashboardClient({
         )}
         {/* Stats */}
         <div className="mb-5 space-y-3">
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="text-foreground font-semibold text-lg tracking-tight">Dashboard</span>
-            <span className="text-border">|</span>
-            <span>{batches.filter(b => b.status === 'ACTIVE').length} active batches</span>
-            <span className="text-border">·</span>
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {activeWorkers} on shift today
-            </span>
-            <span className="text-border">·</span>
-            <span>{totalUnits.toLocaleString()} units</span>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">Dashboard</h1>
+              <p className="text-xs text-muted-foreground">Today&apos;s production snapshot</p>
+            </div>
             <button
               onClick={() => setShowCompleted(!showCompleted)}
-              className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+              className={`min-h-[40px] px-3 rounded-full border text-xs font-semibold transition-all ${
+                showCompleted
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-card border-border text-muted-foreground hover:text-foreground'
+              }`}
             >
-              {showCompleted ? 'Hide Completed' : 'Show Completed'}
+              {showCompleted ? 'Showing completed' : 'Active only'}
             </button>
           </div>
 
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Active</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{activeBatchCount}</p>
+              <p className="text-[10px] text-muted-foreground">batches</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">On Shift</p>
+              <p className="mt-1 flex items-center gap-1.5 text-2xl font-bold tabular-nums text-foreground">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {activeWorkers}
+              </p>
+              <p className="text-[10px] text-muted-foreground">workers</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Units</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{totalUnits.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">logged</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 lg:hidden">
+            {[
+              { key: 'batches', label: 'Batches' },
+              { key: 'activity', label: 'Activity' },
+              { key: 'team', label: 'Team' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setMobileTab(tab.key as typeof mobileTab)}
+                className={`min-h-[44px] rounded-lg text-sm font-semibold transition-all ${
+                  mobileTab === tab.key
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Search */}
-          <div className="relative">
+          <div className={`${mobileTab === 'batches' ? 'block' : 'hidden'} lg:block relative`}>
             <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -219,7 +261,7 @@ export default function DashboardClient({
           </div>
 
           {/* Filter and Sort Controls */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className={`${mobileTab === 'batches' ? 'flex' : 'hidden'} lg:flex flex-col sm:flex-row gap-3`}>
             {/* Recipe Filter */}
             <select
               value={filterRecipe}
@@ -270,7 +312,7 @@ export default function DashboardClient({
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Batches */}
-          <div className="lg:col-span-2 space-y-2.5">
+          <div className={`${mobileTab === 'batches' ? 'block' : 'hidden'} lg:block lg:col-span-2 space-y-2.5`}>
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Active Batches</h2>
             {loading ? (
               <>
@@ -435,8 +477,9 @@ export default function DashboardClient({
           </div>
 
           {/* Activity Feed */}
-          <div>
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Activity</h2>
+          <div className="space-y-5">
+            <div className={`${mobileTab === 'activity' ? 'block' : 'hidden'} lg:block`}>
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Activity</h2>
             <div className="rounded-xl border border-border bg-card divide-y divide-border/50">
               {activity.length === 0 ? (
                 <p className="text-xs text-muted-foreground/60 text-center py-8">No activity yet</p>
@@ -495,10 +538,11 @@ export default function DashboardClient({
                 })
               )}
             </div>
+            </div>
 
             {/* Worker Summary */}
             {workerSummary.length > 0 && (
-              <div className="mt-5">
+              <div className={`${mobileTab === 'team' ? 'block' : 'hidden'} lg:block`}>
                 <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Today&apos;s Team</h2>
                 <div className="rounded-xl border border-border bg-card divide-y divide-border/50">
                   {workerSummary.map((w) => (

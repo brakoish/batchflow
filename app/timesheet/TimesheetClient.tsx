@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { haptic } from '@/lib/haptic'
 import { formatDuration } from '@/lib/format'
 import { formatTimeInTz, formatDateInTz, toDateTimeLocalString, fromDateTimeLocalString } from '@/lib/timezone'
+import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Worker = { id: string; name: string }
 type Shift = {
@@ -20,6 +21,13 @@ type WeeklySummary = {
   totalHours: number
   shiftCount: number
   days: Record<string, { hours: number; shiftCount: number }>
+}
+type ConfirmAction = {
+  title: string
+  message?: string
+  confirmLabel: string
+  confirmStyle?: 'danger' | 'primary'
+  onConfirm: () => void
 }
 
 export default function TimesheetClient({ workers }: { workers: Worker[] }) {
@@ -38,6 +46,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const [editEnd, setEditEnd] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
 
   // Correction requests
   const [corrections, setCorrections] = useState<any[]>([])
@@ -255,8 +264,17 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   }
 
   const handleDeleteShift = async (shift: Shift) => {
-    if (!confirm(`Delete this shift for ${shift.worker.name}?`)) return
-    
+    setConfirmAction({
+      title: `Delete ${shift.worker.name}'s shift?`,
+      message: 'This removes the shift from timesheets and cannot be undone.',
+      confirmLabel: 'Delete Shift',
+      confirmStyle: 'danger',
+      onConfirm: () => performDeleteShift(shift),
+    })
+  }
+
+  const performDeleteShift = async (shift: Shift) => {
+    setConfirmAction(null)
     setLoading(true)
     try {
       const res = await fetch(`/api/shifts/${shift.id}`, { method: 'DELETE' })
@@ -635,6 +653,16 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        confirmStyle={confirmAction?.confirmStyle}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.onConfirm()}
+      />
     </div>
   )
 }

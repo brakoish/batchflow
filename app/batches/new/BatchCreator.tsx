@@ -481,6 +481,49 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
             </div>
           )}
 
+          {/* Review */}
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Review</p>
+                <p className="text-sm font-semibold text-foreground truncate">{name.trim() || 'Unnamed batch'}</p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                priority === 'URGENT'
+                  ? 'bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20'
+                  : priority === 'HIGH'
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                  : 'bg-muted text-muted-foreground'
+              }`}>
+                {priority}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-muted-foreground">Recipe</p>
+                <p className="font-medium text-foreground truncate">{selected.name}</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-muted-foreground">Target</p>
+                <p className="font-medium text-foreground truncate">
+                  {batchType === 'open' ? 'Open batch' : `${targetQuantity || '0'} ${selected.baseUnit}`}
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-muted-foreground">Due</p>
+                <p className="font-medium text-foreground truncate">
+                  {selectedDueDate ? new Date(selectedDueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No deadline'}
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-muted-foreground">Team</p>
+                <p className="font-medium text-foreground truncate">
+                  {selectedWorkers.length ? `${selectedWorkers.length} assigned` : 'Everyone'}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Submit */}
           <button
             onClick={handleSubmit}
