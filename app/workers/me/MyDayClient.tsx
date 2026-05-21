@@ -6,6 +6,7 @@ import AppShell from '@/app/components/AppShell'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { ClockIcon, CubeIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid'
 import { formatDuration } from '@/lib/format'
+import { haptic } from '@/lib/haptic'
 import type { Session } from '@/lib/session'
 type Shift = { id: string; startedAt: string; endedAt: string | null; hours: number }
 type BatchActivity = { batchName: string; units: number }
@@ -25,6 +26,7 @@ export default function MyDayClient({ session }: { session: Session }) {
   const [weekStats, setWeekStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [clockingIn, setClockingIn] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -103,6 +105,20 @@ export default function MyDayClient({ session }: { session: Session }) {
     ? (Date.now() - new Date(activeShift.startedAt).getTime()) / 3600000
     : 0
 
+  const handleClockIn = async () => {
+    haptic('medium')
+    setClockingIn(true)
+    try {
+      const res = await fetch('/api/shifts', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setActiveShift(data.shift)
+        window.dispatchEvent(new Event('shift-changed'))
+      }
+    } catch {}
+    setClockingIn(false)
+  }
+
   return (
     <AppShell session={session}>
       <main
@@ -150,9 +166,18 @@ export default function MyDayClient({ session }: { session: Session }) {
                   Started at {new Date(activeShift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Clock in to start tracking your time
-                </p>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Clock in to start tracking your time
+                  </p>
+                  <button
+                    onClick={handleClockIn}
+                    disabled={clockingIn}
+                    className="w-full min-h-[52px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white text-base font-bold transition-all disabled:opacity-50"
+                  >
+                    {clockingIn ? 'Starting...' : 'Clock In'}
+                  </button>
+                </div>
               )}
             </div>
 

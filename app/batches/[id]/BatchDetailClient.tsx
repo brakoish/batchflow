@@ -137,6 +137,7 @@ export default function BatchDetailClient({
   const [messages, setMessages] = useState<BatchMessage[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Edit log modal state
@@ -575,6 +576,17 @@ export default function BatchDetailClient({
   const overallPct = Math.round(
     (batch.steps.filter(s => s.status === 'COMPLETED').length / batch.steps.length) * 100
   )
+  const currentStep = batch.status === 'ACTIVE'
+    ? batch.steps.find(s => s.status !== 'COMPLETED') || null
+    : null
+
+  const openLogForStep = (step: BatchStep) => {
+    haptic('light')
+    setSelectedStep(step)
+    setQuantity('')
+    setNote('')
+    setError('')
+  }
 
   const formatRelativeTime = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -627,7 +639,7 @@ export default function BatchDetailClient({
         </div>
       )}
 
-      <main className="max-w-2xl mx-auto px-4 py-5">
+      <main className="max-w-2xl mx-auto px-4 py-5 pb-36 sm:pb-5">
         {pageLoading ? (
           <>
             {/* Skeleton header */}
@@ -739,9 +751,9 @@ export default function BatchDetailClient({
 
           {/* Batch notes */}
           {batch.notes && (
-            <div className="mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">Notes</p>
-              <p className="text-xs text-foreground whitespace-pre-wrap break-words">{batch.notes}</p>
+            <div className="mt-3 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">Batch Notes</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap break-words">{batch.notes}</p>
             </div>
           )}
 
@@ -818,6 +830,7 @@ export default function BatchDetailClient({
         <div className="space-y-2">
           {batch.steps.map((step) => {
             const isCompleted = step.status === 'COMPLETED'
+            const isCurrent = currentStep?.id === step.id
             const pct = step.targetQuantity ? (step.completedQuantity / step.targetQuantity) * 100 : 0
 
             return (
@@ -826,6 +839,8 @@ export default function BatchDetailClient({
                 className={`rounded-xl border p-4 transition-all duration-150 ${
                   isCompleted
                     ? 'border-emerald-500/20 bg-emerald-500/5'
+                    : isCurrent
+                    ? 'border-emerald-500/50 bg-emerald-500/5 shadow-sm shadow-emerald-500/10'
                     : 'border bg-card'
                 }`}
               >
@@ -844,13 +859,20 @@ export default function BatchDetailClient({
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className={`text-sm font-medium truncate ${
-                        isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground'
-                      }`}>
-                        {step.name}
-                      </p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className={`text-sm font-medium truncate ${
+                          isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground'
+                        }`}>
+                          {step.name}
+                        </p>
+                        {isCurrent && (
+                          <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                            Current
+                          </span>
+                        )}
+                      </div>
                       {step.recipeStep?.notes && (
-                        <p className="text-[10px] text-muted-foreground/70 mt-0.5">{step.recipeStep.notes}</p>
+                        <p className={`mt-1 break-words ${isCurrent ? 'text-xs text-foreground/80' : 'text-[10px] text-muted-foreground/70'}`}>{step.recipeStep.notes}</p>
                       )}
                       {step.type === 'COUNT' && (
                         <p className="text-xs text-foreground tabular-nums mt-0.5">
@@ -863,7 +885,7 @@ export default function BatchDetailClient({
                   {/* Right: action or status */}
                   {!isCompleted && step.type === 'COUNT' && (
                     <button
-                      onClick={() => { haptic('light'); setSelectedStep(step); setQuantity(''); setNote(''); setError('') }}
+                      onClick={() => openLogForStep(step)}
                       className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0"
                     >
                       <PlusIcon className="w-4 h-4" />Log
@@ -917,31 +939,32 @@ export default function BatchDetailClient({
                   <div className="mt-3">
                     {(() => {
                       const isExpanded = expandedSteps.has(step.id)
-                      const logs = isExpanded ? step.progressLogs : step.progressLogs.slice(0, 3)
-                      const hasMore = step.progressLogs.length > 3
+                      const logs = isExpanded ? step.progressLogs : []
                       return (
                         <>
-                          <div className="space-y-1 overflow-hidden transition-all duration-300">
-                          {logs.map((log) => {
-                            const canEdit = session.role === 'OWNER' || session.workerId === log.worker.id
-                            return (
-                              <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground">
-                                <button
-                                  onClick={() => canEdit && handleEditLog(log, step.id)}
-                                  disabled={!canEdit}
-                                  className={`flex items-center gap-1.5 text-left ${canEdit ? 'hover:bg-muted/30 active:scale-[0.98] rounded px-1 -mx-1 py-0.5 transition-all' : ''}`}
-                                >
-                                  <span className="text-muted-foreground font-medium">{log.worker.name}</span>
-                                  <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
-                                  {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
-                                  <span className="text-muted-foreground/30">{formatLogTimestamp(log.createdAt)}</span>
-                                  {log.editedAt && <span className="text-muted-foreground/50 italic">(edited)</span>}
-                                </button>
-                              </div>
-                            )
-                          })}
-                          </div>
-                          {hasMore && (
+                          {isExpanded && (
+                            <div className="space-y-1 overflow-hidden transition-all duration-300">
+                            {logs.map((log) => {
+                              const canEdit = session.role === 'OWNER' || session.workerId === log.worker.id
+                              return (
+                                <div key={log.id} className="flex items-center justify-between text-[10px] text-foreground">
+                                  <button
+                                    onClick={() => canEdit && handleEditLog(log, step.id)}
+                                    disabled={!canEdit}
+                                    className={`flex items-center gap-1.5 text-left ${canEdit ? 'hover:bg-muted/30 active:scale-[0.98] rounded px-1 -mx-1 py-0.5 transition-all' : ''}`}
+                                  >
+                                    <span className="text-muted-foreground font-medium">{log.worker.name}</span>
+                                    <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
+                                    {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
+                                    <span className="text-muted-foreground/30">{formatLogTimestamp(log.createdAt)}</span>
+                                    {log.editedAt && <span className="text-muted-foreground/50 italic">(edited)</span>}
+                                  </button>
+                                </div>
+                              )
+                            })}
+                            </div>
+                          )}
+                          <div className={isExpanded ? 'mt-1' : ''}>
                             <button
                               onClick={() => {
                                 haptic('light')
@@ -954,9 +977,9 @@ export default function BatchDetailClient({
                               }}
                               className="text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-500 active:scale-[0.98] py-1 transition-all"
                             >
-                              {isExpanded ? 'Show less' : `Show all ${step.progressLogs.length} entries`}
+                              {isExpanded ? 'Hide activity' : `Show ${step.progressLogs.length} recent log${step.progressLogs.length === 1 ? '' : 's'}`}
                             </button>
-                          )}
+                          </div>
                         </>
                       )
                     })()}
@@ -969,12 +992,22 @@ export default function BatchDetailClient({
 
         {/* Chat Section */}
         <div className="mt-8 pt-8 border-t border-border/50">
-          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-            <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
-            Team Chat
-          </h2>
+          <button
+            type="button"
+            onClick={() => { haptic('light'); setChatOpen(!chatOpen) }}
+            className="w-full min-h-[48px] rounded-xl border border-border bg-card px-4 text-left flex items-center justify-between active:scale-[0.99] transition-all"
+          >
+            <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
+              Team Chat
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {chatOpen ? 'Hide' : messages.length ? `${messages.length} message${messages.length === 1 ? '' : 's'}` : 'Open'}
+            </span>
+          </button>
 
-          <div className="rounded-xl border bg-card p-4">
+          {chatOpen && (
+          <div className="mt-3 rounded-xl border bg-card p-4">
             {/* Message list */}
             <div
               ref={chatContainerRef}
@@ -1043,10 +1076,47 @@ export default function BatchDetailClient({
               </button>
             </form>
           </div>
+          )}
         </div>
           </>
         )}
       </main>
+
+      {currentStep && !selectedStep && (
+        <div className="fixed left-0 right-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-30 px-4 pb-3 sm:hidden pointer-events-none">
+          <div className="max-w-2xl mx-auto rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl p-3 pointer-events-auto">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Current Step</p>
+                <p className="text-sm font-semibold text-foreground truncate">{currentStep.name}</p>
+                {currentStep.type === 'COUNT' && (
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {currentStep.completedQuantity}{currentStep.targetQuantity ? ` / ${currentStep.targetQuantity}` : ''} {currentStep.unitLabel}
+                  </p>
+                )}
+              </div>
+              {currentStep.type === 'COUNT' ? (
+                <button
+                  onClick={() => openLogForStep(currentStep)}
+                  className="min-h-[52px] px-5 rounded-xl bg-emerald-600 text-white text-sm font-bold active:scale-[0.97] transition-all flex items-center gap-1.5"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Log
+                </button>
+              ) : (
+                <button
+                  onClick={() => { haptic('light'); handleCheckComplete(currentStep) }}
+                  disabled={loading}
+                  className="min-h-[52px] px-5 rounded-xl bg-blue-600 text-white text-sm font-bold active:scale-[0.97] transition-all flex items-center gap-1.5 disabled:opacity-60"
+                >
+                  <CheckIcon className="w-4 h-4" />
+                  Done
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Log Modal */}
       {selectedStep && (
@@ -1110,7 +1180,7 @@ export default function BatchDetailClient({
                 disabled={loading || !quantity || parseInt(quantity) <= 0}
                 className="w-full mt-4 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
               >
-                {loading ? 'Saving...' : 'Submit'}
+                {loading ? 'Saving...' : quantity && parseInt(quantity) > 0 ? `Log ${parseInt(quantity).toLocaleString()} ${selectedStep.unitLabel}` : 'Log Progress'}
               </button>
             </div>
           </div>

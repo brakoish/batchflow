@@ -32,6 +32,7 @@ export default function BatchListClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
   const [priorityFilter, setPriorityFilter] = useState(false)
+  const [myBatchFilter, setMyBatchFilter] = useState(session.role === 'WORKER')
 
   const fetchData = async (showLoading = false) => {
     if (showLoading) setRefreshing(true)
@@ -126,44 +127,67 @@ export default function BatchListClient({
 
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Your Batches</h1>
-          <p className="text-muted-foreground mt-1">{batches.length} available</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Your Batches</h1>
+              <p className="text-muted-foreground mt-1">{batches.length} available</p>
+            </div>
+            {onShift && (
+              <div className="mt-1 flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                On shift
+              </div>
+            )}
+          </div>
 
           {/* Search */}
-          <div className="mt-4 flex items-center gap-2">
-            <div className="relative flex-1">
-              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search batches..."
-                className="w-full pl-10 pr-4 py-2.5 min-h-[44px] rounded-lg bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-              />
-            </div>
+          <div className="relative mt-4">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search batches..."
+              className="w-full pl-10 pr-4 py-2.5 min-h-[48px] rounded-xl bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            />
+          </div>
+
+          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
               aria-label="Sort batches"
-              className="shrink-0 min-h-[44px] px-3 rounded-lg bg-muted/50 border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              className="shrink-0 min-h-[44px] px-3 rounded-full bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             >
-              <option value="priority">Priority</option>
-              <option value="newest">Newest</option>
-              <option value="dueDate">Due date</option>
-              <option value="progress">Progress</option>
+              <option value="priority">Sort: Priority</option>
+              <option value="newest">Sort: Newest</option>
+              <option value="dueDate">Sort: Due date</option>
+              <option value="progress">Sort: Progress</option>
             </select>
+            {session.role === 'WORKER' && (
+              <button
+                onClick={() => { haptic('light'); setMyBatchFilter(!myBatchFilter) }}
+                className={`shrink-0 flex items-center min-h-[44px] px-4 rounded-full border text-sm font-medium transition-all active:scale-[0.96] ${
+                  myBatchFilter
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Mine
+              </button>
+            )}
             <button
               onClick={() => { haptic('light'); setPriorityFilter(!priorityFilter) }}
-              className={`shrink-0 flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg border text-sm font-medium transition-all active:scale-[0.96] ${
+              className={`shrink-0 flex items-center gap-1.5 min-h-[44px] px-4 rounded-full border text-sm font-medium transition-all active:scale-[0.96] ${
                 priorityFilter
                   ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
-                  : 'bg-muted/50 border-input text-muted-foreground hover:text-foreground'
+                  : 'bg-card border-border text-muted-foreground hover:text-foreground'
               }`}
             >
               <FlagIcon className="w-4 h-4" />
-              {priorityFilter ? 'All' : 'High+'}
+              High+
             </button>
           </div>
         </div>
@@ -185,10 +209,15 @@ export default function BatchListClient({
               )
               if (!matchesSearch) return false
 
-              // Priority filter: only HIGH or URGENT
+              if (myBatchFilter) {
+                const openToEveryone = !b.assignments || b.assignments.length === 0
+                const assignedToMe = b.assignments?.some(a => a.worker.id === session.workerId)
+                if (!openToEveryone && !assignedToMe) return false
+              }
+
               if (priorityFilter) {
                 const priority = (b as any).priority || 'NORMAL'
-                return priority === 'HIGH' || priority === 'URGENT'
+                if (priority !== 'HIGH' && priority !== 'URGENT') return false
               }
               return true
             })
@@ -243,11 +272,12 @@ export default function BatchListClient({
               )
             }
 
+            const isMineOrOpen = (b: Batch) => !b.assignments || b.assignments.length === 0 || b.assignments.some(a => a.worker.id === session.workerId)
             const myBatches = session.role === 'WORKER'
-              ? filteredBatches.filter(b => b.assignments?.some(a => a.worker.id === session.workerId))
+              ? filteredBatches.filter(isMineOrOpen)
               : filteredBatches
             const otherBatches = session.role === 'WORKER'
-              ? filteredBatches.filter(b => !b.assignments?.some(a => a.worker.id === session.workerId))
+              ? filteredBatches.filter(b => !isMineOrOpen(b))
               : []
 
             const renderBatch = (batch: Batch) => {
@@ -298,7 +328,7 @@ export default function BatchListClient({
                   <div className="flex items-center gap-2 mb-4">
                     {isMyTurn ? (
                       <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                        YOUR TURN
+                        READY
                       </span>
                     ) : (
                       <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold">
