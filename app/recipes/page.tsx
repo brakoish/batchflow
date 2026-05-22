@@ -4,13 +4,15 @@ import { prisma } from '@/lib/prisma'
 import AppShell from '@/app/components/AppShell'
 import RecipesClient from './RecipesClient'
 
+const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
+
 export default async function RecipesPage() {
   const session = await getSession()
   if (!session) redirect('/')
   if (session.role !== 'OWNER' && session.role !== 'SUPERVISOR') redirect('/batches')
 
   const recipes = await prisma.recipe.findMany({
-    where: { organizationId: session.organizationId },
+    where: { organizationId: session.organizationId, name: { not: BATCH_OVERRIDE_RECIPE_NAME } },
     include: {
       units: { orderBy: { order: 'asc' } },
       steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },

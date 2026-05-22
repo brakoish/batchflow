@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
 
+const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
+
 export async function GET() {
   try {
     const session = await requireSession()
@@ -9,6 +11,7 @@ export async function GET() {
     const recipes = await prisma.recipe.findMany({
       where: {
         organizationId: session.user.organizationId,
+        name: { not: BATCH_OVERRIDE_RECIPE_NAME },
       },
       include: {
         units: { orderBy: { order: 'asc' } },

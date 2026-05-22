@@ -25,7 +25,7 @@ type ProgressLog = {
 }
 type StepMaterial = { name: string; quantityPerUnit: number; unit: string }
 type BatchStep = {
-  id: string; name: string; order: number; type: 'CHECK' | 'COUNT'
+  id: string; recipeStepId: string; name: string; order: number; type: 'CHECK' | 'COUNT'
   unitLabel: string; unitRatio: number
   targetQuantity: number | null; completedQuantity: number; status: string
   recipeStep?: { notes: string | null; materials?: StepMaterial[] }
@@ -54,6 +54,15 @@ type ConfirmAction = {
   confirmLabel: string
   confirmStyle?: 'danger' | 'primary'
   onConfirm: () => void
+}
+const SKIPPED_PREFIX = '[Skipped] '
+
+function isSkippedStep(step: BatchStep) {
+  return step.name.startsWith(SKIPPED_PREFIX)
+}
+
+function displayStepName(step: BatchStep) {
+  return isSkippedStep(step) ? step.name.slice(SKIPPED_PREFIX.length) : step.name
 }
 
 // Smart increment buttons that adapt to remaining quantity
@@ -156,6 +165,12 @@ export default function BatchDetailClient({
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showAddStepModal, setShowAddStepModal] = useState(false)
+  const [newStepName, setNewStepName] = useState('')
+  const [newStepType, setNewStepType] = useState<'COUNT' | 'CHECK'>('COUNT')
+  const [newStepTarget, setNewStepTarget] = useState('')
+  const [newStepUnit, setNewStepUnit] = useState(batch.baseUnit || 'units')
+  const [savingStep, setSavingStep] = useState(false)
 
   // Duplicate modal state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
@@ -311,6 +326,107 @@ export default function BatchDetailClient({
     }
   }
 
+  const handleOpenAddStep = () => {
+    haptic('light')
+    setNewStepName('')
+    setNewStepType('COUNT')
+    setNewStepTarget(batch.targetQuantity?.toString() || '')
+    setNewStepUnit(batch.baseUnit || 'units')
+    setShowAddStepModal(true)
+    setError('')
+  }
+
+  const handleAddStep = async () => {
+    if (!newStepName.trim()) {
+      setError('Step name is required')
+      return
+    }
+
+    setSavingStep(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/batches/${batch.id}/steps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newStepName,
+          type: newStepType,
+          targetQuantity: newStepType === 'CHECK' ? 1 : newStepTarget || null,
+          unitLabel: newStepUnit || batch.baseUnit || 'units',
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to add step')
+        return
+      }
+
+      const data = await res.json()
+      setBatch(prev => ({
+        ...prev,
+        steps: [...prev.steps, data.step].sort((a, b) => a.order - b.order),
+      }))
+      setShowAddStepModal(false)
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'step-add')
+      showToast('Step added to this batch')
+    } catch (err) {
+      setError('Network error. Please check your connection.')
+    } finally {
+      setSavingStep(false)
+    }
+  }
+
+  const handleSkipStep = (step: BatchStep) => {
+    setConfirmAction({
+      title: `Skip ${displayStepName(step)}?`,
+      message: step.progressLogs.length
+        ? 'This step already has logs. It will be marked skipped but the log history stays attached.'
+        : 'This hides it from the active workflow for this batch only. The recipe will not change.',
+      confirmLabel: 'Skip Step',
+      confirmStyle: 'primary',
+      onConfirm: () => performStepSkip(step, true),
+    })
+  }
+
+  const handleUnskipStep = (step: BatchStep) => {
+    haptic('light')
+    performStepSkip(step, false)
+  }
+
+  const performStepSkip = async (step: BatchStep, skipped: boolean) => {
+    setConfirmAction(null)
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/batches/${batch.id}/steps/${step.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: skipped ? 'skip' : 'unskip' }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to update step')
+        return
+      }
+
+      const data = await res.json()
+      setBatch(prev => ({
+        ...prev,
+        steps: prev.steps.map(s => s.id === step.id ? data.step : s),
+      }))
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, skipped ? 'step-skip' : 'step-unskip')
+      showToast(skipped ? 'Step skipped for this batch' : 'Step restored')
+    } catch (err) {
+      setError('Network error. Please check your connection.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleEditLog = (log: ProgressLog, stepId: string) => {
     setEditingLog({ ...log, stepId } as any)
     setEditQuantity(log.quantity.toString())
@@ -441,7 +557,7 @@ export default function BatchDetailClient({
       }))
       lastSaveTsRef.current = Date.now()
       emitBatchChanged(batch.id, 'check-complete')
-      showToast(`${step.name} complete`)
+      showToast(`${displayStepName(step)} complete`)
     } catch (err) { 
       setError('Network error. Please check your connection.')
     }
@@ -523,7 +639,7 @@ export default function BatchDetailClient({
       steps: prev.steps.map((s) => {
         if (s.id === stepBeingLogged.id) {
           const newQty = s.completedQuantity + qty
-          return { ...s, completedQuantity: newQty, status: newQty >= s.targetQuantity ? 'COMPLETED' : s.status }
+          return { ...s, completedQuantity: newQty, status: s.targetQuantity != null && newQty >= s.targetQuantity ? 'COMPLETED' : s.status }
         }
         if (s.order === stepBeingLogged.order + 1 && s.status === 'LOCKED') return { ...s, status: 'IN_PROGRESS' }
         return s
@@ -834,6 +950,11 @@ export default function BatchDetailClient({
                   Edit Batch
                 </button>
               )}
+              <button onClick={handleOpenAddStep}
+                className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
+                <PlusIcon className="w-4 h-4" />
+                Add Step
+              </button>
               <button onClick={handleOpenDuplicate}
                 className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
                 <DocumentDuplicateIcon className="w-4 h-4" />
@@ -873,7 +994,8 @@ export default function BatchDetailClient({
         {/* Steps */}
         <div className="space-y-2">
           {batch.steps.map((step) => {
-            const isCompleted = step.status === 'COMPLETED'
+            const isSkipped = isSkippedStep(step)
+            const isCompleted = step.status === 'COMPLETED' && !isSkipped
             const isCurrent = currentStep?.id === step.id
             const pct = step.targetQuantity ? (step.completedQuantity / step.targetQuantity) * 100 : 0
 
@@ -881,7 +1003,9 @@ export default function BatchDetailClient({
               <div
                 key={step.id}
                 className={`rounded-xl border p-4 transition-all duration-150 ${
-                  isCompleted
+                  isSkipped
+                    ? 'border-amber-500/20 bg-amber-500/5'
+                    : isCompleted
                     ? 'border-emerald-500/20 bg-emerald-500/5'
                     : isCurrent
                     ? 'border-emerald-500/50 bg-emerald-500/5 shadow-sm shadow-emerald-500/10'
@@ -892,11 +1016,15 @@ export default function BatchDetailClient({
                   {/* Left: status icon + name */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      isCompleted
+                      isSkipped
+                        ? 'bg-amber-500/15'
+                        : isCompleted
                         ? 'bg-emerald-500/15'
                         : 'bg-blue-500/15'
                     }`}>
-                      {isCompleted ? (
+                      {isSkipped ? (
+                        <XMarkIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      ) : isCompleted ? (
                         <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       ) : (
                         <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{step.order}</span>
@@ -905,10 +1033,15 @@ export default function BatchDetailClient({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <p className={`text-sm font-medium truncate ${
-                          isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground'
+                          isSkipped ? 'text-amber-600 dark:text-amber-400' : isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground'
                         }`}>
-                          {step.name}
+                          {displayStepName(step)}
                         </p>
+                        {isSkipped && (
+                          <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                            Skipped
+                          </span>
+                        )}
                         {isCurrent && (
                           <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                             Current
@@ -927,7 +1060,7 @@ export default function BatchDetailClient({
                   </div>
 
                   {/* Right: action or status */}
-                  {!isCompleted && step.type === 'COUNT' && (
+                  {!isCompleted && !isSkipped && step.type === 'COUNT' && (
                     <button
                       onClick={() => openLogForStep(step)}
                       className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0"
@@ -935,7 +1068,7 @@ export default function BatchDetailClient({
                       <PlusIcon className="w-4 h-4" />Log
                     </button>
                   )}
-                  {!isCompleted && step.type === 'CHECK' && (
+                  {!isCompleted && !isSkipped && step.type === 'CHECK' && (
                     <button
                       onClick={() => { haptic('light'); handleCheckComplete(step); }}
                       disabled={loading}
@@ -946,8 +1079,30 @@ export default function BatchDetailClient({
                   )}
                 </div>
 
+                {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && (
+                  <div className="mt-3 flex justify-end">
+                    {isSkipped ? (
+                      <button
+                        onClick={() => handleUnskipStep(step)}
+                        disabled={loading}
+                        className="px-3 py-2 min-h-[40px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-50"
+                      >
+                        Restore
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleSkipStep(step)}
+                        disabled={loading}
+                        className="px-3 py-2 min-h-[40px] rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs font-medium text-amber-700 dark:text-amber-300 active:scale-[0.96] transition-all disabled:opacity-50"
+                      >
+                        Skip for this batch
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Progress bar for COUNT steps (only when there's a target) */}
-                {step.type === 'COUNT' && step.targetQuantity && (
+                {!isSkipped && step.type === 'COUNT' && step.targetQuantity && (
                   <div className="mt-3">
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
@@ -961,7 +1116,7 @@ export default function BatchDetailClient({
                 )}
 
                 {/* Materials needed for this step */}
-                {step.recipeStep?.materials && step.recipeStep.materials.length > 0 && (
+                {!isSkipped && step.recipeStep?.materials && step.recipeStep.materials.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-border/50">
                     <span className="text-xs text-muted-foreground font-medium">Materials Needed</span>
                     <div className="mt-2 space-y-1.5">
@@ -1132,7 +1287,7 @@ export default function BatchDetailClient({
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Current Step</p>
-                <p className="text-sm font-semibold text-foreground truncate">{currentStep.name}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{displayStepName(currentStep)}</p>
                 {currentStep.type === 'COUNT' && (
                   <p className="text-xs text-muted-foreground tabular-nums">
                     {currentStep.completedQuantity}{currentStep.targetQuantity ? ` / ${currentStep.targetQuantity}` : ''} {currentStep.unitLabel}
@@ -1172,6 +1327,104 @@ export default function BatchDetailClient({
         onConfirm={() => confirmAction?.onConfirm()}
       />
 
+      {/* Add Batch Step Modal */}
+      {showAddStepModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Add step to this batch</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">One-off change. Recipe stays unchanged.</p>
+                </div>
+                <button
+                  onClick={() => setShowAddStepModal(false)}
+                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Step name</label>
+              <input
+                type="text"
+                value={newStepName}
+                onChange={(e) => setNewStepName(e.target.value)}
+                placeholder="e.g. Extra dry time"
+                maxLength={80}
+                className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              />
+
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setNewStepType('COUNT')}
+                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-all ${
+                    newStepType === 'COUNT'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      : 'border-input bg-muted/40 text-foreground/70'
+                  }`}
+                >
+                  Count
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewStepType('CHECK')}
+                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-all ${
+                    newStepType === 'CHECK'
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                      : 'border-input bg-muted/40 text-foreground/70'
+                  }`}
+                >
+                  Done / not done
+                </button>
+              </div>
+
+              {newStepType === 'COUNT' && (
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Target</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      value={newStepTarget}
+                      onChange={(e) => setNewStepTarget(e.target.value)}
+                      placeholder="Optional"
+                      className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Unit</label>
+                    <input
+                      type="text"
+                      value={newStepUnit}
+                      onChange={(e) => setNewStepUnit(e.target.value)}
+                      placeholder={batch.baseUnit || 'units'}
+                      maxLength={30}
+                      className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {error && <p className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
+
+              <button
+                onClick={handleAddStep}
+                disabled={savingStep || !newStepName.trim()}
+                className="w-full mt-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
+              >
+                {savingStep ? 'Adding...' : 'Add Step'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Log Modal */}
       {selectedStep && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
@@ -1183,7 +1436,7 @@ export default function BatchDetailClient({
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">{selectedStep.name}</p>
+                  <p className="text-sm font-semibold text-foreground">{displayStepName(selectedStep)}</p>
                   <p className="text-xs text-foreground tabular-nums mt-0.5">
                     {selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}
                   </p>
@@ -1212,7 +1465,7 @@ export default function BatchDetailClient({
 
               {/* Quick add - smart increments based on remaining quantity */}
               <QuickAddButtons
-                remaining={selectedStep.targetQuantity ? selectedStep.targetQuantity - selectedStep.completedQuantity : 999999}
+                remaining={selectedStep.targetQuantity ? selectedStep.targetQuantity - selectedStep.completedQuantity : null}
                 current={parseInt(quantity) || 0}
                 onAdd={(val) => setQuantity(String(val))}
               />

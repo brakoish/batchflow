@@ -5,6 +5,8 @@ import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import BatchCreator from './BatchCreator'
 
+const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
+
 export default async function NewBatchPage() {
   const session = await getSession()
   if (!session) redirect('/')
@@ -12,7 +14,7 @@ export default async function NewBatchPage() {
 
   const [recipes, workers] = await Promise.all([
     prisma.recipe.findMany({
-      where: { organizationId: session.organizationId },
+      where: { organizationId: session.organizationId, name: { not: BATCH_OVERRIDE_RECIPE_NAME } },
       select: { id: true, name: true, description: true, baseUnit: true, steps: { orderBy: { order: 'asc' }, select: { id: true, name: true, order: true, notes: true } } },
       orderBy: { name: 'asc' },
     }),

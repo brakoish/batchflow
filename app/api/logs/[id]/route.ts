@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
 
+const SKIPPED_PREFIX = '[Skipped] '
+
+function isSkippedStep(step: { name: string }) {
+  return step.name.startsWith(SKIPPED_PREFIX)
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -87,9 +93,10 @@ export async function PATCH(
     })
 
     if (batch && batch.status === 'COMPLETED') {
-      const allDone = batch.steps.every((s) =>
-        s.id === step.id ? newTotal >= s.targetQuantity : s.completedQuantity >= s.targetQuantity
-      )
+      const allDone = batch.steps.every((s) => {
+        if (isSkippedStep(s)) return true
+        return s.id === step.id ? newTotal >= s.targetQuantity : s.completedQuantity >= s.targetQuantity
+      })
       if (!allDone) {
         await prisma.batch.update({
           where: { id: batch.id },
@@ -171,9 +178,10 @@ export async function DELETE(
     })
 
     if (batch && batch.status === 'COMPLETED') {
-      const allDone = batch.steps.every((s) =>
-        s.id === step.id ? newTotal >= s.targetQuantity : s.completedQuantity >= s.targetQuantity
-      )
+      const allDone = batch.steps.every((s) => {
+        if (isSkippedStep(s)) return true
+        return s.id === step.id ? newTotal >= s.targetQuantity : s.completedQuantity >= s.targetQuantity
+      })
       if (!allDone) {
         await prisma.batch.update({
           where: { id: batch.id },

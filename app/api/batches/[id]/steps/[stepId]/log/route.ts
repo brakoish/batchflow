@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
 
+const SKIPPED_PREFIX = '[Skipped] '
+
+function isSkippedStep(step: { name: string }) {
+  return step.name.startsWith(SKIPPED_PREFIX)
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; stepId: string }> }
@@ -44,9 +50,9 @@ export async function POST(
     // Steps are never locked — workers can log on any step
 
     // Find previous step
-    const previousStep = step.batch.steps.find(
-      (s: { order: number }) => s.order === step.order - 1
-    )
+    const previousStep = [...step.batch.steps]
+      .reverse()
+      .find((s: { order: number; name: string }) => s.order < step.order && !isSkippedStep(s))
 
     // Calculate ceiling (normalize across different unit ratios)
     const newTotal = step.completedQuantity + quantity
@@ -157,9 +163,12 @@ export async function POST(
 
     if (!hasOpenEndedSteps) {
       const allCompleted = allSteps.every(
-        (s: { id: string; targetQuantity: number; completedQuantity: number }) => s.id === stepId
-          ? newTotal >= s.targetQuantity
-          : s.completedQuantity >= s.targetQuantity
+        (s: { id: string; name: string; targetQuantity: number; completedQuantity: number }) => {
+          if (isSkippedStep(s)) return true
+          return s.id === stepId
+            ? newTotal >= s.targetQuantity
+            : s.completedQuantity >= s.targetQuantity
+        }
       )
 
       if (allCompleted) {
