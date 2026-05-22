@@ -17,7 +17,7 @@ type Batch = {
 }
 type ActivityLog = {
   id: string
-  type: 'log' | 'edit' | 'delete'
+  type: 'log' | 'edit' | 'delete' | 'step_add' | 'step_edit' | 'step_skip' | 'step_restore' | 'step_reorder'
   quantity?: number
   note?: string | null
   oldQuantity?: number | null
@@ -27,6 +27,29 @@ type ActivityLog = {
   createdAt: string
   worker: { id: string; name: string }
   batchStep: { name: string; batch: { id: string; name: string } }
+}
+const SKIPPED_PREFIX = '[Skipped] '
+
+function displayStepName(name: string) {
+  return name.startsWith(SKIPPED_PREFIX) ? name.slice(SKIPPED_PREFIX.length) : name
+}
+
+function activityBadge(type: ActivityLog['type'], workerName: string) {
+  if (type === 'log') return workerName.charAt(0)
+  if (type === 'edit' || type === 'step_edit') return 'Edit'
+  if (type === 'delete') return 'Del'
+  if (type === 'step_add') return 'Add'
+  if (type === 'step_skip') return 'Skip'
+  if (type === 'step_restore') return 'Back'
+  if (type === 'step_reorder') return 'Move'
+  return ''
+}
+
+function activityTone(type: ActivityLog['type']) {
+  if (type === 'log') return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+  if (type === 'delete' || type === 'step_skip') return 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+  if (type === 'step_add' || type === 'step_restore') return 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+  return 'bg-muted text-muted-foreground'
 }
 
 function timeAgo(date: string) {
@@ -484,24 +507,19 @@ export default function DashboardClient({
               {activity.length === 0 ? (
                 <p className="text-xs text-muted-foreground/60 text-center py-8">No activity yet</p>
               ) : (
-                activity.slice(0, 10).map((item) => {
+                activity.slice(0, 20).map((item) => {
                   const isLog = item.type === 'log'
                   const isEdit = item.type === 'edit'
                   const isDelete = item.type === 'delete'
+                  const stepName = displayStepName(item.batchStep.name)
 
                   return (
                     <div key={item.id} className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                          isLog ? 'bg-emerald-500/10' : 'bg-muted'
+                          activityTone(item.type)
                         }`}>
-                          {isLog ? (
-                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{item.worker.name.charAt(0)}</span>
-                          ) : isEdit ? (
-                            <span className="text-[10px]">✏️</span>
-                          ) : (
-                            <span className="text-[10px]">🗑</span>
-                          )}
+                          <span className="text-[9px] font-bold">{activityBadge(item.type, item.worker.name)}</span>
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-xs text-foreground/80">
@@ -514,7 +532,7 @@ export default function DashboardClient({
                             )}
                             {isEdit && (
                               <>
-                                {' '}edited {item.batchStep.name}:{' '}
+                                {' '}edited {stepName}:{' '}
                                 <span className="text-muted-foreground/70 tabular-nums">{item.oldQuantity}</span>
                                 {' → '}
                                 <span className="text-blue-600 dark:text-blue-400 font-semibold tabular-nums">{item.newQuantity}</span>
@@ -524,7 +542,40 @@ export default function DashboardClient({
                               <>
                                 {' '}deleted{' '}
                                 <span className="text-red-500 dark:text-red-400 font-semibold tabular-nums">+{item.oldQuantity}</span>
-                                {' '}from {item.batchStep.name}
+                                {' '}from {stepName}
+                              </>
+                            )}
+                            {item.type === 'step_add' && (
+                              <>
+                                {' '}added step <span className="font-semibold text-blue-600 dark:text-blue-400">{stepName}</span>
+                                {item.newQuantity ? <> · target <span className="tabular-nums">{item.newQuantity}</span></> : null}
+                              </>
+                            )}
+                            {item.type === 'step_edit' && (
+                              <>
+                                {' '}edited step <span className="font-semibold text-blue-600 dark:text-blue-400">{stepName}</span>
+                                {item.oldQuantity !== item.newQuantity ? (
+                                  <>
+                                    {' '}target <span className="text-muted-foreground/70 tabular-nums">{item.oldQuantity || 'open'}</span>
+                                    {' → '}
+                                    <span className="text-blue-600 dark:text-blue-400 font-semibold tabular-nums">{item.newQuantity || 'open'}</span>
+                                  </>
+                                ) : null}
+                              </>
+                            )}
+                            {item.type === 'step_skip' && (
+                              <>
+                                {' '}skipped step <span className="font-semibold text-amber-600 dark:text-amber-400">{stepName}</span>
+                              </>
+                            )}
+                            {item.type === 'step_restore' && (
+                              <>
+                                {' '}restored step <span className="font-semibold text-blue-600 dark:text-blue-400">{stepName}</span>
+                              </>
+                            )}
+                            {item.type === 'step_reorder' && (
+                              <>
+                                {' '}moved step <span className="font-semibold text-blue-600 dark:text-blue-400">{stepName}</span>
                               </>
                             )}
                           </p>

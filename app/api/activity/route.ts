@@ -47,7 +47,7 @@ export async function GET() {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
           },
           action: {
-            in: ['edit', 'delete'],
+            in: ['edit', 'delete', 'step_add', 'step_edit', 'step_skip', 'step_restore', 'step_reorder'],
           },
           batchStep: {
             batch: {

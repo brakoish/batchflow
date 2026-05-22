@@ -4,6 +4,20 @@ import { requireSupervisorOrOwner } from '@/lib/auth'
 
 const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
 
+async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSupervisorOrOwner>>) {
+  if (session.user.workerId) return session.user.workerId
+
+  const worker = await prisma.worker.findFirst({
+    where: {
+      organizationId: session.user.organizationId,
+      role: { in: ['OWNER', 'SUPERVISOR'] },
+    },
+    select: { id: true },
+  })
+
+  return worker?.id || null
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -98,6 +112,19 @@ export async function POST(
         },
       },
     })
+
+    const activityWorkerId = await getActivityWorkerId(session)
+    if (activityWorkerId) {
+      await prisma.logAudit.create({
+        data: {
+          batchStepId: step.id,
+          workerId: activityWorkerId,
+          action: 'step_add',
+          newQuantity: targetQuantity,
+          newNote: step.name,
+        },
+      })
+    }
 
     return NextResponse.json({ step })
   } catch (error) {

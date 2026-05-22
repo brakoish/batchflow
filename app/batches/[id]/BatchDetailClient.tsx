@@ -171,6 +171,11 @@ export default function BatchDetailClient({
   const [newStepTarget, setNewStepTarget] = useState('')
   const [newStepUnit, setNewStepUnit] = useState(batch.baseUnit || 'units')
   const [savingStep, setSavingStep] = useState(false)
+  const [editingStep, setEditingStep] = useState<BatchStep | null>(null)
+  const [editStepName, setEditStepName] = useState('')
+  const [editStepType, setEditStepType] = useState<'COUNT' | 'CHECK'>('COUNT')
+  const [editStepTarget, setEditStepTarget] = useState('')
+  const [editStepUnit, setEditStepUnit] = useState('')
 
   // Duplicate modal state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
@@ -375,6 +380,95 @@ export default function BatchDetailClient({
       setError('Network error. Please check your connection.')
     } finally {
       setSavingStep(false)
+    }
+  }
+
+  const handleOpenEditStep = (step: BatchStep) => {
+    haptic('light')
+    setEditingStep(step)
+    setEditStepName(displayStepName(step))
+    setEditStepType(step.type)
+    setEditStepTarget(step.targetQuantity?.toString() || '')
+    setEditStepUnit(step.unitLabel || batch.baseUnit || 'units')
+    setError('')
+  }
+
+  const handleSaveStepEdit = async () => {
+    if (!editingStep || !editStepName.trim()) {
+      setError('Step name is required')
+      return
+    }
+
+    setSavingStep(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/batches/${batch.id}/steps/${editingStep.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editStepName,
+          type: editStepType,
+          targetQuantity: editStepType === 'CHECK' ? 1 : editStepTarget || null,
+          unitLabel: editStepUnit || batch.baseUnit || 'units',
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to update step')
+        return
+      }
+
+      const data = await res.json()
+      setBatch(prev => ({
+        ...prev,
+        steps: prev.steps.map(s => s.id === editingStep.id ? data.step : s),
+      }))
+      setEditingStep(null)
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'step-edit')
+      showToast('Step updated')
+    } catch (err) {
+      setError('Network error. Please check your connection.')
+    } finally {
+      setSavingStep(false)
+    }
+  }
+
+  const handleMoveStep = async (step: BatchStep, direction: 'move-up' | 'move-down') => {
+    haptic('light')
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/batches/${batch.id}/steps/${step.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: direction }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to reorder step')
+        return
+      }
+
+      setBatch(prev => {
+        const steps = [...prev.steps].sort((a, b) => a.order - b.order)
+        const index = steps.findIndex(s => s.id === step.id)
+        const swapIndex = direction === 'move-up' ? index - 1 : index + 1
+        if (index < 0 || swapIndex < 0 || swapIndex >= steps.length) return prev
+        const currentOrder = steps[index].order
+        steps[index] = { ...steps[index], order: steps[swapIndex].order }
+        steps[swapIndex] = { ...steps[swapIndex], order: currentOrder }
+        return { ...prev, steps: steps.sort((a, b) => a.order - b.order) }
+      })
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'step-reorder')
+      showToast('Step moved')
+    } catch (err) {
+      setError('Network error. Please check your connection.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -993,7 +1087,7 @@ export default function BatchDetailClient({
 
         {/* Steps */}
         <div className="space-y-2">
-          {batch.steps.map((step) => {
+          {batch.steps.map((step, stepIndex) => {
             const isSkipped = isSkippedStep(step)
             const isCompleted = step.status === 'COMPLETED' && !isSkipped
             const isCurrent = currentStep?.id === step.id
@@ -1080,7 +1174,28 @@ export default function BatchDetailClient({
                 </div>
 
                 {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && (
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <button
+                      onClick={() => handleMoveStep(step, 'move-up')}
+                      disabled={loading || stepIndex === 0}
+                      className="px-3 py-2 min-h-[40px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-30"
+                    >
+                      Up
+                    </button>
+                    <button
+                      onClick={() => handleMoveStep(step, 'move-down')}
+                      disabled={loading || stepIndex === batch.steps.length - 1}
+                      className="px-3 py-2 min-h-[40px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-30"
+                    >
+                      Down
+                    </button>
+                    <button
+                      onClick={() => handleOpenEditStep(step)}
+                      disabled={loading}
+                      className="px-3 py-2 min-h-[40px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
                     {isSkipped ? (
                       <button
                         onClick={() => handleUnskipStep(step)}
@@ -1419,6 +1534,102 @@ export default function BatchDetailClient({
                 className="w-full mt-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
               >
                 {savingStep ? 'Adding...' : 'Add Step'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Batch Step Modal */}
+      {editingStep && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Edit batch step</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">This changes this batch only.</p>
+                </div>
+                <button
+                  onClick={() => setEditingStep(null)}
+                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Step name</label>
+              <input
+                type="text"
+                value={editStepName}
+                onChange={(e) => setEditStepName(e.target.value)}
+                maxLength={80}
+                className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              />
+
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditStepType('COUNT')}
+                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-all ${
+                    editStepType === 'COUNT'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      : 'border-input bg-muted/40 text-foreground/70'
+                  }`}
+                >
+                  Count
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditStepType('CHECK')}
+                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-all ${
+                    editStepType === 'CHECK'
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                      : 'border-input bg-muted/40 text-foreground/70'
+                  }`}
+                >
+                  Done / not done
+                </button>
+              </div>
+
+              {editStepType === 'COUNT' && (
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Target</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      value={editStepTarget}
+                      onChange={(e) => setEditStepTarget(e.target.value)}
+                      placeholder="Optional"
+                      className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Unit</label>
+                    <input
+                      type="text"
+                      value={editStepUnit}
+                      onChange={(e) => setEditStepUnit(e.target.value)}
+                      maxLength={30}
+                      className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {error && <p className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
+
+              <button
+                onClick={handleSaveStepEdit}
+                disabled={savingStep || !editStepName.trim()}
+                className="w-full mt-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
+              >
+                {savingStep ? 'Saving...' : 'Save Step'}
               </button>
             </div>
           </div>

@@ -39,7 +39,7 @@ export default async function DashboardPage() {
     prisma.logAudit.findMany({
       where: {
         createdAt: { gte: sevenDaysAgo },
-        action: { in: ['edit', 'delete'] },
+        action: { in: ['edit', 'delete', 'step_add', 'step_edit', 'step_skip', 'step_restore', 'step_reorder'] },
         batchStep: {
           batch: { organizationId: session.organizationId },
         },
@@ -65,7 +65,7 @@ export default async function DashboardPage() {
 
   const auditActivities = auditLogs.map((audit) => ({
     id: audit.id,
-    type: audit.action as 'edit' | 'delete',
+    type: audit.action as 'edit' | 'delete' | 'step_add' | 'step_edit' | 'step_skip' | 'step_restore' | 'step_reorder',
     createdAt: audit.createdAt,
     worker: audit.worker,
     batchStep: audit.batchStep,
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
 
   const allActivities = [...logActivities, ...auditActivities]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, 15)
+    .slice(0, 30)
 
   return (
     <DashboardClient
