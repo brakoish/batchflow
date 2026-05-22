@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { haptic } from '@/lib/haptic'
 
+const LAST_ORG_KEY = 'batchflow:lastOrg'
+
 export default function OrgLoginPage() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
@@ -40,9 +42,11 @@ export default function OrgLoginPage() {
         if (res.ok) {
           const data = await res.json()
           setOrgName(data.organization.name)
+          localStorage.setItem(LAST_ORG_KEY, slug)
         } else {
           setOrgNotFound(true)
           setError('Organization not found')
+          localStorage.removeItem(LAST_ORG_KEY)
         }
       } catch (err) {
         setOrgNotFound(true)
@@ -140,7 +144,7 @@ export default function OrgLoginPage() {
             The organization &quot;{slug}&quot; could not be found.
           </p>
           <a
-            href="/"
+            href="/?switchOrg=1"
             className="inline-block px-6 py-3 bg-foreground text-background rounded-xl font-medium hover:opacity-90 transition-opacity"
           >
             Go to Login
@@ -229,7 +233,10 @@ export default function OrgLoginPage() {
 
       {/* Back to general login */}
       <div className="mt-8 text-center">
-        <a href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <a
+          href="/?switchOrg=1"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
           Use a different organization
         </a>
       </div>

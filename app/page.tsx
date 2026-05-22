@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { haptic } from '@/lib/haptic'
 
 type OrgResult = { id: string; name: string; slug: string }
+const LAST_ORG_KEY = 'batchflow:lastOrg'
 
 export default function LandingPage() {
   const [query, setQuery] = useState('')
@@ -12,14 +13,36 @@ export default function LandingPage() {
   const [searching, setSearching] = useState(false)
   const [noResults, setNoResults] = useState(false)
   const [focused, setFocused] = useState(false)
+  const [checkingLastOrg, setCheckingLastOrg] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout>(null)
   const router = useRouter()
 
+  // Send returning workers straight back to their org PIN pad.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+
+    if (params.get('switchOrg') === '1') {
+      localStorage.removeItem(LAST_ORG_KEY)
+      window.history.replaceState(null, '', '/')
+      setCheckingLastOrg(false)
+      return
+    }
+
+    const lastOrg = localStorage.getItem(LAST_ORG_KEY)
+    if (lastOrg) {
+      router.replace(`/o/${lastOrg}`)
+      return
+    }
+
+    setCheckingLastOrg(false)
+  }, [router])
+
   // Auto-focus on mount
   useEffect(() => {
+    if (checkingLastOrg) return
     inputRef.current?.focus()
-  }, [])
+  }, [checkingLastOrg])
 
   // Search orgs as user types
   useEffect(() => {
@@ -53,6 +76,7 @@ export default function LandingPage() {
 
   const handleOrgSelect = (slug: string) => {
     haptic('medium')
+    localStorage.setItem(LAST_ORG_KEY, slug)
     router.push(`/o/${slug}`)
   }
 
@@ -62,8 +86,18 @@ export default function LandingPage() {
       handleOrgSelect(results[0].slug)
     } else if (query.trim()) {
       // Try direct slug navigation
-      router.push(`/o/${query.trim().toLowerCase().replace(/\s+/g, '-')}`)
+      const slug = query.trim().toLowerCase().replace(/\s+/g, '-')
+      localStorage.setItem(LAST_ORG_KEY, slug)
+      router.push(`/o/${slug}`)
     }
+  }
+
+  if (checkingLastOrg) {
+    return (
+      <div className="min-h-dvh bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
