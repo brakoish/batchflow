@@ -165,6 +165,7 @@ export default function BatchDetailClient({
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
+  const [editingSteps, setEditingSteps] = useState(false)
   const [showAddStepModal, setShowAddStepModal] = useState(false)
   const [newStepName, setNewStepName] = useState('')
   const [newStepType, setNewStepType] = useState<'COUNT' | 'CHECK'>('COUNT')
@@ -338,6 +339,12 @@ export default function BatchDetailClient({
     setNewStepTarget(batch.targetQuantity?.toString() || '')
     setNewStepUnit(batch.baseUnit || 'units')
     setShowAddStepModal(true)
+    setError('')
+  }
+
+  const toggleStepEditing = () => {
+    haptic('light')
+    setEditingSteps(prev => !prev)
     setError('')
   }
 
@@ -1044,11 +1051,21 @@ export default function BatchDetailClient({
                   Edit Batch
                 </button>
               )}
-              <button onClick={handleOpenAddStep}
-                className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
-                <PlusIcon className="w-4 h-4" />
-                Add Step
+              <button onClick={toggleStepEditing}
+                className={`px-3 py-2 min-h-[44px] rounded-lg border active:scale-[0.96] text-xs font-medium transition-all ${
+                  editingSteps
+                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500'
+                    : 'bg-muted hover:bg-muted/80 border-input text-foreground/80'
+                }`}>
+                {editingSteps ? 'Done Editing Steps' : 'Edit Steps'}
               </button>
+              {editingSteps && (
+                <button onClick={handleOpenAddStep}
+                  className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
+                  <PlusIcon className="w-4 h-4" />
+                  Add Step
+                </button>
+              )}
               <button onClick={handleOpenDuplicate}
                 className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
                 <DocumentDuplicateIcon className="w-4 h-4" />
@@ -1173,7 +1190,7 @@ export default function BatchDetailClient({
                   )}
                 </div>
 
-                {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && (
+                {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && editingSteps && (
                   <div className="mt-3 flex flex-wrap justify-end gap-2">
                     <button
                       onClick={() => handleMoveStep(step, 'move-up')}
