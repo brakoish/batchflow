@@ -82,13 +82,11 @@ function PresetLogButtons({
   lastAmount,
   disabled,
   onPick,
-  onCustom,
 }: {
   remaining: number | null
   lastAmount: number | null
   disabled?: boolean
   onPick: (amount: number) => void
-  onCustom: () => void
 }) {
   const amounts = getSmartAmounts(remaining)
   return (
@@ -125,14 +123,6 @@ function PresetLogButtons({
             Rest
           </button>
         )}
-        <button
-          type="button"
-          onClick={onCustom}
-          disabled={disabled}
-          className="min-h-[64px] rounded-xl border border-input bg-card text-lg font-bold text-foreground active:scale-[0.97] transition-all disabled:opacity-50"
-        >
-          Other
-        </button>
       </div>
     </div>
   )
@@ -147,7 +137,6 @@ export default function BatchDetailClient({
   const [selectedStep, setSelectedStep] = useState<BatchStep | null>(null)
   const [quantity, setQuantity] = useState('')
   const [note, setNote] = useState('')
-  const [showCustomQuantity, setShowCustomQuantity] = useState(false)
   const [showNoteInput, setShowNoteInput] = useState(false)
   const [lastLogAmounts, setLastLogAmounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
@@ -253,10 +242,10 @@ export default function BatchDetailClient({
   const router = useRouter()
 
   useEffect(() => {
-    if (selectedStep && showCustomQuantity && quantityRef.current) {
+    if (selectedStep && quantityRef.current) {
       quantityRef.current.focus()
     }
-  }, [selectedStep, showCustomQuantity])
+  }, [selectedStep])
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -768,7 +757,7 @@ export default function BatchDetailClient({
         return s
       }),
     }))
-    setSelectedStep(null); setQuantity(''); setNote(''); setShowCustomQuantity(false); setShowNoteInput(false); setError('')
+    setSelectedStep(null); setQuantity(''); setNote(''); setShowNoteInput(false); setError('')
     showToast(`Logged ${qty} units`)
 
     try {
@@ -884,7 +873,6 @@ export default function BatchDetailClient({
     setSelectedStep(step)
     setQuantity('')
     setNote('')
-    setShowCustomQuantity(false)
     setShowNoteInput(false)
     setError('')
   }
@@ -1776,7 +1764,6 @@ export default function BatchDetailClient({
                     setSelectedStep(null)
                     setQuantity('')
                     setNote('')
-                    setShowCustomQuantity(false)
                     setShowNoteInput(false)
                   }}
                   className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
@@ -1809,43 +1796,37 @@ export default function BatchDetailClient({
                       lastAmount={lastAmount}
                       disabled={loading || safeRemaining === 0}
                       onPick={handleQuickAmount}
-                      onCustom={() => {
-                        haptic('light')
-                        setShowCustomQuantity(true)
-                        setQuantity('')
-                      }}
                     />
 
-                    {showCustomQuantity && (
-                      <div className="mt-4">
-                        <input
-                          ref={quantityRef}
-                          type="text"
-                          inputMode="none"
-                          readOnly
-                          value={quantity}
-                          placeholder="0"
-                          className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-3xl font-bold text-center tabular-nums placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-                        />
-                        <div className="grid grid-cols-3 gap-2 mt-3">
-                          {keypad.map((key) => (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => {
-                                haptic('light')
-                                if (key === 'clear') setQuantity('')
-                                else if (key === 'back') setQuantity(prev => prev.slice(0, -1))
-                                else setQuantity(prev => `${prev}${key}`.replace(/^0+(\d)/, '$1').slice(0, 6))
-                              }}
-                              className="min-h-[56px] rounded-xl border border-input bg-muted text-xl font-bold text-foreground active:scale-[0.97] transition-all"
-                            >
-                              {key === 'clear' ? 'Clear' : key === 'back' ? 'Back' : key}
-                            </button>
-                          ))}
-                        </div>
+                    <div className="mt-4">
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Custom amount</p>
+                      <input
+                        ref={quantityRef}
+                        type="text"
+                        inputMode="none"
+                        readOnly
+                        value={quantity}
+                        placeholder="0"
+                        className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-3xl font-bold text-center tabular-nums placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                      />
+                      <div className="grid grid-cols-3 gap-2 mt-3">
+                        {keypad.map((key) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              haptic('light')
+                              if (key === 'clear') setQuantity('')
+                              else if (key === 'back') setQuantity(prev => prev.slice(0, -1))
+                              else setQuantity(prev => `${prev}${key}`.replace(/^0+(\d)/, '$1').slice(0, 6))
+                            }}
+                            className="min-h-[56px] rounded-xl border border-input bg-muted text-xl font-bold text-foreground active:scale-[0.97] transition-all"
+                          >
+                            {key === 'clear' ? 'Clear' : key === 'back' ? 'Back' : key}
+                          </button>
+                        ))}
                       </div>
-                    )}
+                    </div>
 
                     <div className="mt-4">
                       {showNoteInput ? (
@@ -1873,15 +1854,13 @@ export default function BatchDetailClient({
               {error && <p className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
 
               {/* Submit */}
-              {showCustomQuantity && (
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading || !quantity || parseInt(quantity) <= 0}
-                  className="w-full mt-4 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
-                >
-                  {loading ? 'Saving...' : quantity && parseInt(quantity) > 0 ? `Log ${parseInt(quantity).toLocaleString()} ${selectedStep.unitLabel}` : 'Log Progress'}
-                </button>
-              )}
+              <button
+                onClick={handleSubmit}
+                disabled={loading || !quantity || parseInt(quantity) <= 0}
+                className="w-full mt-4 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
+              >
+                {loading ? 'Saving...' : quantity && parseInt(quantity) > 0 ? `Log ${parseInt(quantity).toLocaleString()} ${selectedStep.unitLabel}` : 'Log Custom Amount'}
+              </button>
             </div>
           </div>
         </div>
