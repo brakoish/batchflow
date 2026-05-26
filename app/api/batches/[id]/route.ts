@@ -40,6 +40,7 @@ export async function GET(
             },
           },
         },
+        assignments: { include: { worker: { select: { id: true, name: true } } } },
       },
     })
 

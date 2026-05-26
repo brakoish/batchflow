@@ -9,8 +9,16 @@ import { ChevronRightIcon, FlagIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
+import {
+  displayProductionStepName,
+  formatShortRelativeTime,
+  getActiveStations,
+  getLastBatchMovement,
+  getStationStates,
+  type ProductionLineLog,
+} from '@/lib/productionLine'
 
-type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number | null }
+type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number | null; progressLogs?: ProductionLineLog[] }
 type Assignment = { worker: { id: string; name: string } }
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string; notes?: string | null
@@ -81,6 +89,15 @@ export default function BatchListClient({
       }
     } catch {}
     setClockingIn(false)
+  }
+
+  const stationDotClass = (label: string) => {
+    if (label === 'done') return 'bg-emerald-500'
+    if (label === 'active') return 'bg-blue-500'
+    if (label === 'ready') return 'bg-emerald-400'
+    if (label === 'stale') return 'bg-amber-500'
+    if (label === 'skipped') return 'bg-amber-300'
+    return 'bg-muted-foreground/30'
   }
 
   return (
@@ -281,12 +298,25 @@ export default function BatchListClient({
               : []
 
             const renderBatch = (batch: Batch) => {
-              const firstIncomplete = batch.steps.find((s) => s.status !== 'COMPLETED')
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const pct = Math.round((completedSteps / batch.steps.length) * 100)
-              const isMyTurn = !!firstIncomplete
               const priority = (batch as any).priority || 'NORMAL'
               const isUrgent = priority === 'URGENT'
+              const activeStations = getActiveStations(batch.steps, 2)
+              const stationStates = getStationStates(batch.steps)
+              const lastMovement = getLastBatchMovement(batch.steps)
+              const assignedNames = batch.assignments?.map(a => a.worker.name.split(' ')[0]) || []
+              const waitingStation = stationStates.find(s => s.label === 'waiting')
+              const activeWorkers = Array.from(new Set(
+                activeStations
+                  .map(station => station.latestLog?.worker.name.split(' ')[0])
+                  .filter((name): name is string => Boolean(name))
+              ))
+              const activeLineText = activeStations.length > 1
+                ? `${activeStations.length} stations active`
+                : activeStations[0]
+                  ? `${activeStations[0].label === 'waiting' ? 'Waiting' : 'Ready'}: ${displayProductionStepName(activeStations[0].step)}`
+                  : 'Line complete'
 
               return (
                 <Link
@@ -325,16 +355,10 @@ export default function BatchListClient({
                   </div>
 
                   {/* Status Badge */}
-                  <div className="flex items-center gap-2 mb-4">
-                    {isMyTurn ? (
-                      <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                        READY
-                      </span>
-                    ) : (
-                      <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold">
-                        WAITING
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                      {activeLineText}
+                    </span>
                     {priority === 'URGENT' && (
                       <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
                         <FlagIcon className="w-3 h-3" />
@@ -373,6 +397,58 @@ export default function BatchListClient({
                     </div>
                   )}
 
+                  <div className="mb-4 rounded-xl bg-muted/35 border border-border/60 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Line</p>
+                      {lastMovement ? (
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          Last: {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground">No movement yet</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {stationStates.map((state) => (
+                        <div
+                          key={state.step.id}
+                          className={`h-2 flex-1 rounded-full ${stationDotClass(state.label)}`}
+                          title={`${displayProductionStepName(state.step)}: ${state.label}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="space-y-1">
+                      {activeStations.map((station) => (
+                        <div key={station.step.id} className="flex items-center justify-between gap-2 text-xs">
+                          <span className="font-medium text-foreground truncate">
+                            {displayProductionStepName(station.step)}
+                          </span>
+                          <span className="text-muted-foreground tabular-nums shrink-0">
+                            {station.step.completedQuantity}{station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}
+                          </span>
+                        </div>
+                      ))}
+                      {waitingStation && (
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          Waiting: {displayProductionStepName(waitingStation.step)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {(assignedNames.length > 0 || activeWorkers.length > 0) && (
+                    <div className="mb-4 grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-muted/30 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Assigned</p>
+                        <p className="text-xs text-foreground truncate">{assignedNames.length ? assignedNames.join(', ') : 'Open'}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/30 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Working</p>
+                        <p className="text-xs text-foreground truncate">{activeWorkers.length ? activeWorkers.join(', ') : 'No recent logs'}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Progress */}
                   <div className="flex items-center gap-4">
                     {/* Circular Progress */}
@@ -404,11 +480,9 @@ export default function BatchListClient({
                       <p className="text-sm text-foreground">
                         {completedSteps}/{batch.steps.length} steps complete
                       </p>
-                      {firstIncomplete && (
-                        <p className="text-sm text-muted-foreground truncate">
-                          Next: {firstIncomplete.name}
-                        </p>
-                      )}
+                      <p className="text-sm text-muted-foreground truncate">
+                        {activeStations.map(station => displayProductionStepName(station.step)).join(', ') || 'All stations done'}
+                      </p>
                     </div>
 
                     {/* Target */}

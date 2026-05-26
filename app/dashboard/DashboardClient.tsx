@@ -9,7 +9,15 @@ import EmptyState from '@/app/components/EmptyState'
 import EditBatchModal from '@/app/components/EditBatchModal'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
-type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null }
+import {
+  displayProductionStepName,
+  formatShortRelativeTime,
+  getActiveStations,
+  getLastBatchMovement,
+  getStationStates,
+  type ProductionLineLog,
+} from '@/lib/productionLine'
+type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null; progressLogs?: ProductionLineLog[] }
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string; notes?: string | null
   lotNumber?: string; metrcBatchId?: string; packageTag?: string
@@ -60,6 +68,15 @@ function timeAgo(date: string) {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
+}
+
+function stationDotClass(label: string) {
+  if (label === 'done') return 'bg-emerald-500'
+  if (label === 'active') return 'bg-blue-500'
+  if (label === 'ready') return 'bg-emerald-400'
+  if (label === 'stale') return 'bg-amber-500'
+  if (label === 'skipped') return 'bg-amber-300'
+  return 'bg-muted-foreground/30'
 }
 
 export default function DashboardClient({
@@ -137,6 +154,7 @@ export default function DashboardClient({
 
   const totalUnits = activity.reduce((sum, l) => sum + (l.type === 'log' ? (l.quantity || 0) : 0), 0)
   const activeBatchCount = batches.filter(b => b.status === 'ACTIVE').length
+  const movingBatchCount = batches.filter(b => b.status === 'ACTIVE' && getLastBatchMovement(b.steps)).length
 
   // Extract unique recipe names for filter dropdown
   const uniqueRecipes = Array.from(new Set(batches.map(b => b.recipe.name))).sort()
@@ -227,7 +245,7 @@ export default function DashboardClient({
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="rounded-xl border border-border bg-card p-3">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Active</p>
               <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{activeBatchCount}</p>
@@ -240,6 +258,11 @@ export default function DashboardClient({
                 {activeWorkers}
               </p>
               <p className="text-[10px] text-muted-foreground">workers</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Moving</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{movingBatchCount}</p>
+              <p className="text-[10px] text-muted-foreground">recent</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-3">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Units</p>
@@ -356,6 +379,14 @@ export default function DashboardClient({
 
                 return filteredBatches.map((batch) => {
                 const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
+                const stationStates = getStationStates(batch.steps)
+                const activeStations = getActiveStations(batch.steps, 3)
+                const lastMovement = getLastBatchMovement(batch.steps)
+                const activeWorkers = Array.from(new Set(
+                  activeStations
+                    .map(station => station.latestLog?.worker.name.split(' ')[0])
+                    .filter((name): name is string => Boolean(name))
+                ))
 
                 return (
                   <Link
@@ -444,6 +475,43 @@ export default function DashboardClient({
                           </svg>
                         </button>
                       </div>
+                    </div>
+
+                    <div className="mb-3 rounded-xl bg-muted/35 border border-border/60 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {activeStations.length > 1 ? `${activeStations.length} stations active` : 'Line status'}
+                        </p>
+                        {lastMovement ? (
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground">No movement</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {stationStates.map((state) => (
+                          <div
+                            key={state.step.id}
+                            className={`h-2 flex-1 rounded-full ${stationDotClass(state.label)}`}
+                            title={`${displayProductionStepName(state.step)}: ${state.label}`}
+                          />
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {activeStations.slice(0, 2).map((station) => (
+                          <div key={station.step.id} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="font-medium text-foreground truncate">{displayProductionStepName(station.step)}</span>
+                            <span className="text-muted-foreground tabular-nums shrink-0">
+                              {station.step.completedQuantity}{station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        Working: {activeWorkers.length ? activeWorkers.join(', ') : 'No recent station logs'}
+                      </p>
                     </div>
 
                     <div className="space-y-1.5">

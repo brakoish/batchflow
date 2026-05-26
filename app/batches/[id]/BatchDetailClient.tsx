@@ -18,6 +18,12 @@ import { haptic } from '@/lib/haptic'
 import { formatTimeInTz, formatDateInTz } from '@/lib/timezone'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
+import {
+  formatShortRelativeTime,
+  getActiveStations,
+  getLastBatchMovement,
+  getStationStates,
+} from '@/lib/productionLine'
 
 type Worker = { id: string; name: string }
 type ProgressLog = {
@@ -837,9 +843,10 @@ export default function BatchDetailClient({
   const overallPct = Math.round(
     (batch.steps.filter(s => s.status === 'COMPLETED').length / batch.steps.length) * 100
   )
-  const currentStep = batch.status === 'ACTIVE'
-    ? batch.steps.find(s => s.status !== 'COMPLETED') || null
-    : null
+  const stationStates = getStationStates(batch.steps)
+  const activeStations = batch.status === 'ACTIVE' ? getActiveStations(batch.steps, 4) : []
+  const primaryStation = activeStations[0] ? batch.steps.find(step => step.id === activeStations[0].step.id) || null : null
+  const lastMovement = getLastBatchMovement(batch.steps)
 
   const openLogForStep = (step: BatchStep) => {
     haptic('light')
@@ -1010,6 +1017,55 @@ export default function BatchDetailClient({
             </div>
           )}
 
+          <div className="mt-3 rounded-xl border border-border bg-card p-3 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Production Line</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {activeStations.length > 1
+                    ? `${activeStations.length} stations active`
+                    : activeStations[0]
+                      ? `${activeStations[0].label === 'waiting' ? 'Waiting' : 'Ready'}: ${displayStepName(activeStations[0].step as BatchStep)}`
+                      : 'Line complete'}
+                </p>
+              </div>
+              {lastMovement ? (
+                <p className="text-xs text-muted-foreground text-right shrink-0">
+                  Last: {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity}<br />
+                  {formatShortRelativeTime(lastMovement.createdAt)}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground text-right shrink-0">No movement yet</p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {activeStations.slice(0, 4).map((station) => (
+                <button
+                  key={station.step.id}
+                  type="button"
+                  onClick={() => station.step.type === 'COUNT' ? openLogForStep(station.step as BatchStep) : undefined}
+                  className="min-h-[52px] rounded-lg bg-muted/45 border border-border/60 px-3 py-2 text-left active:scale-[0.99] transition-all"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                      {station.step.completedQuantity}{station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground truncate">
+                    {station.latestLog
+                      ? `${station.latestLog.worker.name} moved ${station.latestLog.quantity} · ${formatShortRelativeTime(station.latestLog.createdAt)}`
+                      : station.availableFromPrevious
+                        ? `${station.availableFromPrevious.toLocaleString()} ready from previous step`
+                        : station.index === 0
+                          ? 'Ready to start'
+                          : 'Waiting on previous step'}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Batch notes */}
           {batch.notes && (
             <div className="mt-3 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-3">
@@ -1107,7 +1163,8 @@ export default function BatchDetailClient({
           {batch.steps.map((step, stepIndex) => {
             const isSkipped = isSkippedStep(step)
             const isCompleted = step.status === 'COMPLETED' && !isSkipped
-            const isCurrent = currentStep?.id === step.id
+            const stationState = stationStates.find(state => state.step.id === step.id)
+            const isCurrent = activeStations.some(state => state.step.id === step.id)
             const pct = step.targetQuantity ? (step.completedQuantity / step.targetQuantity) * 100 : 0
 
             return (
@@ -1155,7 +1212,7 @@ export default function BatchDetailClient({
                         )}
                         {isCurrent && (
                           <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                            Current
+                            Active
                           </span>
                         )}
                       </div>
@@ -1165,6 +1222,18 @@ export default function BatchDetailClient({
                       {step.type === 'COUNT' && (
                         <p className="text-xs text-foreground tabular-nums mt-0.5">
                           {step.completedQuantity}{step.targetQuantity ? ` / ${step.targetQuantity}` : ''} {step.unitLabel}{!step.targetQuantity && step.completedQuantity > 0 ? ' produced' : ''}
+                        </p>
+                      )}
+                      {!isSkipped && !isCompleted && stationState?.availableFromPrevious !== null && stationState?.availableFromPrevious !== undefined && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {stationState.availableFromPrevious > 0
+                            ? `${stationState.availableFromPrevious.toLocaleString()} ready from previous step`
+                            : 'Waiting on previous step'}
+                        </p>
+                      )}
+                      {!isSkipped && stationState?.latestLog && (
+                        <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                          Last: {stationState.latestLog.worker.name} +{stationState.latestLog.quantity} · {formatShortRelativeTime(stationState.latestLog.createdAt)}
                         </p>
                       )}
                     </div>
@@ -1413,22 +1482,22 @@ export default function BatchDetailClient({
         )}
       </main>
 
-      {currentStep && !selectedStep && (
+      {primaryStation && !selectedStep && (
         <div className="fixed left-0 right-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-30 px-4 pb-3 sm:hidden pointer-events-none">
           <div className="max-w-2xl mx-auto rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl p-3 pointer-events-auto">
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Current Step</p>
-                <p className="text-sm font-semibold text-foreground truncate">{displayStepName(currentStep)}</p>
-                {currentStep.type === 'COUNT' && (
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Active Station</p>
+                <p className="text-sm font-semibold text-foreground truncate">{displayStepName(primaryStation)}</p>
+                {primaryStation.type === 'COUNT' && (
                   <p className="text-xs text-muted-foreground tabular-nums">
-                    {currentStep.completedQuantity}{currentStep.targetQuantity ? ` / ${currentStep.targetQuantity}` : ''} {currentStep.unitLabel}
+                    {primaryStation.completedQuantity}{primaryStation.targetQuantity ? ` / ${primaryStation.targetQuantity}` : ''} {primaryStation.unitLabel}
                   </p>
                 )}
               </div>
-              {currentStep.type === 'COUNT' ? (
+              {primaryStation.type === 'COUNT' ? (
                 <button
-                  onClick={() => openLogForStep(currentStep)}
+                  onClick={() => openLogForStep(primaryStation)}
                   className="min-h-[52px] px-5 rounded-xl bg-emerald-600 text-white text-sm font-bold active:scale-[0.97] transition-all flex items-center gap-1.5"
                 >
                   <PlusIcon className="w-4 h-4" />
@@ -1436,7 +1505,7 @@ export default function BatchDetailClient({
                 </button>
               ) : (
                 <button
-                  onClick={() => { haptic('light'); handleCheckComplete(currentStep) }}
+                  onClick={() => { haptic('light'); handleCheckComplete(primaryStation) }}
                   disabled={loading}
                   className="min-h-[52px] px-5 rounded-xl bg-blue-600 text-white text-sm font-bold active:scale-[0.97] transition-all flex items-center gap-1.5 disabled:opacity-60"
                 >

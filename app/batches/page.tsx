@@ -18,7 +18,17 @@ export default async function BatchesPage() {
     },
     include: {
       recipe: true,
-      steps: { orderBy: { order: 'asc' } },
+      steps: {
+        orderBy: { order: 'asc' },
+        include: {
+          progressLogs: {
+            take: 3,
+            orderBy: { createdAt: 'desc' },
+            include: { worker: { select: { id: true, name: true } } },
+          },
+        },
+      },
+      assignments: { include: { worker: { select: { id: true, name: true } } } },
     },
     orderBy: { startDate: 'desc' },
   })

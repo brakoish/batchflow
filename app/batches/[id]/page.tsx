@@ -34,6 +34,7 @@ export default async function BatchDetailPage({
             },
           },
         },
+        assignments: { include: { worker: { select: { id: true, name: true } } } },
       },
     }),
     prisma.organization.findUnique({
