@@ -71,67 +71,84 @@ function displayStepName(step: BatchStep) {
   return isSkippedStep(step) ? step.name.slice(SKIPPED_PREFIX.length) : step.name
 }
 
-// Smart increment buttons that adapt to remaining quantity
-function QuickAddButtons({ remaining, current, onAdd }: { remaining: number | null; current: number; onAdd: (val: number) => void }) {
-  // For open-ended batches (no target), show generic increments
-  if (remaining === null) {
-    return (
-      <div className="grid grid-cols-3 gap-2 mt-3">
-        {[10, 50, 100].map((amt) => (
-          <button
-            key={amt}
-            onClick={() => { haptic('light'); onAdd(current + amt); }}
-            className="py-2.5 rounded-lg border text-sm font-medium active:scale-[0.96] transition-all duration-150 bg-muted hover:bg-muted/80 border-input text-foreground/80"
-          >
-            +{amt}
-          </button>
-        ))}
-      </div>
-    )
-  }
+function getSmartAmounts(remaining: number | null) {
+  if (remaining === null) return [10, 50, 100]
+  if (remaining <= 0) return []
 
-  // Don't show buttons if nothing remaining
-  if (remaining <= 0) return null
-
-  // Calculate smart increments based on remaining quantity
   const increments = (() => {
-    // Small batch: <= 50
     if (remaining <= 50) {
       if (remaining <= 10) return [remaining]
       if (remaining <= 25) return [10, remaining]
       return [10, 25, remaining]
     }
-    // Medium batch: 51-200
     if (remaining <= 200) {
       if (remaining <= 100) return [25, 50, remaining]
       return [50, 100, remaining]
     }
-    // Large batch: 201-500
     if (remaining <= 500) {
       return [50, 100, 250].filter(n => n < remaining).concat([remaining])
     }
-    // Very large batch: > 500
     return [100, 250, 500].filter(n => n < remaining).concat([remaining])
   })()
 
-  // Remove duplicates, sort, and take last 3 (biggest increments + Rest)
-  const unique = Array.from(new Set(increments)).sort((a, b) => a - b).slice(-3)
+  return Array.from(new Set(increments)).sort((a, b) => a - b).slice(-3)
+}
 
+function PresetLogButtons({
+  remaining,
+  lastAmount,
+  disabled,
+  onPick,
+  onCustom,
+}: {
+  remaining: number | null
+  lastAmount: number | null
+  disabled?: boolean
+  onPick: (amount: number) => void
+  onCustom: () => void
+}) {
+  const amounts = getSmartAmounts(remaining)
   return (
-    <div className="grid grid-cols-3 gap-2 mt-3">
-      {unique.map((amt) => (
+    <div className="space-y-2">
+      {lastAmount && lastAmount > 0 && (remaining === null || lastAmount <= remaining) && (
         <button
-          key={amt}
-          onClick={() => { haptic('light'); onAdd(current + amt); }}
-          className={`py-2.5 rounded-lg border text-sm font-medium active:scale-[0.96] transition-all duration-150 ${
-            amt === remaining
-              ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/30'
+          type="button"
+          onClick={() => onPick(lastAmount)}
+          disabled={disabled}
+          className="w-full min-h-[56px] rounded-xl bg-emerald-600 text-white text-base font-bold active:scale-[0.97] transition-all disabled:opacity-50"
+        >
+          Same as last: +{lastAmount.toLocaleString()}
+        </button>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        {amounts.map((amt) => (
+          <button
+            key={amt}
+            type="button"
+            onClick={() => onPick(amt)}
+            disabled={disabled}
+            className={`min-h-[64px] rounded-xl border text-lg font-bold active:scale-[0.97] transition-all disabled:opacity-50 ${
+              remaining !== null && amt === remaining
+                ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
+                : 'bg-muted hover:bg-muted/80 border-input text-foreground'
+            }`}
+          >
+            {remaining !== null && amt === remaining ? 'Rest' : `+${amt}`}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={onCustom}
+          disabled={disabled}
+          className={`min-h-[64px] rounded-xl border text-lg font-bold active:scale-[0.97] transition-all disabled:opacity-50 ${
+            amounts.length % 2 === 0
+              ? 'bg-card border-input text-foreground'
               : 'bg-muted hover:bg-muted/80 border-input text-foreground/80'
           }`}
         >
-          {amt === remaining ? 'Rest' : `+${amt}`}
+          Other
         </button>
-      ))}
+      </div>
     </div>
   )
 }
@@ -145,6 +162,9 @@ export default function BatchDetailClient({
   const [selectedStep, setSelectedStep] = useState<BatchStep | null>(null)
   const [quantity, setQuantity] = useState('')
   const [note, setNote] = useState('')
+  const [showCustomQuantity, setShowCustomQuantity] = useState(false)
+  const [showNoteInput, setShowNoteInput] = useState(false)
+  const [lastLogAmounts, setLastLogAmounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
@@ -248,10 +268,10 @@ export default function BatchDetailClient({
   const router = useRouter()
 
   useEffect(() => {
-    if (selectedStep && quantityRef.current) {
+    if (selectedStep && showCustomQuantity && quantityRef.current) {
       quantityRef.current.focus()
     }
-  }, [selectedStep])
+  }, [selectedStep, showCustomQuantity])
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -729,14 +749,25 @@ export default function BatchDetailClient({
     }
   }
 
-  const handleSubmit = async () => {
-    if (!selectedStep || !quantity || parseInt(quantity) <= 0) {
+  const getSafeRemaining = (step: BatchStep) => {
+    const targetRemaining = step.targetQuantity == null ? null : Math.max(0, step.targetQuantity - step.completedQuantity)
+    const previousStep = [...batch.steps]
+      .reverse()
+      .find(s => s.order < step.order && !isSkippedStep(s))
+    const upstreamAvailable = previousStep ? Math.max(0, previousStep.completedQuantity - step.completedQuantity) : null
+
+    if (targetRemaining === null && upstreamAvailable === null) return null
+    if (targetRemaining === null) return upstreamAvailable
+    if (upstreamAvailable === null) return targetRemaining
+    return Math.min(targetRemaining, upstreamAvailable)
+  }
+
+  const submitLog = async (stepBeingLogged: BatchStep, qty: number, noteBeingLogged?: string) => {
+    if (!stepBeingLogged || qty <= 0) {
       setError('Enter a valid quantity'); return
     }
     haptic('medium')
-    const qty = parseInt(quantity)
-    const stepBeingLogged = selectedStep
-    const noteBeingLogged = note || undefined
+    setLoading(true)
 
     // Optimistic update: close modal + apply to UI immediately so workers
     // get instant feedback even on flaky warehouse wifi.
@@ -752,7 +783,7 @@ export default function BatchDetailClient({
         return s
       }),
     }))
-    setSelectedStep(null); setQuantity(''); setNote(''); setError('')
+    setSelectedStep(null); setQuantity(''); setNote(''); setShowCustomQuantity(false); setShowNoteInput(false); setError('')
     showToast(`Logged ${qty} units`)
 
     try {
@@ -772,6 +803,7 @@ export default function BatchDetailClient({
 
       const data = await res.json()
       lastSaveTsRef.current = Date.now()
+      setLastLogAmounts(prev => ({ ...prev, [stepBeingLogged.id]: qty }))
       emitBatchChanged(batch.id, 'log-add')
       if (data.warning) {
         showToast(data.warning, 'warning')
@@ -781,7 +813,21 @@ export default function BatchDetailClient({
       haptic('heavy')
       setBatch(snapshot)
       showToast('Network error — progress not saved. Try again.', 'warning')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const handleQuickAmount = (amount: number) => {
+    if (!selectedStep) return
+    submitLog(selectedStep, amount, note || undefined)
+  }
+
+  const handleSubmit = async () => {
+    if (!selectedStep || !quantity || parseInt(quantity) <= 0) {
+      setError('Enter a valid quantity'); return
+    }
+    submitLog(selectedStep, parseInt(quantity), note || undefined)
   }
 
   const getPrevCompleted = (order: number) => {
@@ -853,6 +899,8 @@ export default function BatchDetailClient({
     setSelectedStep(step)
     setQuantity('')
     setNote('')
+    setShowCustomQuantity(false)
+    setShowNoteInput(false)
     setError('')
   }
 
@@ -1739,7 +1787,13 @@ export default function BatchDetailClient({
                   </p>
                 </div>
                 <button
-                  onClick={() => setSelectedStep(null)}
+                  onClick={() => {
+                    setSelectedStep(null)
+                    setQuantity('')
+                    setNote('')
+                    setShowCustomQuantity(false)
+                    setShowNoteInput(false)
+                  }}
                   className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1748,44 +1802,101 @@ export default function BatchDetailClient({
                 </button>
               </div>
 
-              {/* Quantity */}
-              <input
-                ref={quantityRef}
-                type="number"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                placeholder="Quantity"
-                className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-xl font-semibold tabular-nums placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-              />
+              {(() => {
+                const safeRemaining = getSafeRemaining(selectedStep)
+                const previousLog = selectedStep.progressLogs.find(log => log.worker.id === session.workerId) || selectedStep.progressLogs[0]
+                const lastAmount = lastLogAmounts[selectedStep.id] || previousLog?.quantity || null
+                const keypad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back']
 
-              {/* Quick add - smart increments based on remaining quantity */}
-              <QuickAddButtons
-                remaining={selectedStep.targetQuantity ? selectedStep.targetQuantity - selectedStep.completedQuantity : null}
-                current={parseInt(quantity) || 0}
-                onAdd={(val) => setQuantity(String(val))}
-              />
+                return (
+                  <>
+                    {safeRemaining !== null && (
+                      <div className="mb-4 rounded-xl border border-border bg-muted/35 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Safe to log</p>
+                        <p className="text-sm font-semibold text-foreground tabular-nums">
+                          {safeRemaining.toLocaleString()} {selectedStep.unitLabel}
+                        </p>
+                      </div>
+                    )}
 
-              {/* Note */}
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Note (optional)"
-                className="w-full mt-3 px-3.5 py-2.5 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-              />
+                    <PresetLogButtons
+                      remaining={safeRemaining}
+                      lastAmount={lastAmount}
+                      disabled={loading || safeRemaining === 0}
+                      onPick={handleQuickAmount}
+                      onCustom={() => {
+                        haptic('light')
+                        setShowCustomQuantity(true)
+                        setQuantity('')
+                      }}
+                    />
+
+                    {showCustomQuantity && (
+                      <div className="mt-4">
+                        <input
+                          ref={quantityRef}
+                          type="text"
+                          inputMode="none"
+                          readOnly
+                          value={quantity}
+                          placeholder="0"
+                          className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-3xl font-bold text-center tabular-nums placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                        />
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          {keypad.map((key) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => {
+                                haptic('light')
+                                if (key === 'clear') setQuantity('')
+                                else if (key === 'back') setQuantity(prev => prev.slice(0, -1))
+                                else setQuantity(prev => `${prev}${key}`.replace(/^0+(\d)/, '$1').slice(0, 6))
+                              }}
+                              className="min-h-[56px] rounded-xl border border-input bg-muted text-xl font-bold text-foreground active:scale-[0.97] transition-all"
+                            >
+                              {key === 'clear' ? 'Clear' : key === 'back' ? 'Back' : key}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-4">
+                      {showNoteInput ? (
+                        <input
+                          type="text"
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          placeholder="Note (optional)"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { haptic('light'); setShowNoteInput(true) }}
+                          className="w-full min-h-[44px] rounded-xl border border-dashed border-input text-sm font-medium text-muted-foreground active:scale-[0.98] transition-all"
+                        >
+                          Add note
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )
+              })()}
 
               {error && <p className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
 
               {/* Submit */}
-              <button
-                onClick={handleSubmit}
-                disabled={loading || !quantity || parseInt(quantity) <= 0}
-                className="w-full mt-4 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
-              >
-                {loading ? 'Saving...' : quantity && parseInt(quantity) > 0 ? `Log ${parseInt(quantity).toLocaleString()} ${selectedStep.unitLabel}` : 'Log Progress'}
-              </button>
+              {showCustomQuantity && (
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading || !quantity || parseInt(quantity) <= 0}
+                  className="w-full mt-4 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
+                >
+                  {loading ? 'Saving...' : quantity && parseInt(quantity) > 0 ? `Log ${parseInt(quantity).toLocaleString()} ${selectedStep.unitLabel}` : 'Log Progress'}
+                </button>
+              )}
             </div>
           </div>
         </div>
