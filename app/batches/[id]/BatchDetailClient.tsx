@@ -120,7 +120,7 @@ function PresetLogButtons({
             disabled={disabled}
             className="min-h-[64px] rounded-xl border border-emerald-500/50 bg-emerald-600/20 text-lg font-bold text-emerald-600 dark:text-emerald-400 active:scale-[0.97] transition-all disabled:opacity-50"
           >
-            Rest
+            Rest: {remaining.toLocaleString()}
           </button>
         )}
       </div>
@@ -801,7 +801,13 @@ export default function BatchDetailClient({
     if (!selectedStep || !quantity || parseInt(quantity) <= 0) {
       setError('Enter a valid quantity'); return
     }
-    submitLog(selectedStep, parseInt(quantity), note || undefined)
+    const qty = parseInt(quantity)
+    const safeRemaining = getSafeRemaining(selectedStep)
+    if (safeRemaining !== null && qty > safeRemaining) {
+      setError(`Only ${safeRemaining.toLocaleString()} ${selectedStep.unitLabel} can be logged right now`)
+      return
+    }
+    submitLog(selectedStep, qty, note || undefined)
   }
 
   const getPrevCompleted = (order: number) => {
@@ -1779,6 +1785,8 @@ export default function BatchDetailClient({
                 const previousLog = selectedStep.progressLogs.find(log => log.worker.id === session.workerId) || selectedStep.progressLogs[0]
                 const lastAmount = lastLogAmounts[selectedStep.id] || previousLog?.quantity || null
                 const keypad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back']
+                const customQuantity = quantity ? parseInt(quantity) : 0
+                const customTooHigh = safeRemaining !== null && customQuantity > safeRemaining
 
                 return (
                   <>
@@ -1799,7 +1807,7 @@ export default function BatchDetailClient({
                     />
 
                     <div className="mt-4">
-                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Custom amount</p>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Enter amount</p>
                       <input
                         ref={quantityRef}
                         type="text"
@@ -1807,8 +1815,19 @@ export default function BatchDetailClient({
                         readOnly
                         value={quantity}
                         placeholder="0"
-                        className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-3xl font-bold text-center tabular-nums placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                        className={`w-full px-4 py-3.5 rounded-xl border text-3xl font-bold text-center tabular-nums placeholder:text-muted-foreground/45 focus:outline-none transition-all ${
+                          customTooHigh
+                            ? 'bg-red-500/10 border-red-500/40 text-red-600 dark:text-red-400'
+                            : customQuantity > 0
+                              ? 'bg-emerald-600/10 border-emerald-500/35 text-foreground'
+                              : 'bg-muted/35 border-border text-foreground'
+                        }`}
                       />
+                      {customTooHigh && safeRemaining !== null && (
+                        <p className="mt-2 text-center text-xs font-medium text-red-600 dark:text-red-400">
+                          Max right now: {safeRemaining.toLocaleString()} {selectedStep.unitLabel}
+                        </p>
+                      )}
                       <div className="grid grid-cols-3 gap-2 mt-3">
                         {keypad.map((key) => (
                           <button
@@ -1841,7 +1860,7 @@ export default function BatchDetailClient({
                         <button
                           type="button"
                           onClick={() => { haptic('light'); setShowNoteInput(true) }}
-                          className="w-full min-h-[44px] rounded-xl border border-dashed border-input text-sm font-medium text-muted-foreground active:scale-[0.98] transition-all"
+                          className="min-h-[40px] rounded-xl px-4 border border-dashed border-input text-xs font-semibold text-muted-foreground active:scale-[0.98] transition-all"
                         >
                           Add note
                         </button>
@@ -1856,10 +1875,16 @@ export default function BatchDetailClient({
               {/* Submit */}
               <button
                 onClick={handleSubmit}
-                disabled={loading || !quantity || parseInt(quantity) <= 0}
-                className="w-full mt-4 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
+                disabled={loading || !quantity || parseInt(quantity) <= 0 || (selectedStep && getSafeRemaining(selectedStep) !== null && parseInt(quantity) > getSafeRemaining(selectedStep)!)}
+                className="w-full mt-4 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-45 disabled:bg-muted disabled:text-muted-foreground"
               >
-                {loading ? 'Saving...' : quantity && parseInt(quantity) > 0 ? `Log ${parseInt(quantity).toLocaleString()} ${selectedStep.unitLabel}` : 'Log Custom Amount'}
+                {loading
+                  ? 'Saving...'
+                  : quantity && parseInt(quantity) > 0
+                    ? (getSafeRemaining(selectedStep) !== null && parseInt(quantity) > getSafeRemaining(selectedStep)!
+                      ? `Max ${getSafeRemaining(selectedStep)!.toLocaleString()} ${selectedStep.unitLabel}`
+                      : `Log ${parseInt(quantity).toLocaleString()} ${selectedStep.unitLabel}`)
+                    : 'Enter amount'}
               </button>
             </div>
           </div>
