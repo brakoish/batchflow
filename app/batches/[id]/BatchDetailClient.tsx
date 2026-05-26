@@ -72,26 +72,9 @@ function displayStepName(step: BatchStep) {
 }
 
 function getSmartAmounts(remaining: number | null) {
-  if (remaining === null) return [10, 50, 100]
-  if (remaining <= 0) return []
-
-  const increments = (() => {
-    if (remaining <= 50) {
-      if (remaining <= 10) return [remaining]
-      if (remaining <= 25) return [10, remaining]
-      return [10, 25, remaining]
-    }
-    if (remaining <= 200) {
-      if (remaining <= 100) return [25, 50, remaining]
-      return [50, 100, remaining]
-    }
-    if (remaining <= 500) {
-      return [50, 100, 250].filter(n => n < remaining).concat([remaining])
-    }
-    return [100, 250, 500].filter(n => n < remaining).concat([remaining])
-  })()
-
-  return Array.from(new Set(increments)).sort((a, b) => a - b).slice(-3)
+  const defaults = [25, 50, 100]
+  if (remaining === null) return defaults
+  return defaults.filter(amount => amount <= remaining)
 }
 
 function PresetLogButtons({
@@ -127,24 +110,26 @@ function PresetLogButtons({
             type="button"
             onClick={() => onPick(amt)}
             disabled={disabled}
-            className={`min-h-[64px] rounded-xl border text-lg font-bold active:scale-[0.97] transition-all disabled:opacity-50 ${
-              remaining !== null && amt === remaining
-                ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
-                : 'bg-muted hover:bg-muted/80 border-input text-foreground'
-            }`}
+            className="min-h-[64px] rounded-xl border border-input bg-muted text-lg font-bold text-foreground active:scale-[0.97] transition-all disabled:opacity-50"
           >
-            {remaining !== null && amt === remaining ? 'Rest' : `+${amt}`}
+            +{amt}
           </button>
         ))}
+        {remaining !== null && remaining > 0 && (
+          <button
+            type="button"
+            onClick={() => onPick(remaining)}
+            disabled={disabled}
+            className="min-h-[64px] rounded-xl border border-emerald-500/50 bg-emerald-600/20 text-lg font-bold text-emerald-600 dark:text-emerald-400 active:scale-[0.97] transition-all disabled:opacity-50"
+          >
+            Rest
+          </button>
+        )}
         <button
           type="button"
           onClick={onCustom}
           disabled={disabled}
-          className={`min-h-[64px] rounded-xl border text-lg font-bold active:scale-[0.97] transition-all disabled:opacity-50 ${
-            amounts.length % 2 === 0
-              ? 'bg-card border-input text-foreground'
-              : 'bg-muted hover:bg-muted/80 border-input text-foreground/80'
-          }`}
+          className="min-h-[64px] rounded-xl border border-input bg-card text-lg font-bold text-foreground active:scale-[0.97] transition-all disabled:opacity-50"
         >
           Other
         </button>
