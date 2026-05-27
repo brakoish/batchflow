@@ -1202,21 +1202,59 @@ export default function BatchDetailClient({
         {/* Steps */}
         <div className="space-y-2">
           {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && editingSteps && (
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Customizing this batch</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Move, edit, add, skip, or restore steps here. The recipe stays unchanged.</p>
+            <>
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">Customizing this batch</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Move, edit, add, skip, or restore steps here. The recipe stays unchanged.</p>
+                  </div>
+                  <button
+                    onClick={handleOpenAddStep}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-emerald-600 text-white active:scale-[0.96] text-xs font-semibold transition-all"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    Add
+                  </button>
                 </div>
-                <button
-                  onClick={handleOpenAddStep}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-emerald-600 text-white active:scale-[0.96] text-xs font-semibold transition-all"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  Add
-                </button>
               </div>
-            </div>
+
+              <div className="rounded-xl border border-border bg-card p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Worker preview</p>
+                    <p className="text-sm font-semibold text-foreground truncate">{batch.name}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                    {batch.steps.filter(step => !isSkippedStep(step)).length} visible
+                  </span>
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  {batch.steps.filter(step => !isSkippedStep(step)).map((step, index) => (
+                    <div key={step.id} className="flex items-center gap-2 rounded-lg bg-muted/45 px-3 py-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-card text-[11px] font-bold text-muted-foreground tabular-nums">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{displayStepName(step)}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {step.type === 'CHECK'
+                            ? 'Worker taps Done'
+                            : step.targetQuantity
+                            ? `Worker logs ${step.completedQuantity.toLocaleString()} / ${step.targetQuantity.toLocaleString()} ${step.unitLabel}`
+                            : `Worker logs ${step.unitLabel} as they go`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {batch.steps.every(step => isSkippedStep(step)) && (
+                    <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+                      No visible worker steps. Restore or add a step before running this batch.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
 
           {batch.steps.map((step, stepIndex) => {
