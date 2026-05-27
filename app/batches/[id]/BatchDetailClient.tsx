@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
 import EditBatchModal from '@/app/components/EditBatchModal'
 import ConfirmModal from '@/app/components/ConfirmModal'
@@ -11,8 +11,12 @@ import {
   PlusIcon,
   XMarkIcon,
   ChatBubbleLeftRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   DocumentDuplicateIcon,
+  EyeSlashIcon,
   FlagIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { formatTimeInTz, formatDateInTz } from '@/lib/timezone'
@@ -133,6 +137,7 @@ export default function BatchDetailClient({
 }: {
   batch: Batch; workers: { id: string; name: string }[]; session: Session; orgTimezone: string
 }) {
+  const searchParams = useSearchParams()
   const [batch, setBatch] = useState(initialBatch)
   const [selectedStep, setSelectedStep] = useState<BatchStep | null>(null)
   const [quantity, setQuantity] = useState('')
@@ -165,7 +170,7 @@ export default function BatchDetailClient({
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
-  const [editingSteps, setEditingSteps] = useState(false)
+  const [editingSteps, setEditingSteps] = useState(() => searchParams.get('editSteps') === '1')
   const [showAddStepModal, setShowAddStepModal] = useState(false)
   const [newStepName, setNewStepName] = useState('')
   const [newStepType, setNewStepType] = useState<'COUNT' | 'CHECK'>('COUNT')
@@ -711,6 +716,7 @@ export default function BatchDetailClient({
           priority: duplicatePriority,
           strain: duplicateStrain || undefined,
           workerIds: batch.assignments?.map(a => a.worker.id) || [],
+          sourceBatchId: batch.id,
         }),
       })
 
@@ -722,8 +728,8 @@ export default function BatchDetailClient({
 
       const data = await res.json()
       emitBatchChanged(data.batch?.id, 'duplicate')
-      showToast('Batch duplicated successfully')
-      router.push(`/batches/${data.batch.id}`)
+      showToast('Batch duplicated with this workflow')
+      router.push(`/batches/${data.batch.id}?editSteps=1`)
     } catch (err) {
       setError('Network error. Please check your connection.')
     } finally {
@@ -1195,6 +1201,24 @@ export default function BatchDetailClient({
 
         {/* Steps */}
         <div className="space-y-2">
+          {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && editingSteps && (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Customizing this batch</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Move, edit, add, skip, or restore steps here. The recipe stays unchanged.</p>
+                </div>
+                <button
+                  onClick={handleOpenAddStep}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-emerald-600 text-white active:scale-[0.96] text-xs font-semibold transition-all"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+
           {batch.steps.map((step, stepIndex) => {
             const isSkipped = isSkippedStep(step)
             const isCompleted = step.status === 'COMPLETED' && !isSkipped
@@ -1295,43 +1319,53 @@ export default function BatchDetailClient({
                 </div>
 
                 {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && editingSteps && (
-                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  <div className="mt-3 grid grid-cols-4 gap-2">
                     <button
                       onClick={() => handleMoveStep(step, 'move-up')}
                       disabled={loading || stepIndex === 0}
-                      className="px-3 py-2 min-h-[40px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-30"
+                      aria-label={`Move ${displayStepName(step)} up`}
+                      className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-30"
                     >
+                      <ChevronUpIcon className="w-4 h-4" />
                       Up
                     </button>
                     <button
                       onClick={() => handleMoveStep(step, 'move-down')}
                       disabled={loading || stepIndex === batch.steps.length - 1}
-                      className="px-3 py-2 min-h-[40px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-30"
+                      aria-label={`Move ${displayStepName(step)} down`}
+                      className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-30"
                     >
+                      <ChevronDownIcon className="w-4 h-4" />
                       Down
                     </button>
                     <button
                       onClick={() => handleOpenEditStep(step)}
                       disabled={loading}
-                      className="px-3 py-2 min-h-[40px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-50"
+                      aria-label={`Edit ${displayStepName(step)}`}
+                      className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-50"
                     >
+                      <PencilSquareIcon className="w-4 h-4" />
                       Edit
                     </button>
                     {isSkipped ? (
                       <button
                         onClick={() => handleUnskipStep(step)}
                         disabled={loading}
-                        className="px-3 py-2 min-h-[40px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-50"
+                        aria-label={`Restore ${displayStepName(step)}`}
+                        className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-50"
                       >
+                        <CheckIcon className="w-4 h-4" />
                         Restore
                       </button>
                     ) : (
                       <button
                         onClick={() => handleSkipStep(step)}
                         disabled={loading}
-                        className="px-3 py-2 min-h-[40px] rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs font-medium text-amber-700 dark:text-amber-300 active:scale-[0.96] transition-all disabled:opacity-50"
+                        aria-label={`Skip ${displayStepName(step)} for this batch`}
+                        className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs font-medium text-amber-700 dark:text-amber-300 active:scale-[0.96] transition-all disabled:opacity-50"
                       >
-                        Skip for this batch
+                        <EyeSlashIcon className="w-4 h-4" />
+                        Skip
                       </button>
                     )}
                   </div>
@@ -1994,7 +2028,10 @@ export default function BatchDetailClient({
             <div className="p-5">
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
-                <p className="text-sm font-semibold text-foreground">Duplicate Batch</p>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Duplicate Batch</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Starts from this batch's current workflow.</p>
+                </div>
                 <button
                   onClick={() => setShowDuplicateModal(false)}
                   className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
@@ -2122,7 +2159,7 @@ export default function BatchDetailClient({
                 </div>
 
                 <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-lg">
-                  This will create a new batch using the <span className="font-medium text-foreground">{batch.recipe.name}</span> recipe with the same worker assignments.
+                  This copies the current step order, skipped steps, custom names, units, and worker assignments. Progress logs start at zero.
                 </div>
 
                 {error && <p className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
@@ -2132,7 +2169,7 @@ export default function BatchDetailClient({
                   disabled={duplicating || !duplicateName.trim() || (!duplicateIsOpenEnded && (!duplicateTargetQty || parseInt(duplicateTargetQty) <= 0))}
                   className="w-full py-3.5 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
                 >
-                  {duplicating ? 'Creating...' : 'Create Duplicate'}
+                  {duplicating ? 'Creating...' : 'Create & Tweak Steps'}
                 </button>
               </div>
             </div>

@@ -53,7 +53,21 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireSupervisorOrOwner()
 
-    const { recipeId, name, targetQuantity, startDate, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes, priority } = await request.json()
+    const {
+      recipeId,
+      name,
+      targetQuantity,
+      startDate,
+      dueDate,
+      workerIds,
+      metrcBatchId,
+      lotNumber,
+      strain,
+      packageTag,
+      notes,
+      priority,
+      sourceBatchId,
+    } = await request.json()
 
     if (!recipeId || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -82,6 +96,78 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Recipe not found' }, { status: 404 })
     }
 
+    const sourceBatch = sourceBatchId
+      ? await prisma.batch.findFirst({
+          where: {
+            id: sourceBatchId,
+            recipeId,
+            organizationId: session.user.organizationId,
+          },
+          include: {
+            steps: { orderBy: { order: 'asc' } },
+          },
+        })
+      : null
+
+    if (sourceBatchId && !sourceBatch) {
+      return NextResponse.json({ error: 'Source batch not found' }, { status: 404 })
+    }
+
+    const nextBatchTarget = targetQuantity ?? null
+    const buildClonedStepTarget = (step: NonNullable<typeof sourceBatch>['steps'][number]) => {
+      if (step.type === 'CHECK') return 1
+      if (nextBatchTarget == null) return null
+
+      if (sourceBatch?.targetQuantity && step.targetQuantity != null) {
+        return Math.max(1, Math.ceil((step.targetQuantity * nextBatchTarget) / sourceBatch.targetQuantity))
+      }
+
+      if (step.unitRatio > 0) {
+        return Math.max(1, Math.ceil(nextBatchTarget / step.unitRatio))
+      }
+
+      return step.targetQuantity
+    }
+
+    const batchSteps = sourceBatch
+      ? sourceBatch.steps.map((step) => ({
+          recipeStepId: step.recipeStepId,
+          name: step.name,
+          order: step.order,
+          type: step.type,
+          unitLabel: step.unitLabel,
+          unitRatio: step.unitRatio,
+          targetQuantity: buildClonedStepTarget(step),
+          completedQuantity: 0,
+          status: step.name.startsWith('[Skipped] ') ? 'COMPLETED' as const : 'IN_PROGRESS' as const,
+        }))
+      : recipe.steps.map((step) => {
+          const unitRatio = step.unit?.ratio || 1
+          const unitLabel = step.unit?.name || recipe.baseUnit
+
+          // For open-ended batches (no targetQuantity), set step targets to null
+          // Except for CHECK steps which always have target of 1
+          let stepTarget: number | null
+          if (step.type === 'CHECK') {
+            stepTarget = 1
+          } else if (targetQuantity == null) {
+            stepTarget = null
+          } else {
+            stepTarget = Math.ceil(targetQuantity / unitRatio)
+          }
+
+          return {
+            recipeStepId: step.id,
+            name: step.name,
+            order: step.order,
+            type: step.type,
+            unitLabel,
+            unitRatio,
+            targetQuantity: stepTarget,
+            status: 'IN_PROGRESS' as const,
+          }
+        })
+
     const batch = await prisma.batch.create({
       data: {
         recipeId,
@@ -101,32 +187,7 @@ export async function POST(request: NextRequest) {
           ? { create: workerIds.map((id: string) => ({ workerId: id })) }
           : undefined,
         steps: {
-          create: recipe.steps.map((step) => {
-            const unitRatio = step.unit?.ratio || 1
-            const unitLabel = step.unit?.name || recipe.baseUnit
-
-            // For open-ended batches (no targetQuantity), set step targets to null
-            // Except for CHECK steps which always have target of 1
-            let stepTarget: number | null
-            if (step.type === 'CHECK') {
-              stepTarget = 1
-            } else if (targetQuantity == null) {
-              stepTarget = null
-            } else {
-              stepTarget = Math.ceil(targetQuantity / unitRatio)
-            }
-
-            return {
-              recipeStepId: step.id,
-              name: step.name,
-              order: step.order,
-              type: step.type,
-              unitLabel,
-              unitRatio,
-              targetQuantity: stepTarget,
-              status: 'IN_PROGRESS',
-            }
-          }),
+          create: batchSteps,
         },
       },
       include: {
