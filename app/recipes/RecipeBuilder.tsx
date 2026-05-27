@@ -18,12 +18,72 @@ import { haptic } from '@/lib/haptic'
 //   smaller : ratio = basedOnRatio / count   (fractional — requires Float in DB)
 type UnitDef = { name: string; count: number; basedOn?: string; direction?: 'bigger' | 'smaller' }
 type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
+type RecipeStarter = {
+  label: string
+  description: string
+  name: string
+  baseUnit: string
+  units: UnitDef[]
+  steps: StepDef[]
+}
 
 type EditRecipe = {
   id: string; name: string; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null }[]
 } | null
+
+const STARTERS: RecipeStarter[] = [
+  {
+    label: 'Pre-roll tins',
+    description: 'Fill cones, pack tins, label, QC, case up',
+    name: '1g Pre-Roll Tins',
+    baseUnit: 'Tins',
+    units: [
+      { name: 'Pre-rolls', count: 14, basedOn: '', direction: 'smaller' },
+      { name: 'Cases', count: 20, basedOn: '', direction: 'bigger' },
+    ],
+    steps: [
+      { name: 'Prep flower', notes: '', type: 'CHECK', unitName: '' },
+      { name: 'Fill cones', notes: '', type: 'COUNT', unitName: 'Pre-rolls' },
+      { name: 'Pack tins', notes: '', type: 'COUNT', unitName: '' },
+      { name: 'Label tins', notes: '', type: 'COUNT', unitName: '' },
+      { name: 'QC check', notes: '', type: 'CHECK', unitName: '' },
+      { name: 'Case up', notes: '', type: 'COUNT', unitName: 'Cases' },
+    ],
+  },
+  {
+    label: 'Flower bags',
+    description: 'Weigh, fill, seal, label, QC, pack',
+    name: 'Flower Bags',
+    baseUnit: 'Bags',
+    units: [
+      { name: 'Cases', count: 50, basedOn: '', direction: 'bigger' },
+    ],
+    steps: [
+      { name: 'Weigh flower', notes: '', type: 'COUNT', unitName: '' },
+      { name: 'Fill bags', notes: '', type: 'COUNT', unitName: '' },
+      { name: 'Seal bags', notes: '', type: 'COUNT', unitName: '' },
+      { name: 'Label bags', notes: '', type: 'COUNT', unitName: '' },
+      { name: 'QC check', notes: '', type: 'CHECK', unitName: '' },
+      { name: 'Pack cases', notes: '', type: 'COUNT', unitName: 'Cases' },
+    ],
+  },
+  {
+    label: 'Simple checklist',
+    description: 'A clean starter for one-off or unusual products',
+    name: '',
+    baseUnit: 'Units',
+    units: [],
+    steps: [
+      { name: 'Prep', notes: '', type: 'CHECK', unitName: '' },
+      { name: 'Produce', notes: '', type: 'COUNT', unitName: '' },
+      { name: 'Label', notes: '', type: 'COUNT', unitName: '' },
+      { name: 'QC check', notes: '', type: 'CHECK', unitName: '' },
+      { name: 'Pack', notes: '', type: 'COUNT', unitName: '' },
+    ],
+  },
+]
 
 export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: EditRecipe; onDone?: () => void }) {
   const isEdit = !!editRecipe
@@ -63,6 +123,30 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const trimmedUnits = units.map(u => ({ ...u, name: u.name.trim(), basedOn: (u.basedOn || '').trim() }))
+  const validUnitNames = trimmedUnits.filter(u => u.name).map(u => u.name)
+  const duplicateUnits = validUnitNames.filter((unit, index) => validUnitNames.indexOf(unit) !== index)
+  const duplicateSteps = steps
+    .map(s => s.name.trim())
+    .filter(Boolean)
+    .filter((step, index, all) => all.indexOf(step) !== index)
+  const missingStepUnits = steps
+    .filter(s => s.type === 'COUNT' && s.unitName && !validUnitNames.includes(s.unitName))
+    .map(s => s.name.trim() || 'Unnamed step')
+  const emptyStepCount = steps.filter(s => !s.name.trim()).length
+  const countStepCount = steps.filter(s => s.name.trim() && s.type === 'COUNT').length
+  const checkStepCount = steps.filter(s => s.name.trim() && s.type === 'CHECK').length
+  const canApplyStarter = !isEdit && !name.trim() && !baseUnit.trim() && units.length === 0 && steps.length === 1 && !steps[0].name.trim()
+
+  const applyStarter = (starter: RecipeStarter) => {
+    haptic('medium')
+    setName(starter.name)
+    setDescription('')
+    setBaseUnit(starter.baseUnit)
+    setUnits(starter.units)
+    setSteps(starter.steps)
+    setError('')
+  }
 
   // Unit helpers
   const addUnit = () => { haptic('light'); setUnits([...units, { name: '', count: 1, basedOn: '', direction: 'bigger' }]) }
@@ -74,6 +158,9 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
       .filter((_, idx) => idx !== i)
       .map(u => (u.basedOn === removed?.name ? { ...u, basedOn: '' } : u))
     setUnits(next)
+    if (removed?.name) {
+      setSteps(prev => prev.map(step => step.unitName === removed.name ? { ...step, unitName: '' } : step))
+    }
   }
   const updateUnit = (i: number, field: string, value: any) => {
     const u = [...units]; (u[i] as any)[field] = value
@@ -81,8 +168,13 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     // to match so the chain stays intact.
     if (field === 'name') {
       const oldName = units[i].name
-      for (let j = i + 1; j < u.length; j++) {
-        if (u[j].basedOn === oldName) u[j].basedOn = value
+      if (oldName) {
+        for (let j = i + 1; j < u.length; j++) {
+          if (u[j].basedOn === oldName) u[j].basedOn = value
+        }
+      }
+      if (oldName) {
+        setSteps(prev => prev.map(step => step.unitName === oldName ? { ...step, unitName: value } : step))
       }
     }
     setUnits(u)
@@ -144,6 +236,11 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     if (!baseUnit.trim()) { setError('What are you counting? Enter a base unit like "bags", "jars", or "pre-rolls"'); return }
     const validSteps = steps.filter((s) => s.name.trim())
     if (!validSteps.length) { setError('Add at least one step so your team knows what to do'); return }
+    if (duplicateUnits.length) { setError(`Unit names must be unique: ${Array.from(new Set(duplicateUnits)).join(', ')}`); return }
+    if (duplicateSteps.length) { setError(`Step names must be unique: ${Array.from(new Set(duplicateSteps)).join(', ')}`); return }
+    if (missingStepUnits.length) { setError(`These steps point to a missing unit: ${missingStepUnits.join(', ')}`); return }
+    const badUnit = trimmedUnits.find(u => u.name && (!Number.isFinite(u.count) || u.count <= 0))
+    if (badUnit) { setError(`Check the relation for ${badUnit.name}. The number must be greater than 0.`); return }
 
     haptic('medium')
     setLoading(true); setError('')
@@ -183,6 +280,28 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         {isEdit ? 'Edit Recipe' : 'New Recipe'}
       </h2>
       <div className="space-y-8">
+        {canApplyStarter && (
+          <div className="rounded-xl border border-border bg-card p-5">
+            <label className="text-base text-foreground font-semibold block mb-1">Start with a pattern</label>
+            <p className="text-sm text-muted-foreground mb-4">
+              Pick something close, then rename the steps. This avoids building a recipe from a blank screen.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {STARTERS.map((starter) => (
+                <button
+                  key={starter.label}
+                  type="button"
+                  onClick={() => applyStarter(starter)}
+                  disabled={loading}
+                  className="min-h-[92px] rounded-xl border-2 border-border bg-muted/30 px-3 py-3 text-left active:scale-[0.98] transition-all hover:border-emerald-500/50"
+                >
+                  <p className="text-sm font-semibold text-foreground">{starter.label}</p>
+                  <p className="mt-1 text-xs leading-snug text-muted-foreground">{starter.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Product Name ── */}
         <div className="rounded-xl border border-border bg-card p-5">
@@ -484,6 +603,39 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             className="w-full mt-3 min-h-[48px] py-3 rounded-xl border-2 border-dashed border-border text-sm text-foreground font-medium hover:bg-muted/50 hover:border-foreground/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
             <PlusIcon className="w-4 h-4" />Add another step
           </button>
+        </div>
+
+        {/* ── Recipe Check ── */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <label className="text-base text-foreground font-semibold block mb-1">Recipe check</label>
+          <p className="text-sm text-muted-foreground mb-4">
+            Quick sanity check before this becomes a batch template.
+          </p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-xl bg-muted/45 px-3 py-3">
+              <p className="text-xl font-bold tabular-nums text-foreground">{steps.filter(s => s.name.trim()).length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Steps</p>
+            </div>
+            <div className="rounded-xl bg-muted/45 px-3 py-3">
+              <p className="text-xl font-bold tabular-nums text-foreground">{countStepCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Count</p>
+            </div>
+            <div className="rounded-xl bg-muted/45 px-3 py-3">
+              <p className="text-xl font-bold tabular-nums text-foreground">{checkStepCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Checks</p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            {!name.trim() && <p className="text-xs text-amber-600 dark:text-amber-400">Add a product name.</p>}
+            {!baseUnit.trim() && <p className="text-xs text-amber-600 dark:text-amber-400">Add the thing the batch target counts.</p>}
+            {emptyStepCount > 0 && <p className="text-xs text-muted-foreground">Empty step{emptyStepCount === 1 ? '' : 's'} will be ignored when saved.</p>}
+            {duplicateUnits.length > 0 && <p className="text-xs text-red-500 dark:text-red-400">Duplicate unit name: {Array.from(new Set(duplicateUnits)).join(', ')}.</p>}
+            {duplicateSteps.length > 0 && <p className="text-xs text-red-500 dark:text-red-400">Duplicate step name: {Array.from(new Set(duplicateSteps)).join(', ')}.</p>}
+            {missingStepUnits.length > 0 && <p className="text-xs text-red-500 dark:text-red-400">Missing unit on: {missingStepUnits.join(', ')}.</p>}
+            {name.trim() && baseUnit.trim() && duplicateUnits.length === 0 && duplicateSteps.length === 0 && missingStepUnits.length === 0 && (
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Looks ready to create batches.</p>
+            )}
+          </div>
         </div>
 
         {/* ── Preview ── */}

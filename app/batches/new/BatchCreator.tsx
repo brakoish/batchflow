@@ -36,6 +36,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const qtyRef = useRef<HTMLInputElement>(null)
 
   const selected = recipes.find((r) => r.id === selectedId)
+  const fixedTargetInvalid = batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)
 
   // Auto-focus name input when recipe is selected
   useEffect(() => {
@@ -122,6 +123,34 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
       {/* ── Details (shown after recipe selection) ── */}
       {selected && (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {/* What workers will get */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Worker flow</p>
+                <p className="text-sm font-semibold text-foreground truncate">{selected.name}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                {selected.steps.length} steps
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {selected.steps.map((step, index) => (
+                <div key={step.id} className="flex items-center gap-2 rounded-lg bg-muted/45 px-3 py-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-card text-[11px] font-bold text-muted-foreground tabular-nums">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">{step.name}</p>
+                    {step.notes && <p className="truncate text-[11px] text-muted-foreground">{step.notes}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Batch edits can change steps for one run later without changing this recipe.
+            </p>
+          </div>
 
           {/* Batch Name */}
           <div>
@@ -527,7 +556,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
           {/* Submit */}
           <button
             onClick={handleSubmit}
-            disabled={loading || !selectedId || !name.trim() || (batchType === 'fixed' && !targetQuantity)}
+            disabled={loading || !selectedId || !name.trim() || fixedTargetInvalid}
             className="w-full min-h-[52px] py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-30 disabled:bg-muted flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
           >
             {loading ? (

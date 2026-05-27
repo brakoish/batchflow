@@ -39,6 +39,7 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
   const [editWorkerIds, setEditWorkerIds] = useState<string[]>([])
+  const fixedTargetInvalid = !editIsOpenEnded && (!editTargetQty || parseInt(editTargetQty) <= 0)
 
   useEffect(() => {
     if (batch) {
@@ -60,7 +61,10 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
 
   const handleEditSave = async () => {
     if (!batch || !editName.trim()) return
-    if (!editIsOpenEnded && (!editTargetQty || parseInt(editTargetQty) <= 0)) return
+    if (fixedTargetInvalid) {
+      setEditError('Fixed batches need a target greater than 0')
+      return
+    }
     setEditSaving(true)
     setEditError('')
     try {
@@ -288,11 +292,32 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
               </div>
             )}
 
+            <div className="rounded-xl border border-border bg-muted/35 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Review before saving</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-card px-3 py-2">
+                  <p className="text-muted-foreground">Target</p>
+                  <p className="font-medium text-foreground truncate">
+                    {editIsOpenEnded ? 'Open batch' : `${editTargetQty || '0'} ${batch.baseUnit || 'units'}`}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-card px-3 py-2">
+                  <p className="text-muted-foreground">Team</p>
+                  <p className="font-medium text-foreground truncate">
+                    {editWorkerIds.length ? `${editWorkerIds.length} assigned` : 'Everyone'}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                This changes batch setup only. Existing production logs stay attached.
+              </p>
+            </div>
+
             {editError && <p className="text-red-500 dark:text-red-400 text-xs text-center">{editError}</p>}
 
             <button
               onClick={handleEditSave}
-              disabled={editSaving || !editName.trim() || (!editIsOpenEnded && (!editTargetQty || parseInt(editTargetQty) <= 0))}
+              disabled={editSaving || !editName.trim() || fixedTargetInvalid}
               className="w-full py-3.5 min-h-[48px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
             >
               {editSaving ? 'Saving…' : 'Save Changes'}

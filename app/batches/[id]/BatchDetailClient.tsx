@@ -353,6 +353,10 @@ export default function BatchDetailClient({
       setError('Step name is required')
       return
     }
+    if (newStepType === 'COUNT' && newStepTarget && parseInt(newStepTarget) <= 0) {
+      setError('Target must be greater than 0')
+      return
+    }
 
     setSavingStep(true)
     setError('')
@@ -403,6 +407,10 @@ export default function BatchDetailClient({
   const handleSaveStepEdit = async () => {
     if (!editingStep || !editStepName.trim()) {
       setError('Step name is required')
+      return
+    }
+    if (editStepType === 'COUNT' && editStepTarget && parseInt(editStepTarget) <= 0) {
+      setError('Target must be greater than 0')
       return
     }
 
@@ -1732,6 +1740,22 @@ export default function BatchDetailClient({
                       className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
                     />
                   </div>
+                </div>
+              )}
+
+              {editingStep.progressLogs.length > 0 && (
+                <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                  <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                    This step already has {editingStep.progressLogs.length} log{editingStep.progressLogs.length === 1 ? '' : 's'}. Logs stay attached if you rename it.
+                  </p>
+                </div>
+              )}
+
+              {editStepType === 'COUNT' && editStepTarget && parseInt(editStepTarget) > 0 && editingStep.completedQuantity > parseInt(editStepTarget) && (
+                <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                  <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                    Completed amount is already {editingStep.completedQuantity.toLocaleString()}, so this step will show complete.
+                  </p>
                 </div>
               )}
 
