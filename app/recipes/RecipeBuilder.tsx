@@ -122,6 +122,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [starterLabel, setStarterLabel] = useState('')
   const router = useRouter()
   const trimmedUnits = units.map(u => ({ ...u, name: u.name.trim(), basedOn: (u.basedOn || '').trim() }))
   const validUnitNames = trimmedUnits.filter(u => u.name).map(u => u.name)
@@ -145,6 +146,20 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     setBaseUnit(starter.baseUnit)
     setUnits(starter.units)
     setSteps(starter.steps)
+    setStarterLabel(starter.label)
+    setError('')
+  }
+
+  const changeStarter = () => {
+    haptic('light')
+    const hasWork = name.trim() || description.trim() || baseUnit.trim() || units.length > 0 || steps.some(step => step.name.trim() || step.notes.trim())
+    if (hasWork && !window.confirm('Change starter pattern? This clears the recipe fields you have filled in so far.')) return
+    setName('')
+    setDescription('')
+    setBaseUnit('')
+    setUnits([])
+    setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
+    setStarterLabel('')
     setError('')
   }
 
@@ -299,6 +314,25 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                   <p className="mt-1 text-xs leading-snug text-muted-foreground">{starter.description}</p>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {!isEdit && starterLabel && (
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Starter pattern</p>
+                <p className="truncate text-sm font-semibold text-foreground">{starterLabel}</p>
+              </div>
+              <button
+                type="button"
+                onClick={changeStarter}
+                disabled={loading}
+                className="shrink-0 min-h-[40px] rounded-lg border border-input bg-card px-3 py-2 text-xs font-semibold text-foreground active:scale-[0.97] transition-all disabled:opacity-50"
+              >
+                Change
+              </button>
             </div>
           </div>
         )}
