@@ -158,7 +158,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="min-h-[44px] px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all"
+          className="bf-btn bf-btn-primary"
         >
           {showAddForm ? 'Close' : '+ Worker'}
         </button>
@@ -191,7 +191,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           <button
             onClick={generatePin}
             disabled={loading}
-            className="px-4 py-2.5 border border-border rounded-md text-sm text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+            className="bf-btn bf-btn-secondary"
           >
             Random
           </button>
@@ -203,10 +203,10 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
               key={r}
               onClick={() => setRole(r)}
               disabled={loading}
-              className={`flex-1 py-2.5 text-sm font-medium rounded-md border transition-all duration-150 ${
+              className={`bf-select-btn flex-1 ${
                 role === r
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'bg-transparent text-foreground border-border hover:border-foreground'
+                  ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-950 dark:border-slate-100'
+                  : ''
               }`}
             >
               {r.charAt(0) + r.slice(1).toLowerCase()}
@@ -228,7 +228,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full py-2.5 bg-primary text-primary-foreground font-medium text-sm rounded-md hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
+          className="bf-btn bf-btn-primary bf-btn-full"
         >
           {loading ? 'Creating...' : 'Create Worker'}
         </button>
@@ -243,7 +243,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             <h3 className="text-sm font-medium text-foreground">Edit Worker</h3>
             <button
               onClick={() => { setShowEditModal(false); setEditingWorker(null); setError('') }}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="bf-icon-btn"
             >
               ✕
             </button>
@@ -262,10 +262,10 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
               <button
                 key={r}
                 onClick={() => setEditRole(r)}
-                className={`flex-1 py-2.5 text-sm font-medium rounded-md border transition-all duration-150 ${
+                className={`bf-select-btn flex-1 ${
                   editRole === r
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'bg-transparent text-foreground border-border hover:border-foreground'
+                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-950 dark:border-slate-100'
+                    : ''
                 }`}
               >
                 {r.charAt(0) + r.slice(1).toLowerCase()}
@@ -287,7 +287,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
               <button
                 onClick={handleUpdatePin}
                 disabled={loading || editPin.length !== 4}
-                className="px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-40"
+                className="bf-btn bf-btn-primary"
               >
                 Set PIN
               </button>
@@ -303,7 +303,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           <button
             onClick={handleUpdateWorker}
             disabled={loading || !editName.trim()}
-            className="w-full py-2.5 bg-foreground text-background font-medium text-sm rounded-md hover:bg-foreground/90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
+            className="bf-btn bf-btn-primary bf-btn-full"
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
@@ -346,13 +346,13 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => openEditModal(worker)}
-                className="px-4 py-2.5 min-h-[44px] text-sm font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground active:scale-[0.97] transition-all"
+                className="bf-btn bf-btn-secondary"
               >
                 Edit
               </button>
               <button
                 onClick={() => handleDeleteWorker(worker)}
-                className="px-4 py-2.5 min-h-[44px] text-sm font-medium rounded-lg border border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground active:scale-[0.97] transition-all"
+                className="bf-btn bf-btn-soft-danger"
               >
                 Delete
               </button>

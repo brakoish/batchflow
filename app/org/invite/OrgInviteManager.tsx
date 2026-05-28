@@ -54,7 +54,7 @@ export default function OrgInviteManager({
           />
           <button
             onClick={copyInviteLink}
-            className="px-4 py-2 text-sm font-medium rounded-md bg-foreground text-background hover:opacity-90 transition-opacity"
+            className="bf-btn bf-btn-primary bf-btn-sm"
           >
             {copied ? 'Copied!' : 'Copy'}
           </button>

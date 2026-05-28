@@ -100,7 +100,7 @@ function PresetLogButtons({
           type="button"
           onClick={() => onPick(lastAmount)}
           disabled={disabled}
-          className="w-full min-h-[56px] rounded-xl bg-emerald-600 text-white text-base font-bold active:scale-[0.97] transition-all disabled:opacity-50"
+          className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
         >
           Same as last: +{lastAmount.toLocaleString()}
         </button>
@@ -112,7 +112,7 @@ function PresetLogButtons({
             type="button"
             onClick={() => onPick(amt)}
             disabled={disabled}
-            className="min-h-[64px] rounded-xl border border-input bg-muted text-lg font-bold text-foreground active:scale-[0.97] transition-all disabled:opacity-50"
+            className="bf-btn bf-btn-secondary bf-btn-lg"
           >
             +{amt}
           </button>
@@ -122,7 +122,7 @@ function PresetLogButtons({
             type="button"
             onClick={() => onPick(remaining)}
             disabled={disabled}
-            className="min-h-[64px] rounded-xl border border-emerald-500/50 bg-emerald-600/20 text-lg font-bold text-emerald-600 dark:text-emerald-400 active:scale-[0.97] transition-all disabled:opacity-50"
+            className="bf-btn bf-btn-soft bf-btn-lg"
           >
             Rest: {remaining.toLocaleString()}
           </button>
@@ -1090,7 +1090,7 @@ export default function BatchDetailClient({
                   key={station.step.id}
                   type="button"
                   onClick={() => station.step.type === 'COUNT' ? openLogForStep(station.step as BatchStep) : undefined}
-                  className="min-h-[52px] rounded-lg bg-muted/45 border border-border/60 px-3 py-2 text-left active:scale-[0.99] transition-all"
+                  className="min-h-[52px] rounded-xl bg-muted/45 border border-border/60 px-3 py-2 text-left active:scale-[0.99] transition-all hover:border-foreground/20"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
@@ -1143,39 +1143,39 @@ export default function BatchDetailClient({
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               {session.role === 'OWNER' && (
                 <button onClick={() => handleStatusChange('COMPLETED')}
-                  className="px-3 py-2 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-medium transition-all">
+                  className="bf-btn bf-btn-success bf-btn-sm">
                   Mark Complete
                 </button>
               )}
               {session.role === 'OWNER' && (
                 <button onClick={() => setShowEditModal(true)}
-                  className="px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground/80 text-xs font-medium transition-all">
+                  className="bf-btn bf-btn-secondary bf-btn-sm">
                   Edit Batch
                 </button>
               )}
               <button onClick={toggleStepEditing}
-                className={`px-3 py-2 min-h-[44px] rounded-lg border active:scale-[0.96] text-xs font-medium transition-all ${
+                className={`bf-btn bf-btn-sm ${
                   editingSteps
-                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500'
-                    : 'bg-muted hover:bg-muted/80 border-input text-foreground/80'
+                    ? 'bf-btn-success'
+                    : 'bf-btn-secondary'
                 }`}>
                 {editingSteps ? 'Done Editing Steps' : 'Edit Steps'}
               </button>
               {editingSteps && (
                 <button onClick={handleOpenAddStep}
-                  className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
+                  className="bf-btn bf-btn-secondary bf-btn-sm">
                   <PlusIcon className="w-4 h-4" />
                   Add Step
                 </button>
               )}
               <button onClick={handleOpenDuplicate}
-                className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
+                className="bf-btn bf-btn-secondary bf-btn-sm">
                 <DocumentDuplicateIcon className="w-4 h-4" />
                 Duplicate
               </button>
               {session.role === 'OWNER' && (
                 <button onClick={() => handleStatusChange('CANCELLED')}
-                  className="px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-red-500 dark:text-red-400 text-xs font-medium transition-all">
+                  className="bf-btn bf-btn-soft-danger bf-btn-sm">
                   Cancel Batch
                 </button>
               )}
@@ -1184,19 +1184,19 @@ export default function BatchDetailClient({
           {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status !== 'ACTIVE' && (
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <button onClick={handleOpenDuplicate}
-                className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-foreground text-xs font-medium transition-all">
+                className="bf-btn bf-btn-secondary bf-btn-sm">
                 <DocumentDuplicateIcon className="w-4 h-4" />
                 Duplicate
               </button>
               {session.role === 'OWNER' && (
                 <button onClick={() => handleStatusChange('ACTIVE')}
-                  className="px-3 py-2 min-h-[44px] rounded-lg bg-muted hover:bg-muted/80 border border-input active:scale-[0.96] text-blue-600 dark:text-blue-400 text-xs font-medium transition-all">
+                  className="bf-btn bf-btn-soft bf-btn-sm">
                   Reopen Batch
                 </button>
               )}
               {session.role === 'OWNER' && batch.status === 'CANCELLED' && (
                 <button onClick={handleDeleteBatch}
-                  className="px-3 py-2 min-h-[44px] rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 active:scale-[0.96] text-red-500 dark:text-red-400 text-xs font-medium transition-all">
+                  className="bf-btn bf-btn-soft-danger bf-btn-sm">
                   Delete Batch
                 </button>
               )}
@@ -1216,7 +1216,7 @@ export default function BatchDetailClient({
                   </div>
                   <button
                     onClick={handleOpenAddStep}
-                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-emerald-600 text-white active:scale-[0.96] text-xs font-semibold transition-all"
+                    className="bf-btn bf-btn-success bf-btn-sm shrink-0"
                   >
                     <PlusIcon className="w-4 h-4" />
                     Add
@@ -1345,7 +1345,7 @@ export default function BatchDetailClient({
                   {!isCompleted && !isSkipped && step.type === 'COUNT' && (
                     <button
                       onClick={() => openLogForStep(step)}
-                      className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0"
+                      className="bf-btn bf-btn-success shrink-0"
                     >
                       <PlusIcon className="w-4 h-4" />Log
                     </button>
@@ -1354,7 +1354,7 @@ export default function BatchDetailClient({
                     <button
                       onClick={() => { haptic('light'); handleCheckComplete(step); }}
                       disabled={loading}
-                      className="flex items-center gap-1.5 px-4 py-3 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 shrink-0 disabled:opacity-50"
+                      className="bf-btn bf-btn-primary shrink-0"
                     >
                       <CheckIcon className="w-4 h-4" />Done
                     </button>
@@ -1367,7 +1367,7 @@ export default function BatchDetailClient({
                       onClick={() => handleMoveStep(step, 'move-up')}
                       disabled={loading || stepIndex === 0}
                       aria-label={`Move ${displayStepName(step)} up`}
-                      className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-30"
+                      className="bf-btn bf-btn-secondary min-h-[56px] flex-col px-2 text-xs"
                     >
                       <ChevronUpIcon className="w-4 h-4" />
                       Up
@@ -1376,7 +1376,7 @@ export default function BatchDetailClient({
                       onClick={() => handleMoveStep(step, 'move-down')}
                       disabled={loading || stepIndex === batch.steps.length - 1}
                       aria-label={`Move ${displayStepName(step)} down`}
-                      className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-30"
+                      className="bf-btn bf-btn-secondary min-h-[56px] flex-col px-2 text-xs"
                     >
                       <ChevronDownIcon className="w-4 h-4" />
                       Down
@@ -1385,7 +1385,7 @@ export default function BatchDetailClient({
                       onClick={() => handleOpenEditStep(step)}
                       disabled={loading}
                       aria-label={`Edit ${displayStepName(step)}`}
-                      className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-50"
+                      className="bf-btn bf-btn-secondary min-h-[56px] flex-col px-2 text-xs"
                     >
                       <PencilSquareIcon className="w-4 h-4" />
                       Edit
@@ -1395,7 +1395,7 @@ export default function BatchDetailClient({
                         onClick={() => handleUnskipStep(step)}
                         disabled={loading}
                         aria-label={`Restore ${displayStepName(step)}`}
-                        className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-input bg-muted/40 text-xs font-medium text-foreground/80 active:scale-[0.96] transition-all disabled:opacity-50"
+                        className="bf-btn bf-btn-soft min-h-[56px] flex-col px-2 text-xs"
                       >
                         <CheckIcon className="w-4 h-4" />
                         Restore
@@ -1405,7 +1405,7 @@ export default function BatchDetailClient({
                         onClick={() => handleSkipStep(step)}
                         disabled={loading}
                         aria-label={`Skip ${displayStepName(step)} for this batch`}
-                        className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs font-medium text-amber-700 dark:text-amber-300 active:scale-[0.96] transition-all disabled:opacity-50"
+                        className="bf-btn min-h-[56px] flex-col border-amber-500/30 bg-amber-500/10 px-2 text-xs text-amber-700 dark:text-amber-300"
                       >
                         <EyeSlashIcon className="w-4 h-4" />
                         Skip
@@ -1507,7 +1507,7 @@ export default function BatchDetailClient({
           <button
             type="button"
             onClick={() => { haptic('light'); setChatOpen(!chatOpen) }}
-            className="w-full min-h-[48px] rounded-xl border border-border bg-card px-4 text-left flex items-center justify-between active:scale-[0.99] transition-all"
+            className="w-full min-h-[48px] rounded-xl border border-border bg-card px-4 text-left flex items-center justify-between active:scale-[0.99] transition-all hover:border-foreground/20"
           >
             <span className="text-sm font-semibold text-foreground flex items-center gap-2">
               <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
@@ -1576,13 +1576,13 @@ export default function BatchDetailClient({
               <button
                 type="submit"
                 disabled={!newMessage.trim() || sendingMessage}
-                className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center transition-all duration-150 active:scale-[0.96] ${
+                className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center transition-all duration-150 active:scale-[0.96] ${
                   newMessage.trim() && !sendingMessage
-                    ? 'bg-emerald-600 hover:bg-emerald-500'
+                    ? 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200'
                     : 'bg-muted cursor-not-allowed'
                 }`}
               >
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className="w-5 h-5 text-white dark:text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
                 </svg>
               </button>
@@ -1610,7 +1610,7 @@ export default function BatchDetailClient({
               {primaryStation.type === 'COUNT' ? (
                 <button
                   onClick={() => openLogForStep(primaryStation)}
-                  className="min-h-[52px] px-5 rounded-xl bg-emerald-600 text-white text-sm font-bold active:scale-[0.97] transition-all flex items-center gap-1.5"
+                  className="bf-btn bf-btn-success bf-btn-lg px-5 text-sm"
                 >
                   <PlusIcon className="w-4 h-4" />
                   Log
@@ -1619,7 +1619,7 @@ export default function BatchDetailClient({
                 <button
                   onClick={() => { haptic('light'); handleCheckComplete(primaryStation) }}
                   disabled={loading}
-                  className="min-h-[52px] px-5 rounded-xl bg-blue-600 text-white text-sm font-bold active:scale-[0.97] transition-all flex items-center gap-1.5 disabled:opacity-60"
+                  className="bf-btn bf-btn-primary bf-btn-lg px-5 text-sm"
                 >
                   <CheckIcon className="w-4 h-4" />
                   Done
@@ -1655,7 +1655,7 @@ export default function BatchDetailClient({
                 </div>
                 <button
                   onClick={() => setShowAddStepModal(false)}
-                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                  className="bf-icon-btn"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -1675,10 +1675,10 @@ export default function BatchDetailClient({
                 <button
                   type="button"
                   onClick={() => setNewStepType('COUNT')}
-                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-all ${
+                  className={`bf-select-btn ${
                     newStepType === 'COUNT'
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'border-input bg-muted/40 text-foreground/70'
+                      ? 'bf-select-btn-active'
+                      : ''
                   }`}
                 >
                   Count
@@ -1686,10 +1686,10 @@ export default function BatchDetailClient({
                 <button
                   type="button"
                   onClick={() => setNewStepType('CHECK')}
-                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-all ${
+                  className={`bf-select-btn ${
                     newStepType === 'CHECK'
                       ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                      : 'border-input bg-muted/40 text-foreground/70'
+                      : ''
                   }`}
                 >
                   Done / not done
@@ -1729,7 +1729,7 @@ export default function BatchDetailClient({
               <button
                 onClick={handleAddStep}
                 disabled={savingStep || !newStepName.trim()}
-                className="w-full mt-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
+                className="bf-btn bf-btn-success bf-btn-full mt-5"
               >
                 {savingStep ? 'Adding...' : 'Add Step'}
               </button>
@@ -1753,7 +1753,7 @@ export default function BatchDetailClient({
                 </div>
                 <button
                   onClick={() => setEditingStep(null)}
-                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                  className="bf-icon-btn"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -1772,10 +1772,10 @@ export default function BatchDetailClient({
                 <button
                   type="button"
                   onClick={() => setEditStepType('COUNT')}
-                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-all ${
+                  className={`bf-select-btn ${
                     editStepType === 'COUNT'
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'border-input bg-muted/40 text-foreground/70'
+                      ? 'bf-select-btn-active'
+                      : ''
                   }`}
                 >
                   Count
@@ -1783,10 +1783,10 @@ export default function BatchDetailClient({
                 <button
                   type="button"
                   onClick={() => setEditStepType('CHECK')}
-                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-all ${
+                  className={`bf-select-btn ${
                     editStepType === 'CHECK'
                       ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                      : 'border-input bg-muted/40 text-foreground/70'
+                      : ''
                   }`}
                 >
                   Done / not done
@@ -1841,7 +1841,7 @@ export default function BatchDetailClient({
               <button
                 onClick={handleSaveStepEdit}
                 disabled={savingStep || !editStepName.trim()}
-                className="w-full mt-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40 disabled:bg-muted"
+                className="bf-btn bf-btn-success bf-btn-full mt-5"
               >
                 {savingStep ? 'Saving...' : 'Save Step'}
               </button>
@@ -1873,7 +1873,7 @@ export default function BatchDetailClient({
                     setNote('')
                     setShowNoteInput(false)
                   }}
-                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                  className="bf-icon-btn"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1940,7 +1940,7 @@ export default function BatchDetailClient({
                               else if (key === 'back') setQuantity(prev => prev.slice(0, -1))
                               else setQuantity(prev => `${prev}${key}`.replace(/^0+(\d)/, '$1').slice(0, 6))
                             }}
-                            className="min-h-[56px] rounded-xl border border-input bg-muted text-xl font-bold text-foreground active:scale-[0.97] transition-all"
+                            className="bf-btn bf-btn-secondary min-h-[56px] text-xl font-bold"
                           >
                             {key === 'clear' ? 'Clear' : key === 'back' ? 'Back' : key}
                           </button>
@@ -1961,7 +1961,7 @@ export default function BatchDetailClient({
                         <button
                           type="button"
                           onClick={() => { haptic('light'); setShowNoteInput(true) }}
-                          className="min-h-[40px] rounded-xl px-4 border border-dashed border-input text-xs font-semibold text-muted-foreground active:scale-[0.98] transition-all"
+                          className="bf-btn bf-btn-secondary bf-btn-sm border-dashed"
                         >
                           Add note
                         </button>
@@ -1977,7 +1977,7 @@ export default function BatchDetailClient({
               <button
                 onClick={handleSubmit}
                 disabled={loading || !quantity || parseInt(quantity) <= 0 || (selectedStep && getSafeRemaining(selectedStep) !== null && parseInt(quantity) > getSafeRemaining(selectedStep)!)}
-                className="w-full mt-4 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-45 disabled:bg-muted disabled:text-muted-foreground"
+                className="bf-btn bf-btn-success bf-btn-lg bf-btn-full mt-4"
               >
                 {loading
                   ? 'Saving...'
@@ -2005,7 +2005,7 @@ export default function BatchDetailClient({
                 <p className="text-sm font-semibold text-foreground">Edit Log Entry</p>
                 <button
                   onClick={() => { setEditingLog(null); setError('') }}
-                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                  className="bf-icon-btn"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -2043,7 +2043,7 @@ export default function BatchDetailClient({
                 <button
                   onClick={handleSaveEdit}
                   disabled={loading || !editQuantity || parseInt(editQuantity) <= 0}
-                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+                  className="bf-btn bf-btn-success bf-btn-full"
                 >
                   {loading ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -2051,7 +2051,7 @@ export default function BatchDetailClient({
                 <button
                   onClick={() => handleDeleteLog(editingLog.id, (editingLog as any).stepId, editingLog.quantity)}
                   disabled={loading}
-                  className="w-full py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 active:scale-[0.98] text-red-500 dark:text-red-400 font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+                  className="bf-btn bf-btn-soft-danger bf-btn-full"
                 >
                   Delete Entry
                 </button>
@@ -2077,7 +2077,7 @@ export default function BatchDetailClient({
                 </div>
                 <button
                   onClick={() => setShowDuplicateModal(false)}
-                  className="p-1.5 rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+                  className="bf-icon-btn"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -2103,10 +2103,10 @@ export default function BatchDetailClient({
                     <button
                       type="button"
                       onClick={() => { haptic('medium'); setDuplicateIsOpenEnded(false) }}
-                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                      className={`bf-select-btn bf-btn-sm ${
                         !duplicateIsOpenEnded
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
-                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                          ? 'bf-select-btn-active'
+                          : ''
                       }`}
                     >
                       Fixed target
@@ -2114,10 +2114,10 @@ export default function BatchDetailClient({
                     <button
                       type="button"
                       onClick={() => { haptic('medium'); setDuplicateIsOpenEnded(true) }}
-                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                      className={`bf-select-btn bf-btn-sm ${
                         duplicateIsOpenEnded
                           ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
-                          : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                          : ''
                       }`}
                     >
                       Open — count as we go
@@ -2146,10 +2146,10 @@ export default function BatchDetailClient({
                     <button
                       type="button"
                       onClick={() => { haptic('light'); setDuplicatePriority('LOW') }}
-                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                      className={`bf-select-btn bf-btn-sm px-2 ${
                         duplicatePriority === 'LOW'
-                          ? 'bg-muted/80 text-muted-foreground border-2 border-border'
-                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                          ? 'bg-muted/80 text-foreground border-foreground/25'
+                          : ''
                       }`}
                     >
                       Low
@@ -2157,10 +2157,10 @@ export default function BatchDetailClient({
                     <button
                       type="button"
                       onClick={() => { haptic('light'); setDuplicatePriority('NORMAL') }}
-                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                      className={`bf-select-btn bf-btn-sm px-2 ${
                         duplicatePriority === 'NORMAL'
-                          ? 'bg-muted/80 text-foreground border-2 border-foreground/30'
-                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                          ? 'bg-muted/80 text-foreground border-foreground/30'
+                          : ''
                       }`}
                     >
                       Normal
@@ -2168,10 +2168,10 @@ export default function BatchDetailClient({
                     <button
                       type="button"
                       onClick={() => { haptic('light'); setDuplicatePriority('HIGH') }}
-                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                      className={`bf-select-btn bf-btn-sm px-2 ${
                         duplicatePriority === 'HIGH'
                           ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
-                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                          : ''
                       }`}
                     >
                       High
@@ -2179,10 +2179,10 @@ export default function BatchDetailClient({
                     <button
                       type="button"
                       onClick={() => { haptic('light'); setDuplicatePriority('URGENT') }}
-                      className={`min-h-[40px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                      className={`bf-select-btn bf-btn-sm px-2 ${
                         duplicatePriority === 'URGENT'
                           ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
-                          : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                          : ''
                       }`}
                     >
                       Urgent
@@ -2210,7 +2210,7 @@ export default function BatchDetailClient({
                 <button
                   onClick={handleDuplicateBatch}
                   disabled={duplicating || !duplicateName.trim() || (!duplicateIsOpenEnded && (!duplicateTargetQty || parseInt(duplicateTargetQty) <= 0))}
-                  className="w-full py-3.5 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+                  className="bf-btn bf-btn-success bf-btn-full"
                 >
                   {duplicating ? 'Creating...' : 'Create & Tweak Steps'}
                 </button>

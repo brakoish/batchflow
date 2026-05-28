@@ -235,10 +235,10 @@ export default function DashboardClient({
             </div>
             <button
               onClick={() => setShowCompleted(!showCompleted)}
-              className={`min-h-[40px] px-3 rounded-full border text-xs font-semibold transition-all ${
+              className={`bf-select-btn bf-btn-sm rounded-full ${
                 showCompleted
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                  ? 'bf-select-btn-active'
+                  : ''
               }`}
             >
               {showCompleted ? 'Showing completed' : 'Active only'}
@@ -281,10 +281,10 @@ export default function DashboardClient({
                 key={tab.key}
                 type="button"
                 onClick={() => setMobileTab(tab.key as typeof mobileTab)}
-                className={`min-h-[44px] rounded-lg text-sm font-semibold transition-all ${
+                className={`bf-select-btn rounded-lg ${
                   mobileTab === tab.key
                     ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground'
+                    : ''
                 }`}
               >
                 {tab.label}
@@ -324,30 +324,30 @@ export default function DashboardClient({
             <div className="flex gap-2 overflow-x-auto">
               <button
                 onClick={() => setSortBy('newest')}
-                className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                className={`bf-select-btn whitespace-nowrap ${
                   sortBy === 'newest'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-card border border-border text-foreground hover:bg-muted'
+                    ? 'bf-select-btn-active'
+                    : ''
                 }`}
               >
                 Newest
               </button>
               <button
                 onClick={() => setSortBy('dueDate')}
-                className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                className={`bf-select-btn whitespace-nowrap ${
                   sortBy === 'dueDate'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-card border border-border text-foreground hover:bg-muted'
+                    ? 'bf-select-btn-active'
+                    : ''
                 }`}
               >
                 Due Date
               </button>
               <button
                 onClick={() => setSortBy('progress')}
-                className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                className={`bf-select-btn whitespace-nowrap ${
                   sortBy === 'progress'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-card border border-border text-foreground hover:bg-muted'
+                    ? 'bf-select-btn-active'
+                    : ''
                 }`}
               >
                 Progress
@@ -467,7 +467,7 @@ export default function DashboardClient({
                         </div>
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingBatch(batch) }}
-                          className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                          className="bf-icon-btn min-h-[36px] min-w-[36px]"
                           title="Edit batch"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -14,7 +14,7 @@ export default function OfflinePage() {
         </div>
         <button
           onClick={() => window.location.reload()}
-          className="w-full rounded-xl bg-foreground text-background py-3 px-6 font-medium active:scale-[0.98] transition-transform"
+          className="bf-btn bf-btn-primary bf-btn-full"
         >
           Try Again
         </button>

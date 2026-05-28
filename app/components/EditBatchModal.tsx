@@ -112,7 +112,7 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
             <p className="text-sm font-semibold text-foreground">Edit Batch</p>
             <button
               onClick={onClose}
-              className="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
+              className="bf-icon-btn"
               aria-label="Close"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -137,10 +137,10 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
                 <button
                   type="button"
                   onClick={() => setEditIsOpenEnded(false)}
-                  className={`min-h-[44px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                  className={`bf-select-btn ${
                     !editIsOpenEnded
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
-                      : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      ? 'bf-select-btn-active'
+                      : ''
                   }`}
                 >
                   Fixed target
@@ -148,10 +148,10 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
                 <button
                   type="button"
                   onClick={() => setEditIsOpenEnded(true)}
-                  className={`min-h-[44px] px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+                  className={`bf-select-btn ${
                     editIsOpenEnded
                       ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
-                      : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      : ''
                   }`}
                 >
                   Open — count as we go
@@ -182,10 +182,10 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
                 <button
                   type="button"
                   onClick={() => setEditPriority('LOW')}
-                  className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                  className={`bf-select-btn px-2 text-xs ${
                     editPriority === 'LOW'
-                      ? 'bg-muted/80 text-muted-foreground border-2 border-border'
-                      : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      ? 'bg-muted/80 text-foreground border-foreground/20'
+                      : ''
                   }`}
                 >
                   Low
@@ -193,10 +193,10 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
                 <button
                   type="button"
                   onClick={() => setEditPriority('NORMAL')}
-                  className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                  className={`bf-select-btn px-2 text-xs ${
                     editPriority === 'NORMAL'
-                      ? 'bg-muted/80 text-foreground border-2 border-foreground/30'
-                      : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      ? 'bg-muted/80 text-foreground border-foreground/30'
+                      : ''
                   }`}
                 >
                   Normal
@@ -204,10 +204,10 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
                 <button
                   type="button"
                   onClick={() => setEditPriority('HIGH')}
-                  className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                  className={`bf-select-btn px-2 text-xs ${
                     editPriority === 'HIGH'
                       ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
-                      : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      : ''
                   }`}
                 >
                   High
@@ -215,10 +215,10 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
                 <button
                   type="button"
                   onClick={() => setEditPriority('URGENT')}
-                  className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] ${
+                  className={`bf-select-btn px-2 text-xs ${
                     editPriority === 'URGENT'
                       ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
-                      : 'bg-card border-2 border-border text-muted-foreground/60 hover:border-foreground/20'
+                      : ''
                   }`}
                 >
                   Urgent
@@ -248,7 +248,7 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
               <button
                 type="button"
                 onClick={() => setEditShowMetrc(!editShowMetrc)}
-                className="w-full min-h-[44px] py-2 rounded-lg text-xs text-muted-foreground font-medium hover:text-foreground transition-colors flex items-center justify-center gap-1.5"
+                className="bf-btn bf-btn-ghost bf-btn-full bf-btn-sm"
               >
                 <svg className={`w-4 h-4 transition-transform ${editShowMetrc ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -279,10 +279,10 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
                     return (
                       <button key={w.id} type="button"
                         onClick={() => setEditWorkerIds(prev => selected ? prev.filter(id => id !== w.id) : [...prev, w.id])}
-                        className={`px-3 py-2 min-h-[44px] rounded-lg text-sm font-medium transition-all active:scale-[0.96] ${
+                        className={`bf-select-btn ${
                           selected
-                            ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                            : 'bg-muted text-muted-foreground border border-input hover:border-foreground/20'
+                            ? 'bf-select-btn-active'
+                            : ''
                         }`}>
                         {w.name}
                       </button>
@@ -318,7 +318,7 @@ export default function EditBatchModal({ batch, workers, onClose, onSaved }: Edi
             <button
               onClick={handleEditSave}
               disabled={editSaving || !editName.trim() || fixedTargetInvalid}
-              className="w-full py-3.5 min-h-[48px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-40"
+              className="bf-btn bf-btn-success bf-btn-full"
             >
               {editSaving ? 'Saving…' : 'Save Changes'}
             </button>

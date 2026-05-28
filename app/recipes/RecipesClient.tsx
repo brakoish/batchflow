@@ -72,7 +72,7 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
       {editId && (
         <button
           onClick={() => setEditId(null)}
-          className="w-full py-3 rounded-xl border-2 border-border text-sm text-muted-foreground font-medium hover:text-foreground hover:border-foreground/20 transition-all"
+          className="bf-btn bf-btn-secondary bf-btn-full"
         >
           Cancel editing — create new instead
         </button>
@@ -128,14 +128,14 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
                           setEditId(isEditing ? null : recipe.id)
                           if (!isEditing) window.scrollTo({ top: 0, behavior: 'smooth' })
                         }}
-                        className={`p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg transition-colors ${
-                          isEditing ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        className={`bf-icon-btn ${
+                          isEditing ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : ''
                         }`}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button onClick={() => handleDelete(recipe.id)} disabled={deleting === recipe.id}
-                        className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40">
+                        className="bf-icon-btn bf-icon-btn-danger">
                         <TrashIcon className="w-4 h-4" />
                       </button>
                     </div>

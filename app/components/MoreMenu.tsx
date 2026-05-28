@@ -146,7 +146,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
           <button
             onClick={onClose}
             aria-label="Close"
-            className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center justify-center"
+            className="bf-icon-btn"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
@@ -160,7 +160,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => { haptic('light'); setConfirmingClockOut(false) }}
-                    className="min-h-[52px] rounded-xl bg-muted text-foreground text-sm font-medium hover:bg-muted/80 active:scale-[0.97] transition-all"
+                    className="bf-btn bf-btn-secondary bf-btn-lg"
                   >
                     Cancel
                   </button>
@@ -168,7 +168,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                     onClick={handleClockOutConfirm}
                     disabled={clockLoading}
                     autoFocus
-                    className="min-h-[52px] rounded-xl bg-destructive text-destructive-foreground text-sm font-semibold hover:bg-destructive/90 active:scale-[0.97] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                    className="bf-btn bf-btn-danger bf-btn-lg"
                   >
                     <StopIcon className="w-4 h-4" />
                     {clockLoading ? 'Clocking out…' : 'Confirm'}
@@ -177,7 +177,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
               ) : (
                 <button
                   onClick={() => { haptic('light'); setConfirmingClockOut(true) }}
-                  className="w-full min-h-[52px] rounded-xl bg-destructive-subtle text-destructive text-sm font-semibold hover:bg-destructive hover:text-destructive-foreground active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="bf-btn bf-btn-soft-danger bf-btn-lg bf-btn-full"
                 >
                   <StopIcon className="w-4 h-4" />
                   Clock Out
@@ -187,7 +187,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
               <button
                 onClick={handleClockIn}
                 disabled={clockLoading}
-                className="w-full min-h-[52px] rounded-xl bg-success text-success-foreground text-sm font-semibold hover:bg-success/90 active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
               >
                 <PlayIcon className="w-4 h-4" />
                 {clockLoading ? 'Starting…' : 'Clock In'}
@@ -226,7 +226,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
           </div>
           <button
             onClick={handleLogout}
-            className="min-h-[44px] px-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+            className="bf-btn bf-btn-ghost bf-btn-sm"
           >
             <ArrowRightOnRectangleIcon className="w-4 h-4" />
             Log out

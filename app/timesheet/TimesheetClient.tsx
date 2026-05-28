@@ -323,13 +323,13 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => handleReviewCorrection(c.id, 'APPROVED')}
-                    className="px-4 py-2 min-h-[40px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold active:scale-95 transition-all"
+                    className="bf-btn bf-btn-success bf-btn-sm"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => handleReviewCorrection(c.id, 'REJECTED')}
-                    className="px-4 py-2 min-h-[40px] rounded-xl bg-muted hover:bg-muted/70 text-foreground text-sm font-medium active:scale-95 transition-all"
+                    className="bf-btn bf-btn-secondary bf-btn-sm"
                   >
                     Reject
                   </button>
@@ -399,7 +399,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
         />
         <button
           onClick={handleExport}
-          className="w-full sm:w-auto px-4 py-3 min-h-[44px] rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="bf-btn bf-btn-primary w-full sm:w-auto"
         >
           Export Formatted Sheet
         </button>
@@ -440,7 +440,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
               <h3 className="text-base font-medium text-foreground">Edit Shift</h3>
               <button
                 onClick={() => setEditingShift(null)}
-                className="text-muted-foreground hover:text-foreground p-2"
+                className="bf-icon-btn"
               >
                 ✕
               </button>
@@ -476,14 +476,14 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
               <button
                 onClick={handleUpdateShift}
                 disabled={loading}
-                className="flex-1 py-3 bg-primary text-primary-foreground font-medium text-sm rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40"
+                className="bf-btn bf-btn-primary flex-1"
               >
                 {loading ? 'Saving...' : 'Save Changes'}
               </button>
               <button
                 onClick={() => handleDeleteShift(editingShift)}
                 disabled={loading}
-                className="px-4 py-3 border border-destructive text-destructive text-sm font-medium rounded-lg hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-40"
+                className="bf-btn bf-btn-soft-danger"
               >
                 Delete
               </button>

@@ -308,7 +308,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                   type="button"
                   onClick={() => applyStarter(starter)}
                   disabled={loading}
-                  className="min-h-[92px] rounded-xl border-2 border-border bg-muted/30 px-3 py-3 text-left active:scale-[0.98] transition-all hover:border-emerald-500/50"
+                  className="min-h-[92px] rounded-xl border border-border bg-card px-3 py-3 text-left shadow-sm transition-all hover:-translate-y-px hover:border-foreground/20 hover:bg-muted/35 active:scale-[0.98]"
                 >
                   <p className="text-sm font-semibold text-foreground">{starter.label}</p>
                   <p className="mt-1 text-xs leading-snug text-muted-foreground">{starter.description}</p>
@@ -329,7 +329,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                 type="button"
                 onClick={changeStarter}
                 disabled={loading}
-                className="shrink-0 min-h-[40px] rounded-lg border border-input bg-card px-3 py-2 text-xs font-semibold text-foreground active:scale-[0.97] transition-all disabled:opacity-50"
+                className="bf-btn bf-btn-secondary bf-btn-sm shrink-0"
               >
                 Change
               </button>
@@ -380,7 +380,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
 
           {units.length === 0 ? (
             <button onClick={addUnit} disabled={loading}
-              className="w-full min-h-[48px] py-3 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground font-medium hover:text-foreground hover:border-foreground/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+              className="bf-btn bf-btn-secondary bf-btn-full border-dashed">
               <PlusIcon className="w-4 h-4" />Add a relation
             </button>
           ) : (
@@ -479,14 +479,14 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                         type="button"
                         onClick={() => updateUnit(i, 'direction', u.direction === 'bigger' ? 'smaller' : 'bigger')}
                         disabled={loading}
-                        className="text-[11px] text-muted-foreground hover:text-foreground transition-colors min-h-[36px] px-2"
+                        className="bf-btn bf-btn-ghost bf-btn-sm text-[11px]"
                       >
                         ⇄ Flip — {u.direction === 'bigger' ? `it’s smaller than a ${u.basedOn || baseUnit || 'base unit'}` : `it’s bigger than a ${u.basedOn || baseUnit || 'base unit'}`}
                       </button>
                       <button
                         onClick={() => removeUnit(i)}
                         aria-label="Remove"
-                        className="min-h-[36px] min-w-[36px] p-1.5 rounded-lg text-muted-foreground hover:text-red-500 dark:hover:text-red-400 hover:bg-muted transition-colors flex items-center justify-center"
+                        className="bf-icon-btn bf-icon-btn-danger min-h-[36px] min-w-[36px]"
                       >
                         <XMarkIcon className="w-4 h-4" />
                       </button>
@@ -512,7 +512,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                 )
               })}
               <button onClick={addUnit} disabled={loading}
-                className="w-full min-h-[44px] py-2.5 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground font-medium hover:text-foreground hover:border-foreground/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                className="bf-btn bf-btn-secondary bf-btn-full border-dashed">
                 <PlusIcon className="w-4 h-4" />Add another relation
               </button>
             </div>
@@ -537,15 +537,15 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                   <span className="text-sm text-muted-foreground font-bold tabular-nums">Step {i + 1}</span>
                   <div className="flex items-center gap-0.5">
                     <button onClick={() => moveStep(i, 'up')} disabled={i === 0}
-                      className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-foreground hover:bg-card disabled:opacity-20 transition-colors">
+                      className="bf-icon-btn">
                       <ChevronUpIcon className="w-5 h-5" />
                     </button>
                     <button onClick={() => moveStep(i, 'down')} disabled={i === steps.length - 1}
-                      className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-foreground hover:bg-card disabled:opacity-20 transition-colors">
+                      className="bf-icon-btn">
                       <ChevronDownIcon className="w-5 h-5" />
                     </button>
                     <button onClick={() => removeStep(i)} disabled={steps.length === 1}
-                      className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-500 dark:hover:text-red-400 disabled:opacity-20 transition-colors">
+                      className="bf-icon-btn bf-icon-btn-danger">
                       <XMarkIcon className="w-5 h-5" />
                     </button>
                   </div>
@@ -564,8 +564,8 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                   <label className="text-xs text-muted-foreground font-medium block mb-2">What do workers do at this step?</label>
                   <div className="flex gap-2">
                     <button onClick={() => { haptic('light'); updateStep(i, 'type', 'CHECK') }} disabled={loading}
-                      className={`flex-1 min-h-[56px] flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.97] ${
-                        step.type === 'CHECK' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500' : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      className={`bf-select-btn flex-1 justify-start px-4 py-3 ${
+                        step.type === 'CHECK' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500' : ''
                       }`}>
                       <CheckCircleIcon className="w-6 h-6 shrink-0" />
                       <div className="text-left">
@@ -574,8 +574,8 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                       </div>
                     </button>
                     <button onClick={() => { haptic('light'); updateStep(i, 'type', 'COUNT') }} disabled={loading}
-                      className={`flex-1 min-h-[56px] flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.97] ${
-                        step.type === 'COUNT' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500' : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                      className={`bf-select-btn flex-1 justify-start px-4 py-3 ${
+                        step.type === 'COUNT' ? 'bf-select-btn-active' : ''
                       }`}>
                       <HashtagIcon className="w-6 h-6 shrink-0" />
                       <div className="text-left">
@@ -597,8 +597,8 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                       <button
                         onClick={() => { haptic('light'); updateStep(i, 'unitName', '') }}
                         disabled={loading}
-                        className={`px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${
-                          !step.unitName ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500' : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                        className={`bf-select-btn ${
+                          !step.unitName ? 'bf-select-btn-active' : ''
                         }`}
                       >
                         {baseUnit || 'base unit'}
@@ -608,8 +608,8 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                           key={idx}
                           onClick={() => { haptic('light'); updateStep(i, 'unitName', u.name) }}
                           disabled={loading}
-                          className={`px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${
-                            step.unitName === u.name ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500' : 'bg-card border-2 border-border text-muted-foreground hover:border-foreground/20'
+                          className={`bf-select-btn ${
+                            step.unitName === u.name ? 'bf-select-btn-active' : ''
                           }`}
                         >
                           {u.name} ({(() => {
@@ -634,7 +634,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
           </div>
 
           <button onClick={addStep} disabled={loading}
-            className="w-full mt-3 min-h-[48px] py-3 rounded-xl border-2 border-dashed border-border text-sm text-foreground font-medium hover:bg-muted/50 hover:border-foreground/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+            className="bf-btn bf-btn-secondary bf-btn-full mt-3 border-dashed">
             <PlusIcon className="w-4 h-4" />Add another step
           </button>
         </div>
@@ -713,7 +713,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
 
         {/* ── Submit ── */}
         <button onClick={handleSubmit} disabled={loading}
-          className="w-full min-h-[52px] py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-base transition-all duration-150 disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
+          className="bf-btn bf-btn-success bf-btn-lg bf-btn-full">
           {loading ? (
             <>
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -334,7 +334,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
               onClick={handleDownloadCsv}
               aria-label="Download CSV"
               title="Download CSV"
-              className="min-h-[48px] min-w-[48px] px-3 rounded-xl bg-muted hover:bg-muted/80 border border-input active:scale-[0.97] text-foreground transition-all flex items-center justify-center"
+              className="bf-icon-btn min-h-[48px] min-w-[48px] border border-input"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
             </button>
@@ -343,7 +343,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
               disabled={sharing}
               aria-label={sharing ? 'Preparing image' : 'Share this week'}
               title="Share"
-              className="min-h-[48px] min-w-[48px] px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.97] text-white transition-all flex items-center justify-center disabled:opacity-60"
+              className="bf-btn bf-btn-success min-h-[48px] min-w-[48px] px-3"
             >
               {sharing ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -411,7 +411,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
                             onClick={() => openCorrectionModal(s)}
                             title="Request correction"
                             aria-label="Request correction"
-                            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all"
+                            className="bf-icon-btn"
                           >
                             <PencilSquareIcon className="w-4 h-4" />
                           </button>
@@ -438,7 +438,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
                 <h2 className="text-lg font-semibold text-foreground">Request Correction</h2>
                 <button
                   onClick={() => setCorrectionShift(null)}
-                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                  className="bf-icon-btn"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -490,7 +490,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
               <button
                 onClick={submitCorrection}
                 disabled={corrSubmitting || !corrStart}
-                className="w-full min-h-[52px] rounded-2xl bg-foreground text-background font-semibold text-base active:scale-[0.98] transition-all disabled:opacity-50"
+                className="bf-btn bf-btn-primary bf-btn-lg bf-btn-full"
               >
                 {corrSubmitting ? 'Submitting…' : 'Submit Request'}
               </button>

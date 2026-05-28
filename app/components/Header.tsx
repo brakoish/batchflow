@@ -126,14 +126,14 @@ export default function Header({ session, organizationName }: HeaderProps) {
             onShift ? (
               <button
                 onClick={handleClockOut}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-destructive-subtle text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-150"
+                className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] border border-destructive/25 bg-destructive-subtle px-3 text-sm font-semibold text-destructive transition-all hover:bg-destructive hover:text-destructive-foreground active:scale-[0.975]"
               >
                 <StopIcon className="w-4 h-4" /> Clock Out
               </button>
             ) : (
               <button
                 onClick={handleClockIn}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-success-subtle text-success hover:bg-success hover:text-success-foreground transition-all duration-150"
+                className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm shadow-emerald-500/20 transition-all hover:bg-emerald-700 active:scale-[0.975]"
               >
                 <PlayIcon className="w-4 h-4" /> Clock In
               </button>
@@ -144,7 +144,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
           
           <button
             onClick={handleLogout}
-            className="hidden sm:flex items-center p-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
+            className="hidden sm:inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-[10px] text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.96]"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </button>

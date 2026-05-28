@@ -144,7 +144,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
         {workerStats && (
           <button
             onClick={() => setShowStats(!showStats)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+            className="bf-btn bf-btn-ghost bf-btn-sm mb-4"
           >
             {showStats ? 'Hide' : 'Show'} My Stats
           </button>
@@ -181,14 +181,14 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
           <>
             <Link
               href="/batches"
-              className="block w-full py-4 rounded-xl bg-primary text-primary-foreground text-lg font-semibold text-center hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
+              className="bf-btn bf-btn-primary bf-btn-lg bf-btn-full"
             >
               View Batches
             </Link>
             <button
               onClick={handleClockOut}
               disabled={loading}
-              className="w-full py-4 rounded-xl bg-destructive-subtle text-destructive text-lg font-semibold hover:bg-destructive hover:text-destructive-foreground active:scale-[0.98] transition-all duration-150 disabled:opacity-40 flex items-center justify-center gap-2"
+              className="bf-btn bf-btn-soft-danger bf-btn-lg bf-btn-full"
             >
               <StopIcon className="w-5 h-5" /> Clock Out
             </button>
@@ -198,13 +198,13 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
             <button
               onClick={handleClockIn}
               disabled={loading}
-              className="w-full py-5 rounded-xl bg-success text-success-foreground text-xl font-bold hover:bg-success/90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40 flex items-center justify-center gap-3"
+              className="bf-btn bf-btn-success bf-btn-lg bf-btn-full py-5 text-xl"
             >
               <PlayIcon className="w-6 h-6" /> Clock In
             </button>
             <Link
               href="/batches"
-              className="block w-full py-3 rounded-xl border border-border text-muted-foreground text-base font-medium text-center hover:text-foreground hover:border-foreground active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2"
+              className="bf-btn bf-btn-secondary bf-btn-full"
             >
               <QueueListIcon className="w-5 h-5" /> View Batches
             </Link>

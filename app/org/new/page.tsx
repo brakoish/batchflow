@@ -109,7 +109,7 @@ export default function NewOrgPage() {
           <button
             type="submit"
             disabled={loading || !name.trim()}
-            className="w-full py-3 rounded-lg bg-foreground text-background font-medium hover:opacity-90 active:scale-[0.98] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bf-btn bf-btn-primary bf-btn-full"
           >
             {loading ? 'Creating...' : 'Create Organization'}
           </button>

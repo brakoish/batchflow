@@ -32,7 +32,7 @@ export default function EmptyState({
       {actionLabel && actionHref && (
         <Link
           href={actionHref}
-          className="inline-block mt-4 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-xs font-medium transition-all"
+          className="bf-btn bf-btn-success bf-btn-sm mt-4"
         >
           {actionLabel}
         </Link>

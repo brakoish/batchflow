@@ -126,13 +126,13 @@ export default function BatchListClient({
               <button
                 onClick={handleQuickClockIn}
                 disabled={clockingIn}
-                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50"
+                className="bf-btn bf-btn-success"
               >
                 {clockingIn ? 'Starting...' : 'Clock In'}
               </button>
               <button
                 onClick={() => { haptic('light'); setNudgeDismissed(true) }}
-                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="bf-icon-btn"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -186,10 +186,10 @@ export default function BatchListClient({
             {session.role === 'WORKER' && (
               <button
                 onClick={() => { haptic('light'); setMyBatchFilter(!myBatchFilter) }}
-                className={`shrink-0 flex items-center min-h-[44px] px-4 rounded-full border text-sm font-medium transition-all active:scale-[0.96] ${
+                className={`bf-select-btn shrink-0 rounded-full ${
                   myBatchFilter
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                    : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                    ? 'bf-select-btn-active'
+                    : ''
                 }`}
               >
                 Mine
@@ -197,10 +197,10 @@ export default function BatchListClient({
             )}
             <button
               onClick={() => { haptic('light'); setPriorityFilter(!priorityFilter) }}
-              className={`shrink-0 flex items-center gap-1.5 min-h-[44px] px-4 rounded-full border text-sm font-medium transition-all active:scale-[0.96] ${
+              className={`bf-select-btn shrink-0 rounded-full ${
                 priorityFilter
                   ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
-                  : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                  : ''
               }`}
             >
               <FlagIcon className="w-4 h-4" />

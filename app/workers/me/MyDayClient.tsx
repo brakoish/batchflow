@@ -173,7 +173,7 @@ export default function MyDayClient({ session }: { session: Session }) {
                   <button
                     onClick={handleClockIn}
                     disabled={clockingIn}
-                    className="w-full min-h-[52px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white text-base font-bold transition-all disabled:opacity-50"
+                    className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
                   >
                     {clockingIn ? 'Starting...' : 'Clock In'}
                   </button>

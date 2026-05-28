@@ -145,7 +145,7 @@ export default function OrgLoginPage() {
           </p>
           <a
             href="/?switchOrg=1"
-            className="inline-block px-6 py-3 bg-foreground text-background rounded-xl font-medium hover:opacity-90 transition-opacity"
+            className="bf-btn bf-btn-primary"
           >
             Go to Login
           </a>
