@@ -1090,12 +1090,18 @@ export default function BatchDetailClient({
                   key={station.step.id}
                   type="button"
                   onClick={() => station.step.type === 'COUNT' ? openLogForStep(station.step as BatchStep) : undefined}
-                  className="min-h-[52px] rounded-xl bg-muted/45 border border-border/60 px-3 py-2 text-left active:scale-[0.99] transition-all hover:border-foreground/20"
+                  className="group min-h-[58px] rounded-xl border border-border bg-card px-3 py-2 text-left shadow-sm transition-all hover:-translate-y-px hover:border-foreground/20 hover:bg-muted/35 hover:shadow-md active:scale-[0.99]"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                      {station.step.completedQuantity}{station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}
+                    <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-semibold tabular-nums ${
+                      station.step.type === 'COUNT'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {station.step.type === 'COUNT'
+                        ? 'Log'
+                        : `${station.step.completedQuantity}${station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}`}
                     </span>
                   </div>
                   <p className="mt-0.5 text-[10px] text-muted-foreground truncate">
@@ -1463,7 +1469,7 @@ export default function BatchDetailClient({
                                   <button
                                     onClick={() => canEdit && handleEditLog(log, step.id)}
                                     disabled={!canEdit}
-                                    className={`flex items-center gap-1.5 text-left ${canEdit ? 'hover:bg-muted/30 active:scale-[0.98] rounded px-1 -mx-1 py-0.5 transition-all' : ''}`}
+                                    className={`flex min-h-[28px] items-center gap-1.5 rounded-lg px-2 py-1 text-left transition-all ${canEdit ? 'text-foreground hover:bg-muted active:scale-[0.98]' : 'cursor-default text-muted-foreground'}`}
                                   >
                                     <span className="text-muted-foreground font-medium">{log.worker.name}</span>
                                     <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
@@ -1487,7 +1493,7 @@ export default function BatchDetailClient({
                                   return next
                                 })
                               }}
-                              className="text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-500 active:scale-[0.98] py-1 transition-all"
+                              className="bf-btn bf-btn-ghost bf-btn-sm h-auto min-h-[32px] px-2 py-1 text-[10px]"
                             >
                               {isExpanded ? 'Hide activity' : `Show ${step.progressLogs.length} recent log${step.progressLogs.length === 1 ? '' : 's'}`}
                             </button>
@@ -1507,13 +1513,13 @@ export default function BatchDetailClient({
           <button
             type="button"
             onClick={() => { haptic('light'); setChatOpen(!chatOpen) }}
-            className="w-full min-h-[48px] rounded-xl border border-border bg-card px-4 text-left flex items-center justify-between active:scale-[0.99] transition-all hover:border-foreground/20"
+            className="group flex w-full min-h-[52px] items-center justify-between rounded-2xl border border-border bg-card px-4 text-left shadow-sm transition-all hover:-translate-y-px hover:border-foreground/20 hover:shadow-md active:scale-[0.99]"
           >
             <span className="text-sm font-semibold text-foreground flex items-center gap-2">
               <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
               Team Chat
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground group-hover:text-foreground">
               {chatOpen ? 'Hide' : messages.length ? `${messages.length} message${messages.length === 1 ? '' : 's'}` : 'Open'}
             </span>
           </button>
@@ -1576,9 +1582,9 @@ export default function BatchDetailClient({
               <button
                 type="submit"
                 disabled={!newMessage.trim() || sendingMessage}
-                className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center transition-all duration-150 active:scale-[0.96] ${
+                className={`bf-btn min-h-[44px] min-w-[44px] rounded-xl px-0 ${
                   newMessage.trim() && !sendingMessage
-                    ? 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200'
+                    ? 'bf-btn-primary'
                     : 'bg-muted cursor-not-allowed'
                 }`}
               >
