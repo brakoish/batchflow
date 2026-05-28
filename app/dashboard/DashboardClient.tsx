@@ -392,7 +392,7 @@ export default function DashboardClient({
                   <Link
                     key={batch.id}
                     href={`/batches/${batch.id}`}
-                    className="block rounded-xl border border-border bg-card p-4 hover:border-input hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
+                    className="group block rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-foreground/20 hover:shadow-md active:scale-[0.99]"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
@@ -560,6 +560,17 @@ export default function DashboardClient({
                           </div>
                         )
                       })}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+                      <p className="min-w-0 truncate text-xs text-muted-foreground">
+                        {activeStations[0]
+                          ? `${displayProductionStepName(activeStations[0].step)} is next`
+                          : 'Open workflow details'}
+                      </p>
+                      <span className="bf-btn bf-btn-primary bf-btn-sm shrink-0 group-hover:shadow-md">
+                        Open Batch
+                      </span>
                     </div>
                   </Link>
                 )

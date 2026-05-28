@@ -322,7 +322,7 @@ export default function BatchListClient({
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className={`block bg-card border rounded-xl p-5 hover:border-primary/30 active:scale-[0.99] transition-all duration-150 ${
+                  className={`group block rounded-2xl border bg-card p-5 shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-foreground/20 hover:shadow-md active:scale-[0.99] ${
                     isUrgent ? 'border-l-4 border-l-red-500 border-t border-r border-b border-border' : 'border-border'
                   }`}
                 >
@@ -351,7 +351,9 @@ export default function BatchListClient({
                         )
                       })()}
                     </div>
-                    <ChevronRightIcon className="w-5 h-5 text-muted-foreground shrink-0 ml-2" />
+                    <span className="bf-icon-btn min-h-[36px] min-w-[36px] shrink-0 ml-2 group-hover:bg-muted group-hover:text-foreground" aria-hidden="true">
+                      <ChevronRightIcon className="w-5 h-5" />
+                    </span>
                   </div>
 
                   {/* Status Badge */}
@@ -490,6 +492,18 @@ export default function BatchListClient({
                       <p className="text-xl font-bold text-foreground">{batch.targetQuantity ?? <span className="text-sm text-blue-500">Open</span>}</p>
                       <p className="text-xs text-muted-foreground">units</p>
                     </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+                    <p className="min-w-0 truncate text-xs text-muted-foreground">
+                      {activeStations[0]
+                        ? `${displayProductionStepName(activeStations[0].step)} is next`
+                        : 'Review completed workflow'}
+                    </p>
+                    <span className="bf-btn bf-btn-primary bf-btn-sm shrink-0 group-hover:shadow-md">
+                      Open Batch
+                      <ChevronRightIcon className="w-4 h-4" />
+                    </span>
                   </div>
                 </Link>
               )

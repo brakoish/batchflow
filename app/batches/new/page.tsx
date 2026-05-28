@@ -36,7 +36,7 @@ export default async function NewBatchPage() {
             <p className="text-sm text-muted-foreground mb-3">Create a recipe first</p>
             <Link
               href="/recipes"
-              className="inline-block px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
+              className="bf-btn bf-btn-success"
             >
               Go to Recipes
             </Link>
