@@ -741,8 +741,13 @@ export default function BatchDetailClient({
     const targetRemaining = step.targetQuantity == null ? null : Math.max(0, step.targetQuantity - step.completedQuantity)
     const previousStep = [...batch.steps]
       .reverse()
-      .find(s => s.order < step.order && !isSkippedStep(s))
-    const upstreamAvailable = previousStep ? Math.max(0, previousStep.completedQuantity - step.completedQuantity) : null
+      .find(s => s.order < step.order && s.type === 'COUNT' && !isSkippedStep(s))
+    const upstreamAvailable = previousStep
+      ? Math.max(
+          0,
+          Math.floor((previousStep.completedQuantity * (previousStep.unitRatio || 1)) / (step.unitRatio || 1)) - step.completedQuantity
+        )
+      : null
 
     if (targetRemaining === null && upstreamAvailable === null) return null
     if (targetRemaining === null) return upstreamAvailable

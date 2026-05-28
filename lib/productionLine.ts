@@ -15,6 +15,7 @@ export type ProductionLineStep = {
   type?: string
   completedQuantity: number
   targetQuantity: number | null
+  unitRatio?: number
   unitLabel?: string
   progressLogs?: ProductionLineLog[]
 }
@@ -47,13 +48,21 @@ export function latestStepLog(step: ProductionLineStep): ProductionLineLog | nul
 
 export function getStationStates(steps: ProductionLineStep[], now = Date.now()): StationState[] {
   return steps.map((step, index) => {
-    const previous = index > 0 ? steps[index - 1] : null
+    const previous = steps
+      .slice(0, index)
+      .reverse()
+      .find(candidate => !isProductionStepSkipped(candidate) && candidate.type !== 'CHECK') || null
     const latestLog = latestStepLog(step)
     const logAge = latestLog ? now - new Date(latestLog.createdAt).getTime() : null
     const hasRecentLog = logAge !== null && logAge <= RECENT_ACTIVITY_MS
     const isSkipped = isProductionStepSkipped(step)
     const isDone = step.status === 'COMPLETED' && !isSkipped
-    const availableFromPrevious = previous ? Math.max(0, previous.completedQuantity - step.completedQuantity) : null
+    const availableFromPrevious = previous
+      ? Math.max(
+          0,
+          Math.floor((previous.completedQuantity * (previous.unitRatio || 1)) / (step.unitRatio || 1)) - step.completedQuantity
+        )
+      : null
 
     let label: StationState['label'] = 'waiting'
 

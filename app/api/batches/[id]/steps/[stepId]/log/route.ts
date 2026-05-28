@@ -52,7 +52,7 @@ export async function POST(
     // Find previous step
     const previousStep = [...step.batch.steps]
       .reverse()
-      .find((s: { order: number; name: string }) => s.order < step.order && !isSkippedStep(s))
+      .find((s: { order: number; name: string; type: string }) => s.order < step.order && s.type !== 'CHECK' && !isSkippedStep(s))
 
     // Calculate ceiling (normalize across different unit ratios)
     const newTotal = step.completedQuantity + quantity
