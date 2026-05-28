@@ -176,7 +176,7 @@ export default function BatchListClient({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
               aria-label="Sort batches"
-              className="shrink-0 min-h-[44px] px-3 rounded-full bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              className="shrink-0 min-h-[44px] px-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             >
               <option value="priority">Sort: Priority</option>
               <option value="newest">Sort: Newest</option>
@@ -186,7 +186,7 @@ export default function BatchListClient({
             {session.role === 'WORKER' && (
               <button
                 onClick={() => { haptic('light'); setMyBatchFilter(!myBatchFilter) }}
-                className={`bf-select-btn shrink-0 rounded-full ${
+                className={`bf-select-btn shrink-0 ${
                   myBatchFilter
                     ? 'bf-select-btn-active'
                     : ''
@@ -197,7 +197,7 @@ export default function BatchListClient({
             )}
             <button
               onClick={() => { haptic('light'); setPriorityFilter(!priorityFilter) }}
-              className={`bf-select-btn shrink-0 rounded-full ${
+              className={`bf-select-btn shrink-0 ${
                 priorityFilter
                   ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
                   : ''
@@ -322,7 +322,7 @@ export default function BatchListClient({
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className={`group block rounded-2xl border bg-card p-5 shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-foreground/20 hover:shadow-md active:scale-[0.99] ${
+                  className={`group block rounded-xl border bg-card p-4 transition-colors duration-150 hover:border-foreground/20 hover:bg-muted/20 active:bg-muted/35 ${
                     isUrgent ? 'border-l-4 border-l-red-500 border-t border-r border-b border-border' : 'border-border'
                   }`}
                 >
@@ -500,7 +500,7 @@ export default function BatchListClient({
                         ? `${displayProductionStepName(activeStations[0].step)} is next`
                         : 'Review completed workflow'}
                     </p>
-                    <span className="bf-btn bf-btn-primary bf-btn-sm shrink-0 group-hover:shadow-md">
+                    <span className="bf-btn bf-btn-primary bf-btn-sm shrink-0">
                       Open Batch
                       <ChevronRightIcon className="w-4 h-4" />
                     </span>

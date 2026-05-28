@@ -344,9 +344,9 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
       <div className="flex items-center justify-center gap-1 p-1 bg-muted rounded-lg w-fit mx-auto">
         <button
           onClick={() => { haptic('light'); setViewMode('shifts') }}
-          className={`px-6 py-2.5 min-h-[44px] rounded-md text-sm font-medium transition-all ${
+          className={`px-6 py-2.5 min-h-[44px] rounded-md text-sm font-medium transition-colors ${
             viewMode === 'shifts'
-              ? 'bg-card text-foreground shadow-sm'
+              ? 'bg-card text-foreground border border-border'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -354,9 +354,9 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
         </button>
         <button
           onClick={() => { haptic('light'); setViewMode('weekly') }}
-          className={`px-6 py-2.5 min-h-[44px] rounded-md text-sm font-medium transition-all ${
+          className={`px-6 py-2.5 min-h-[44px] rounded-md text-sm font-medium transition-colors ${
             viewMode === 'weekly'
-              ? 'bg-card text-foreground shadow-sm'
+              ? 'bg-card text-foreground border border-border'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >

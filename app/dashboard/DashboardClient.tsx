@@ -235,7 +235,7 @@ export default function DashboardClient({
             </div>
             <button
               onClick={() => setShowCompleted(!showCompleted)}
-              className={`bf-select-btn bf-btn-sm rounded-full ${
+              className={`bf-select-btn bf-btn-sm ${
                 showCompleted
                   ? 'bf-select-btn-active'
                   : ''
@@ -283,7 +283,7 @@ export default function DashboardClient({
                 onClick={() => setMobileTab(tab.key as typeof mobileTab)}
                 className={`bf-select-btn rounded-lg ${
                   mobileTab === tab.key
-                    ? 'bg-card text-foreground shadow-sm'
+                    ? 'bg-card text-foreground border-foreground/20'
                     : ''
                 }`}
               >
@@ -392,7 +392,7 @@ export default function DashboardClient({
                   <Link
                     key={batch.id}
                     href={`/batches/${batch.id}`}
-                    className="group block rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-foreground/20 hover:shadow-md active:scale-[0.99]"
+                    className="group block rounded-xl border border-border bg-card p-4 transition-colors duration-150 hover:border-foreground/20 hover:bg-muted/20 active:bg-muted/35"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
@@ -568,7 +568,7 @@ export default function DashboardClient({
                           ? `${displayProductionStepName(activeStations[0].step)} is next`
                           : 'Open workflow details'}
                       </p>
-                      <span className="bf-btn bf-btn-primary bf-btn-sm shrink-0 group-hover:shadow-md">
+                      <span className="bf-btn bf-btn-primary bf-btn-sm shrink-0">
                         Open Batch
                       </span>
                     </div>

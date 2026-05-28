@@ -308,7 +308,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                   type="button"
                   onClick={() => applyStarter(starter)}
                   disabled={loading}
-                  className="min-h-[92px] rounded-xl border border-border bg-card px-3 py-3 text-left shadow-sm transition-all hover:-translate-y-px hover:border-foreground/20 hover:bg-muted/35 active:scale-[0.98]"
+                  className="min-h-[92px] rounded-lg border border-border bg-card px-3 py-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40"
                 >
                   <p className="text-sm font-semibold text-foreground">{starter.label}</p>
                   <p className="mt-1 text-xs leading-snug text-muted-foreground">{starter.description}</p>

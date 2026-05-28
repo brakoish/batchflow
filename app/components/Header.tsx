@@ -133,7 +133,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
             ) : (
               <button
                 onClick={handleClockIn}
-                className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm shadow-emerald-500/20 transition-all hover:bg-emerald-700 active:scale-[0.975]"
+                className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 active:bg-emerald-800"
               >
                 <PlayIcon className="w-4 h-4" /> Clock In
               </button>

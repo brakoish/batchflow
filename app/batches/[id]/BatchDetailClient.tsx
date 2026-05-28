@@ -1090,7 +1090,7 @@ export default function BatchDetailClient({
                   key={station.step.id}
                   type="button"
                   onClick={() => station.step.type === 'COUNT' ? openLogForStep(station.step as BatchStep) : undefined}
-                  className="group min-h-[58px] rounded-xl border border-border bg-card px-3 py-2 text-left shadow-sm transition-all hover:-translate-y-px hover:border-foreground/20 hover:bg-muted/35 hover:shadow-md active:scale-[0.99]"
+                  className="min-h-[56px] rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
@@ -1284,7 +1284,7 @@ export default function BatchDetailClient({
                     : isCompleted
                     ? 'border-emerald-500/20 bg-emerald-500/5'
                     : isCurrent
-                    ? 'border-emerald-500/50 bg-emerald-500/5 shadow-sm shadow-emerald-500/10'
+                    ? 'border-emerald-500/50 bg-emerald-500/5'
                     : 'border bg-card'
                 }`}
               >
@@ -1513,7 +1513,7 @@ export default function BatchDetailClient({
           <button
             type="button"
             onClick={() => { haptic('light'); setChatOpen(!chatOpen) }}
-            className="group flex w-full min-h-[52px] items-center justify-between rounded-2xl border border-border bg-card px-4 text-left shadow-sm transition-all hover:-translate-y-px hover:border-foreground/20 hover:shadow-md active:scale-[0.99]"
+            className="group flex w-full min-h-[52px] items-center justify-between rounded-lg border border-border bg-card px-4 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40"
           >
             <span className="text-sm font-semibold text-foreground flex items-center gap-2">
               <ChatBubbleLeftRightIcon className="w-5 h-5 text-muted-foreground" />
@@ -1582,7 +1582,7 @@ export default function BatchDetailClient({
               <button
                 type="submit"
                 disabled={!newMessage.trim() || sendingMessage}
-                className={`bf-btn min-h-[44px] min-w-[44px] rounded-xl px-0 ${
+                className={`bf-btn min-h-[44px] min-w-[44px] rounded-lg px-0 ${
                   newMessage.trim() && !sendingMessage
                     ? 'bf-btn-primary'
                     : 'bg-muted cursor-not-allowed'

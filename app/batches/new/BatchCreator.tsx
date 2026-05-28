@@ -97,10 +97,10 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
               <button
                 key={r.id}
                 onClick={() => { haptic('light'); setSelectedId(r.id) }}
-                disabled={loading}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-150 active:scale-[0.98] hover:-translate-y-px ${
-                  isSelected
-                    ? 'bg-emerald-500/10 border-2 border-emerald-500 shadow-sm'
+                  disabled={loading}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-150 active:bg-muted/40 ${
+                    isSelected
+                    ? 'bg-emerald-500/10 border-2 border-emerald-500'
                     : 'bg-card border border-border hover:border-foreground/20'
                 }`}
               >
@@ -382,9 +382,9 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
                           }
                         }}
                         disabled={isPast || loading}
-                        className={`min-h-[40px] flex items-center justify-center rounded-lg text-sm font-medium transition-all active:scale-[0.95] ${
+                        className={`min-h-[40px] flex items-center justify-center rounded-lg text-sm font-medium transition-colors active:bg-muted/40 ${
                           isSelected
-                            ? 'bg-emerald-600 text-white shadow-sm'
+                            ? 'bg-emerald-600 text-white'
                             : isToday
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
                             : isPast
@@ -437,7 +437,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
                       disabled={loading}
                       className={`bf-select-btn ${
                         on
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-950 dark:border-slate-100'
+                          ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-950 dark:border-slate-100'
                           : ''
                       }`}
                     >
