@@ -75,6 +75,14 @@ function displayStepName(step: BatchStep) {
   return isSkippedStep(step) ? step.name.slice(SKIPPED_PREFIX.length) : step.name
 }
 
+function formatMaterialAmount(material: StepMaterial, step: BatchStep) {
+  if (step.targetQuantity == null) {
+    return `${material.quantityPerUnit.toLocaleString()} ${material.unit} per ${step.unitLabel}`
+  }
+
+  return `${(material.quantityPerUnit * step.targetQuantity).toLocaleString()} ${material.unit}`
+}
+
 function getSmartAmounts(remaining: number | null) {
   const defaults = [25, 50, 100]
   if (remaining === null) return defaults
@@ -1255,6 +1263,9 @@ export default function BatchDetailClient({
                             ? `Worker logs ${step.completedQuantity.toLocaleString()} / ${step.targetQuantity.toLocaleString()} ${step.unitLabel}`
                             : `Worker logs ${step.unitLabel} as they go`}
                         </p>
+                        {step.recipeStep?.notes && (
+                          <p className="truncate text-[11px] text-muted-foreground/75">{step.recipeStep.notes}</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1440,11 +1451,10 @@ export default function BatchDetailClient({
                     <span className="text-xs text-muted-foreground font-medium">Materials Needed</span>
                     <div className="mt-2 space-y-1.5">
                       {step.recipeStep.materials.map((mat, idx) => {
-                        const total = (mat.quantityPerUnit * step.targetQuantity).toLocaleString()
                         return (
                           <div key={idx} className="text-sm text-muted-foreground">
                             <span className="text-foreground">{mat.name}</span>
-                            <span className="text-muted-foreground/60"> · {total} {mat.unit}</span>
+                            <span className="text-muted-foreground/60"> · {formatMaterialAmount(mat, step)}</span>
                           </div>
                         )
                       })}
