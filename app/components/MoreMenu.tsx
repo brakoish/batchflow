@@ -105,6 +105,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
   type Item = { href: string; label: string; Icon: any }
   const items: Item[] = isOwner
     ? [
+        { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon },
         { href: '/timesheet', label: 'Timesheets', Icon: ClockIcon },
         { href: '/recipes', label: 'Recipes', Icon: BeakerIcon },
         { href: '/history', label: 'Reports', Icon: DocumentTextIcon },

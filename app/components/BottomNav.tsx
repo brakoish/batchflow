@@ -58,7 +58,7 @@ export default function BottomNav({ session }: Props) {
   const ownerItems = [
     { href: '/dashboard', label: 'Home', Icon: HomeIcon, IconActive: HomeIconSolid },
     { href: '/batches/new', label: 'New', Icon: PlusCircleIcon, IconActive: PlusCircleIconSolid },
-    { href: '/history', label: 'Reports', Icon: ClockIcon, IconActive: ClockIconSolid },
+    { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
     { href: '/workers', label: 'Team', Icon: UsersIcon, IconActive: UsersIconSolid },
   ]
 
