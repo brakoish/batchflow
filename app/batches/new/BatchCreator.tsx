@@ -8,16 +8,25 @@ import { emitBatchChanged } from '@/lib/batchEvents'
 
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
+  units: { id: string; name: string; ratio: number }[]
   steps: { id: string; name: string; order: number; notes: string | null }[]
 }
 
 type Worker = { id: string; name: string }
+
+type TargetMode = 'base' | string
+
+function formatAmount(value: number) {
+  return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
 
 export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; workers: Worker[] }) {
   const [selectedId, setSelectedId] = useState('')
   const [name, setName] = useState('')
   const [batchType, setBatchType] = useState<'fixed' | 'open'>('fixed')
   const [targetQuantity, setTargetQuantity] = useState('')
+  const [targetMode, setTargetMode] = useState<TargetMode>('base')
+  const [targetInput, setTargetInput] = useState('')
   const [priority, setPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>('NORMAL')
   const [selectedDueDate, setSelectedDueDate] = useState<string | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(new Date())
@@ -37,6 +46,30 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
 
   const selected = recipes.find((r) => r.id === selectedId)
   const fixedTargetInvalid = batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)
+  const targetUnit = selected?.units.find(unit => unit.id === targetMode)
+  const targetInputNumber = parseFloat(targetInput)
+  const calculatedTarget = batchType === 'fixed' && Number.isFinite(targetInputNumber) && targetInputNumber > 0
+    ? targetMode === 'base'
+      ? Math.floor(targetInputNumber)
+      : Math.floor(targetInputNumber * (targetUnit?.ratio || 1))
+    : 0
+  const targetModeLabel = targetMode === 'base' ? selected?.baseUnit : targetUnit?.name
+  const targetHelp = batchType === 'fixed' && targetMode !== 'base' && targetUnit
+    ? targetUnit.ratio >= 1
+      ? `1 ${targetUnit.name} = ${formatAmount(targetUnit.ratio)} ${selected?.baseUnit || 'base units'}`
+      : `${formatAmount(1 / targetUnit.ratio)} ${targetUnit.name} = 1 ${selected?.baseUnit || 'base unit'}`
+    : ''
+
+  useEffect(() => {
+    setTargetMode('base')
+    setTargetInput('')
+    setTargetQuantity('')
+  }, [selectedId])
+
+  useEffect(() => {
+    if (batchType !== 'fixed') return
+    setTargetQuantity(calculatedTarget > 0 ? String(calculatedTarget) : '')
+  }, [batchType, calculatedTarget])
 
   // Auto-focus name input when recipe is selected
   useEffect(() => {
@@ -251,21 +284,65 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
 
           {/* Quantity (only shown for fixed batches) */}
           {batchType === 'fixed' && (
-            <div>
+            <div className="rounded-xl border border-border bg-card p-4">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
-                How many {selected.baseUnit}?
+                Calculate target from
               </label>
-              <input
-                ref={qtyRef}
-                type="number"
-                inputMode="numeric"
-                value={targetQuantity}
-                onChange={(e) => setTargetQuantity(e.target.value)}
-                placeholder="0"
-                min="1"
-                className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-2xl font-bold tabular-nums placeholder:text-muted-foreground/30 placeholder:font-normal placeholder:text-base focus:outline-none focus:border-emerald-500 transition-all"
-                disabled={loading}
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { haptic('light'); setTargetMode('base'); setTargetInput('') }}
+                  disabled={loading}
+                  className={`bf-select-btn justify-start ${targetMode === 'base' ? 'bf-select-btn-active' : ''}`}
+                >
+                  {selected.baseUnit}
+                </button>
+                {selected.units.map((unit) => (
+                  <button
+                    key={unit.id}
+                    type="button"
+                    onClick={() => { haptic('light'); setTargetMode(unit.id); setTargetInput('') }}
+                    disabled={loading}
+                    className={`bf-select-btn justify-start ${targetMode === unit.id ? 'bf-select-btn-active' : ''}`}
+                  >
+                    {unit.name}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-3">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                  Amount of {targetModeLabel || selected.baseUnit}
+                </label>
+                <input
+                  ref={qtyRef}
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-2xl font-bold tabular-nums placeholder:text-muted-foreground/30 placeholder:font-normal placeholder:text-base focus:outline-none focus:border-emerald-500 transition-all"
+                  disabled={loading}
+                />
+              </div>
+
+              {targetHelp && (
+                <p className="mt-2 text-[11px] text-muted-foreground">{targetHelp}</p>
+              )}
+
+              <div className="mt-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Batch target</p>
+                <p className="text-lg font-bold tabular-nums text-foreground">
+                  {calculatedTarget > 0 ? calculatedTarget.toLocaleString() : '0'} {selected.baseUnit}
+                </p>
+                {targetMode !== 'base' && targetInputNumber > 0 && calculatedTarget <= 0 && (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Amount is less than one finished {selected.baseUnit}.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
