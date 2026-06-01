@@ -85,6 +85,15 @@ const STARTERS: RecipeStarter[] = [
   },
 ]
 
+function parseRelationCount(value: string) {
+  const parsed = parseFloat(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
+function formatRelationCount(value: number) {
+  return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
+
 export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: EditRecipe; onDone?: () => void }) {
   const isEdit = !!editRecipe
   const [name, setName] = useState(editRecipe?.name || '')
@@ -104,9 +113,9 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
       ? editRecipe.units.map(u => {
           const r = u.ratio
           if (r < 1 && r > 0) {
-            return { name: u.name, count: Math.round(1 / r), basedOn: '', direction: 'smaller' as const }
+            return { name: u.name, count: 1 / r, basedOn: '', direction: 'smaller' as const }
           }
-          return { name: u.name, count: Math.max(1, Math.round(r)), basedOn: '', direction: 'bigger' as const }
+          return { name: u.name, count: Math.max(1, r), basedOn: '', direction: 'bigger' as const }
         })
       : []
   )
@@ -421,9 +430,10 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                           <span className="text-sm text-muted-foreground shrink-0">=</span>
                           <input
                             type="number"
-                            inputMode="numeric"
+                            inputMode="decimal"
+                            step="any"
                             value={u.count}
-                            onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
+                            onChange={(e) => updateUnit(i, 'count', parseRelationCount(e.target.value))}
                             min="1"
                             disabled={loading}
                             className="w-20 shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base font-semibold tabular-nums text-center focus:outline-none focus:border-emerald-500 transition-all"
@@ -443,9 +453,10 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                         <>
                           <input
                             type="number"
-                            inputMode="numeric"
+                            inputMode="decimal"
+                            step="any"
                             value={u.count}
-                            onChange={(e) => updateUnit(i, 'count', parseInt(e.target.value) || 1)}
+                            onChange={(e) => updateUnit(i, 'count', parseRelationCount(e.target.value))}
                             min="1"
                             disabled={loading}
                             className="w-20 shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base font-semibold tabular-nums text-center focus:outline-none focus:border-emerald-500 transition-all"
@@ -501,9 +512,9 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                       return (
                         <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
                           {u.direction === 'bigger' ? (
-                            <>✓ 1 {u.name} = {u.count.toLocaleString()} {rhsLabel}{showExpansion && <span className="text-muted-foreground"> = {baseRatio.toLocaleString()} {baseUnit}</span>}</>
+                            <>✓ 1 {u.name} = {formatRelationCount(u.count)} {rhsLabel}{showExpansion && <span className="text-muted-foreground"> = {formatRelationCount(baseRatio)} {baseUnit}</span>}</>
                           ) : (
-                            <>✓ {u.count.toLocaleString()} {u.name} = 1 {rhsLabel}{showExpansion && <span className="text-muted-foreground"> · 1 {baseUnit} = {baseRatio.toLocaleString()} {u.name}</span>}</>
+                            <>✓ {formatRelationCount(u.count)} {u.name} = 1 {rhsLabel}{showExpansion && <span className="text-muted-foreground"> · 1 {baseUnit} = {formatRelationCount(baseRatio)} {u.name}</span>}</>
                           )}
                         </p>
                       )
@@ -615,8 +626,8 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                           {u.name} ({(() => {
                             // Display nicely whether smaller ('14 per base') or bigger ('20 base/ea')
                             const r = getBaseRatio(u.name)
-                            if (r >= 1) return `${Number.isInteger(r) ? r.toLocaleString() : r.toFixed(2)} ${baseUnit}/ea`
-                            if (r > 0) return `${Math.round(1 / r).toLocaleString()} per ${baseUnit}`
+                            if (r >= 1) return `${formatRelationCount(r)} ${baseUnit}/ea`
+                            if (r > 0) return `${formatRelationCount(1 / r)} per ${baseUnit}`
                             return ''
                           })()})
                         </button>
