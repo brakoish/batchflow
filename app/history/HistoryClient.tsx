@@ -41,15 +41,91 @@ function getProductionResult(batch: Batch) {
   }
 }
 
+function getCompletedAt(batch: Batch) {
+  return new Date(batch.completedDate || batch.startDate || batch.createdAt)
+}
+
 export default function HistoryClient({ initialBatches }: { initialBatches: Batch[] }) {
   const [filter, setFilter] = useState<'ALL' | 'COMPLETED' | 'CANCELLED'>('ALL')
 
   const batches = filter === 'ALL'
     ? initialBatches
     : initialBatches.filter(b => b.status === filter)
+  const weekStart = new Date()
+  weekStart.setDate(weekStart.getDate() - 7)
+  weekStart.setHours(0, 0, 0, 0)
+  const weeklyResults = initialBatches
+    .filter(batch => batch.status === 'COMPLETED' && getCompletedAt(batch) >= weekStart)
+    .map(batch => ({ batch, result: getProductionResult(batch) }))
+    .filter((item): item is { batch: Batch; result: NonNullable<ReturnType<typeof getProductionResult>> } => Boolean(item.result))
+  const weeklySummary = weeklyResults.reduce(
+    (summary, item) => {
+      summary.produced += item.result.produced
+      summary.target += item.batch.targetQuantity || 0
+      if (item.result.difference < 0) summary.short += Math.abs(item.result.difference)
+      if (item.result.difference > 0) summary.over += item.result.difference
+      return summary
+    },
+    { produced: 0, target: 0, short: 0, over: 0 }
+  )
+  const weeklyNet = weeklySummary.produced - weeklySummary.target
+  const weeklyPct = weeklySummary.target > 0 ? Math.round((weeklySummary.produced / weeklySummary.target) * 100) : 0
 
   return (
     <div>
+      {weeklyResults.length > 0 && (
+        <section className="mb-4 rounded-xl border border-input bg-card p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Last 7 days</p>
+              <h2 className="mt-0.5 text-base font-semibold text-foreground">Production result</h2>
+            </div>
+            <div className={`rounded-lg px-2.5 py-1 text-xs font-bold tabular-nums ${
+              weeklyNet < 0
+                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+            }`}>
+              {weeklyPct}%
+            </div>
+          </div>
+          <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full ${weeklyNet < 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+              style={{ width: `${Math.min(weeklyPct, 100)}%` }}
+            />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="rounded-lg bg-muted/45 px-3 py-2">
+              <p className="text-[10px] text-muted-foreground">Batches</p>
+              <p className="text-sm font-bold tabular-nums text-foreground">{weeklyResults.length}</p>
+            </div>
+            <div className="rounded-lg bg-muted/45 px-3 py-2">
+              <p className="text-[10px] text-muted-foreground">Produced</p>
+              <p className="text-sm font-bold tabular-nums text-foreground">{weeklySummary.produced.toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg bg-muted/45 px-3 py-2">
+              <p className="text-[10px] text-muted-foreground">Target</p>
+              <p className="text-sm font-bold tabular-nums text-foreground">{weeklySummary.target.toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg bg-muted/45 px-3 py-2">
+              <p className="text-[10px] text-muted-foreground">Short</p>
+              <p className="text-sm font-bold tabular-nums text-amber-700 dark:text-amber-300">{weeklySummary.short.toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg bg-muted/45 px-3 py-2">
+              <p className="text-[10px] text-muted-foreground">Over</p>
+              <p className="text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{weeklySummary.over.toLocaleString()}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Net difference: <span className={`font-semibold tabular-nums ${
+              weeklyNet < 0
+                ? 'text-amber-700 dark:text-amber-300'
+                : 'text-emerald-700 dark:text-emerald-300'
+            }`}>{weeklyNet > 0 ? '+' : ''}{weeklyNet.toLocaleString()}</span>
+          </p>
+        </section>
+      )}
+
       {/* Filter */}
       <div className="flex items-center gap-2 mb-4">
         {(['ALL', 'COMPLETED', 'CANCELLED'] as const).map((f) => (
