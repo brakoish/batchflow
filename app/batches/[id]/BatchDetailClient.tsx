@@ -101,6 +101,25 @@ function getRemovedQuantity(removals?: BatchRemoval[]) {
   return (removals || []).reduce((sum, removal) => sum + removal.quantity, 0)
 }
 
+function getProductionResult(batch: Pick<Batch, 'targetQuantity' | 'baseUnit' | 'steps'>) {
+  if (batch.targetQuantity == null || batch.targetQuantity <= 0) return null
+  const produced = getProducedBaseUnits(batch.steps)
+  const difference = produced - batch.targetQuantity
+  const pct = Math.round((produced / batch.targetQuantity) * 100)
+
+  return {
+    produced,
+    target: batch.targetQuantity,
+    difference,
+    pct,
+    label: difference < 0
+      ? `${Math.abs(difference).toLocaleString()} ${batch.baseUnit} short`
+      : difference > 0
+      ? `${difference.toLocaleString()} ${batch.baseUnit} over`
+      : 'Exact target',
+  }
+}
+
 function getSmartAmounts(remaining: number | null) {
   const defaults = [25, 50, 100]
   if (remaining === null) return defaults
@@ -305,12 +324,15 @@ export default function BatchDetailClient({
 
   const handleStatusChange = async (status: string) => {
     const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
+    const productionResult = getProductionResult(batch)
     setConfirmAction({
       title: `${labels[status]?.charAt(0).toUpperCase()}${labels[status]?.slice(1) || status} batch?`,
       message: status === 'CANCELLED'
         ? 'This removes it from active production. You can reopen it later if needed.'
         : status === 'COMPLETED'
-        ? 'This marks the production run complete for the team.'
+        ? productionResult
+          ? `This marks the run complete at ${productionResult.pct}%: ${productionResult.produced.toLocaleString()} / ${productionResult.target.toLocaleString()} ${batch.baseUnit}. ${productionResult.label}.`
+          : 'This marks the production run complete for the team.'
         : 'This moves the batch back into active production.',
       confirmLabel: status === 'CANCELLED' ? 'Cancel Batch' : status === 'COMPLETED' ? 'Mark Complete' : 'Reopen',
       confirmStyle: status === 'CANCELLED' ? 'danger' : 'primary',
@@ -333,10 +355,12 @@ export default function BatchDetailClient({
         setError(data.error || 'Failed to update batch')
         return 
       }
-      setBatch(prev => ({ ...prev, status }))
+      const data = await res.json().catch(() => null)
+      setBatch(prev => data?.batch || { ...prev, status })
       lastSaveTsRef.current = Date.now()
       emitBatchChanged(batch.id, 'status')
-      showToast(`Batch ${labels[status]}d`)
+      const productionResult = status === 'COMPLETED' ? getProductionResult(batch) : null
+      showToast(productionResult ? `Completed at ${productionResult.pct}% · ${productionResult.label}` : `Batch ${labels[status]}d`)
     } catch (err) { 
       setError('Network error. Please check your connection.')
     }
@@ -985,6 +1009,7 @@ export default function BatchDetailClient({
   const producedBaseUnits = getProducedBaseUnits(batch.steps)
   const removedQuantity = getRemovedQuantity(batch.removals)
   const availableQuantity = Math.max(0, producedBaseUnits - removedQuantity)
+  const productionResult = getProductionResult(batch)
 
   const openLogForStep = (step: BatchStep) => {
     haptic('light')
@@ -1124,7 +1149,7 @@ export default function BatchDetailClient({
             {isOpenEnded ? (
               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{stepsCompleted}/{totalSteps} steps</span>
             ) : (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{overallPct}%</span>
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{productionResult?.pct ?? overallPct}%</span>
             )}
             {batch.status !== 'ACTIVE' && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
@@ -1257,6 +1282,56 @@ export default function BatchDetailClient({
               </div>
             )}
           </div>
+
+          {productionResult && batch.status === 'COMPLETED' && (
+            <div className={`mt-3 rounded-xl border p-3 ${
+              productionResult.difference < 0
+                ? 'border-amber-500/25 bg-amber-500/10'
+                : 'border-emerald-500/25 bg-emerald-500/10'
+            }`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Production Result</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {productionResult.pct}% complete · {productionResult.label}
+                  </p>
+                </div>
+                <span className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold tabular-nums ${
+                  productionResult.difference < 0
+                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                    : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                }`}>
+                  {productionResult.produced.toLocaleString()} / {productionResult.target.toLocaleString()}
+                </span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${productionResult.difference < 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  style={{ width: `${Math.min(productionResult.pct, 100)}%` }}
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-card/70 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Produced</p>
+                  <p className="text-sm font-bold tabular-nums text-foreground">{productionResult.produced.toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg bg-card/70 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Target</p>
+                  <p className="text-sm font-bold tabular-nums text-foreground">{productionResult.target.toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg bg-card/70 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Difference</p>
+                  <p className={`text-sm font-bold tabular-nums ${
+                    productionResult.difference < 0
+                      ? 'text-amber-700 dark:text-amber-300'
+                      : 'text-emerald-700 dark:text-emerald-300'
+                  }`}>
+                    {productionResult.difference > 0 ? '+' : ''}{productionResult.difference.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Batch notes */}
           {batch.notes && (

@@ -9,7 +9,36 @@ type Step = { id: string; name: string; order: number; type: string; unitLabel: 
 type Batch = {
   id: string; name: string; targetQuantity: number | null; baseUnit: string; status: string
   completedDate: string | null; startDate: string; createdAt: string
-  recipe: { name: string }; steps: Step[]
+  recipe: { name: string }; steps: (Step & { unitRatio?: number })[]
+}
+
+const SKIPPED_PREFIX = '[Skipped] '
+
+function getProducedBaseUnits(steps: (Step & { unitRatio?: number })[]) {
+  const countSteps = steps.filter(step => step.type === 'COUNT' && !step.name.startsWith(SKIPPED_PREFIX))
+  if (!countSteps.length) return 0
+
+  return Math.max(
+    ...countSteps.map(step => Math.floor(step.completedQuantity * (step.unitRatio || 1)))
+  )
+}
+
+function getProductionResult(batch: Batch) {
+  if (batch.targetQuantity == null || batch.targetQuantity <= 0) return null
+  const produced = getProducedBaseUnits(batch.steps)
+  const difference = produced - batch.targetQuantity
+  const pct = Math.round((produced / batch.targetQuantity) * 100)
+
+  return {
+    produced,
+    difference,
+    pct,
+    label: difference < 0
+      ? `${Math.abs(difference).toLocaleString()} short`
+      : difference > 0
+      ? `${difference.toLocaleString()} over`
+      : 'Exact',
+  }
 }
 
 export default function HistoryClient({ initialBatches }: { initialBatches: Batch[] }) {
@@ -47,6 +76,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
           {batches.map((batch) => {
             const completedSteps = batch.steps.filter(s => s.status === 'COMPLETED').length
             const pct = Math.round((completedSteps / batch.steps.length) * 100)
+            const productionResult = getProductionResult(batch)
             const date = batch.completedDate
               ? new Date(batch.completedDate).toLocaleDateString()
               : new Date(batch.startDate).toLocaleDateString()
@@ -76,11 +106,36 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                   <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
                     <div
                       className={`h-full rounded-full ${batch.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-red-500'}`}
-                      style={{ width: `${pct}%` }}
+                      style={{ width: `${Math.min(productionResult?.pct ?? pct, 100)}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-foreground tabular-nums">{completedSteps}/{batch.steps.length} steps · {pct}%</span>
+                  <span className="text-[10px] text-foreground tabular-nums">
+                    {productionResult ? `${productionResult.pct}% · ${productionResult.label}` : `${completedSteps}/${batch.steps.length} steps · ${pct}%`}
+                  </span>
                 </div>
+
+                {productionResult && (
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-[10px]">
+                    <div className="rounded-lg bg-muted/45 px-2 py-1.5">
+                      <p className="text-muted-foreground">Produced</p>
+                      <p className="font-semibold tabular-nums text-foreground">{productionResult.produced.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/45 px-2 py-1.5">
+                      <p className="text-muted-foreground">Target</p>
+                      <p className="font-semibold tabular-nums text-foreground">{batch.targetQuantity?.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/45 px-2 py-1.5">
+                      <p className="text-muted-foreground">Diff</p>
+                      <p className={`font-semibold tabular-nums ${
+                        productionResult.difference < 0
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {productionResult.difference > 0 ? '+' : ''}{productionResult.difference.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </Link>
             )
           })}
