@@ -129,6 +129,7 @@ model Worker {
   correctionRequests ShiftCorrectionRequest[]
   logAudits      LogAudit[]
   batchMessages  BatchMessage[]
+  batchRemovals  BatchRemoval[]
   pushSubscriptions PushSubscription[]
   user           User?
 
@@ -220,6 +221,7 @@ model Batch {
   steps           BatchStep[]
   assignments     BatchAssignment[]
   messages        BatchMessage[]
+  removals        BatchRemoval[]
 
   @@index([recipeId])
   @@index([status])
@@ -354,6 +356,22 @@ model BatchMessage {
   createdAt DateTime @default(now())
 
   @@index([batchId])
+  @@index([createdAt])
+}
+
+model BatchRemoval {
+  id        String   @id @default(cuid())
+  batchId   String
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  workerId  String
+  worker    Worker   @relation(fields: [workerId], references: [id])
+  quantity  Int
+  reason    String   @default("Distro")
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([batchId])
+  @@index([workerId])
   @@index([createdAt])
 }
 

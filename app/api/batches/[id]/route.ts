@@ -41,6 +41,11 @@ export async function GET(
           },
         },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
+        removals: {
+          include: { worker: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
       },
     })
 
@@ -101,6 +106,11 @@ export async function PATCH(
             },
           },
           assignments: { include: { worker: { select: { id: true, name: true } } } },
+          removals: {
+            include: { worker: { select: { id: true, name: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
         },
       })
       return NextResponse.json({ batch })
@@ -205,6 +215,11 @@ export async function PATCH(
           },
         },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
+        removals: {
+          include: { worker: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
       },
     })
 

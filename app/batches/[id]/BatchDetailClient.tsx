@@ -17,6 +17,7 @@ import {
   EyeSlashIcon,
   FlagIcon,
   PencilSquareIcon,
+  TruckIcon,
 } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { formatTimeInTz, formatDateInTz } from '@/lib/timezone'
@@ -32,6 +33,9 @@ import {
 type Worker = { id: string; name: string }
 type ProgressLog = {
   id: string; quantity: number; note: string | null; createdAt: string; editedAt?: string; worker: Worker
+}
+type BatchRemoval = {
+  id: string; quantity: number; reason: string; note: string | null; createdAt: string; worker: Worker
 }
 type StepMaterial = { name: string; quantityPerUnit: number; unit: string }
 type BatchStep = {
@@ -51,6 +55,7 @@ type Batch = {
   notes?: string | null
   recipe: { id: string; name: string }; steps: BatchStep[]
   assignments?: { worker: Worker }[]
+  removals?: BatchRemoval[]
 }
 type BatchMessage = {
   id: string
@@ -81,6 +86,19 @@ function formatMaterialAmount(material: StepMaterial, step: BatchStep) {
   }
 
   return `${(material.quantityPerUnit * step.targetQuantity).toLocaleString()} ${material.unit}`
+}
+
+function getProducedBaseUnits(steps: BatchStep[]) {
+  const countSteps = steps.filter(step => step.type === 'COUNT' && !isSkippedStep(step))
+  if (!countSteps.length) return 0
+
+  return Math.max(
+    ...countSteps.map(step => Math.floor(step.completedQuantity * (step.unitRatio || 1)))
+  )
+}
+
+function getRemovedQuantity(removals?: BatchRemoval[]) {
+  return (removals || []).reduce((sum, removal) => sum + removal.quantity, 0)
 }
 
 function getSmartAmounts(remaining: number | null) {
@@ -190,6 +208,13 @@ export default function BatchDetailClient({
   const [editStepType, setEditStepType] = useState<'COUNT' | 'CHECK'>('COUNT')
   const [editStepTarget, setEditStepTarget] = useState('')
   const [editStepUnit, setEditStepUnit] = useState('')
+
+  // Batch removal modal state
+  const [showRemovalModal, setShowRemovalModal] = useState(false)
+  const [removalQuantity, setRemovalQuantity] = useState('')
+  const [removalReason, setRemovalReason] = useState('Distro')
+  const [removalNote, setRemovalNote] = useState('')
+  const [savingRemoval, setSavingRemoval] = useState(false)
 
   // Duplicate modal state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
@@ -342,6 +367,63 @@ export default function BatchDetailClient({
       router.push('/dashboard')
     } catch (err) { 
       setError('Network error. Please check your connection.')
+    }
+  }
+
+  const handleOpenRemoval = () => {
+    haptic('light')
+    setRemovalQuantity('')
+    setRemovalReason('Distro')
+    setRemovalNote('')
+    setShowRemovalModal(true)
+    setError('')
+  }
+
+  const handleSaveRemoval = async () => {
+    const qty = parseInt(removalQuantity)
+    const available = Math.max(0, getProducedBaseUnits(batch.steps) - getRemovedQuantity(batch.removals))
+
+    if (!qty || qty <= 0) {
+      setError('Enter a valid quantity')
+      return
+    }
+    if (qty > available) {
+      setError(`Only ${available.toLocaleString()} ${batch.baseUnit} available`)
+      return
+    }
+
+    setSavingRemoval(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/batches/${batch.id}/removals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quantity: qty,
+          reason: removalReason,
+          note: removalNote || null,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Server error' }))
+        setError(data.error || 'Failed to record removal')
+        return
+      }
+
+      const data = await res.json()
+      setBatch(prev => ({
+        ...prev,
+        removals: [data.removal, ...(prev.removals || [])].slice(0, 5),
+      }))
+      setShowRemovalModal(false)
+      lastSaveTsRef.current = Date.now()
+      emitBatchChanged(batch.id, 'removal-add')
+      showToast(`Removed ${qty.toLocaleString()} ${batch.baseUnit}`)
+    } catch (err) {
+      setError('Network error. Please check your connection.')
+    } finally {
+      setSavingRemoval(false)
     }
   }
 
@@ -900,6 +982,9 @@ export default function BatchDetailClient({
   const activeStations = batch.status === 'ACTIVE' ? getActiveStations(batch.steps, 4) : []
   const primaryStation = activeStations[0] ? batch.steps.find(step => step.id === activeStations[0].step.id) || null : null
   const lastMovement = getLastBatchMovement(batch.steps)
+  const producedBaseUnits = getProducedBaseUnits(batch.steps)
+  const removedQuantity = getRemovedQuantity(batch.removals)
+  const availableQuantity = Math.max(0, producedBaseUnits - removedQuantity)
 
   const openLogForStep = (step: BatchStep) => {
     haptic('light')
@@ -1124,6 +1209,53 @@ export default function BatchDetailClient({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-border bg-card p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Batch Inventory</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {availableQuantity.toLocaleString()} {batch.baseUnit} on hand
+                </p>
+              </div>
+              {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && (
+                <button
+                  onClick={handleOpenRemoval}
+                  disabled={availableQuantity <= 0}
+                  className="bf-btn bf-btn-secondary bf-btn-sm shrink-0"
+                >
+                  <TruckIcon className="w-4 h-4" />
+                  Remove Qty
+                </button>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-muted/45 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Produced</p>
+                <p className="text-sm font-bold tabular-nums text-foreground">{producedBaseUnits.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg bg-muted/45 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Removed</p>
+                <p className="text-sm font-bold tabular-nums text-foreground">{removedQuantity.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg bg-muted/45 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">On hand</p>
+                <p className="text-sm font-bold tabular-nums text-foreground">{availableQuantity.toLocaleString()}</p>
+              </div>
+            </div>
+            {batch.removals && batch.removals.length > 0 && (
+              <div className="mt-3 border-t border-border/50 pt-2 space-y-1">
+                {batch.removals.slice(0, 3).map(removal => (
+                  <div key={removal.id} className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                    <span className="min-w-0 truncate">
+                      {removal.reason} · {removal.worker.name}{removal.note ? ` · ${removal.note}` : ''}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-foreground">-{removal.quantity.toLocaleString()} · {formatLogTimestamp(removal.createdAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Batch notes */}
@@ -2070,6 +2202,107 @@ export default function BatchDetailClient({
                   className="bf-btn bf-btn-soft-danger bf-btn-full"
                 >
                   Delete Entry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Removal Modal */}
+      {showRemovalModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Remove quantity</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Production totals stay unchanged. On hand will go down.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setShowRemovalModal(false); setError('') }}
+                  className="bf-icon-btn"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-4 grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-muted/45 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Produced</p>
+                  <p className="text-sm font-bold tabular-nums text-foreground">{producedBaseUnits.toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg bg-muted/45 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Removed</p>
+                  <p className="text-sm font-bold tabular-nums text-foreground">{removedQuantity.toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg bg-muted/45 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">On hand</p>
+                  <p className="text-sm font-bold tabular-nums text-foreground">{availableQuantity.toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Quantity removed</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min="1"
+                    max={availableQuantity}
+                    value={removalQuantity}
+                    onChange={(e) => setRemovalQuantity(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-xl font-semibold tabular-nums placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Reason</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Distro', 'Sample', 'Waste'].map(reason => (
+                      <button
+                        key={reason}
+                        type="button"
+                        onClick={() => setRemovalReason(reason)}
+                        className={`bf-select-btn bf-btn-sm ${removalReason === reason ? 'bf-select-btn-active' : ''}`}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Note (optional)</label>
+                  <input
+                    type="text"
+                    value={removalNote}
+                    onChange={(e) => setRemovalNote(e.target.value)}
+                    placeholder="e.g. distro invoice, package tag"
+                    maxLength={500}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+
+                {error && <p className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
+
+                <button
+                  onClick={handleSaveRemoval}
+                  disabled={savingRemoval || !removalQuantity || parseInt(removalQuantity) <= 0 || parseInt(removalQuantity) > availableQuantity}
+                  className="bf-btn bf-btn-success bf-btn-full"
+                >
+                  {savingRemoval
+                    ? 'Saving...'
+                    : removalQuantity && parseInt(removalQuantity) > availableQuantity
+                      ? `Max ${availableQuantity.toLocaleString()} ${batch.baseUnit}`
+                      : 'Record Removal'}
                 </button>
               </div>
             </div>
