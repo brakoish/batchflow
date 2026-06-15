@@ -14,7 +14,9 @@ import {
   formatShortRelativeTime,
   getActiveStations,
   getLastBatchMovement,
+  getStationSummary,
   getStationStates,
+  getStationWaitingReason,
   type ProductionLineLog,
 } from '@/lib/productionLine'
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null; progressLogs?: ProductionLineLog[] }
@@ -155,6 +157,26 @@ export default function DashboardClient({
   const totalUnits = activity.reduce((sum, l) => sum + (l.type === 'log' ? (l.quantity || 0) : 0), 0)
   const activeBatchCount = batches.filter(b => b.status === 'ACTIVE').length
   const movingBatchCount = batches.filter(b => b.status === 'ACTIVE' && getLastBatchMovement(b.steps)).length
+  const floorBoard = batches
+    .filter(batch => batch.status === 'ACTIVE')
+    .map((batch) => {
+      const stationStates = getStationStates(batch.steps)
+      const activeStations = getActiveStations(batch.steps, 2)
+      const lastMovement = getLastBatchMovement(batch.steps)
+      const waitingState = stationStates.find(state => state.label === 'waiting')
+      const ready = activeStations.some(state => state.label === 'active' || state.label === 'ready')
+      return { batch, stationStates, activeStations, lastMovement, waitingState, ready }
+    })
+    .sort((a, b) => {
+      const readyDiff = Number(b.ready) - Number(a.ready)
+      if (readyDiff !== 0) return readyDiff
+      if (!a.lastMovement && !b.lastMovement) return 0
+      if (!a.lastMovement) return 1
+      if (!b.lastMovement) return -1
+      return new Date(b.lastMovement.createdAt).getTime() - new Date(a.lastMovement.createdAt).getTime()
+    })
+    .slice(0, 6)
+  const readyFloorCount = floorBoard.filter(item => item.ready).length
 
   // Extract unique recipe names for filter dropdown
   const uniqueRecipes = Array.from(new Set(batches.map(b => b.recipe.name))).sort()
@@ -270,6 +292,72 @@ export default function DashboardClient({
               <p className="text-[10px] text-muted-foreground">logged</p>
             </div>
           </div>
+
+          {floorBoard.length > 0 && (
+            <div className="rounded-xl border border-border bg-card p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Floor Board</h2>
+                  <p className="text-[10px] text-muted-foreground">
+                    {readyFloorCount} ready · {Math.max(0, floorBoard.length - readyFloorCount)} waiting in top {floorBoard.length}
+                  </p>
+                </div>
+                <Link href="/batches" className="bf-btn bf-btn-secondary bf-btn-sm shrink-0">
+                  Worker View
+                </Link>
+              </div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                {floorBoard.map(({ batch, stationStates, activeStations, lastMovement, waitingState, ready }) => (
+                  <Link
+                    key={batch.id}
+                    href={`/batches/${batch.id}`}
+                    className="rounded-lg border border-border bg-muted/25 px-3 py-2 transition-colors hover:border-foreground/20 hover:bg-muted/40"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{batch.name}</p>
+                        <p className={`text-xs font-medium truncate ${
+                          ready ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                        }`}>
+                          {activeStations[0]
+                            ? getStationSummary(activeStations[0])
+                            : 'Line complete'}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        ready
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {ready ? 'Ready' : 'Waiting'}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-1">
+                      {stationStates.map((state) => (
+                        <span
+                          key={state.step.id}
+                          className={`h-1.5 flex-1 rounded-full ${stationDotClass(state.label)}`}
+                          title={`${displayProductionStepName(state.step)}: ${state.label}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                      <span className="min-w-0 truncate">
+                        {ready
+                          ? activeStations.map(station => displayProductionStepName(station.step)).join(', ')
+                          : waitingState
+                            ? getStationWaitingReason(stationStates, waitingState) || `Waiting: ${displayProductionStepName(waitingState.step)}`
+                            : 'No active station'}
+                      </span>
+                      <span className="shrink-0">
+                        {lastMovement ? timeAgo(lastMovement.createdAt) : 'No movement'}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 lg:hidden">
             {[

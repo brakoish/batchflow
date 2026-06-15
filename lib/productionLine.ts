@@ -105,6 +105,24 @@ export function getStationSummary(state: Pick<StationState, 'label' | 'step'>) {
   return `Skipped: ${stepName}`
 }
 
+export function getStationWaitingReason(states: StationState[], state: StationState) {
+  if (state.label !== 'waiting') return null
+  const previous = states
+    .slice(0, state.index)
+    .reverse()
+    .find(candidate => !isProductionStepSkipped(candidate.step) && candidate.step.type !== 'CHECK')
+
+  if (!previous) return 'Ready to start'
+
+  const previousBaseUnits = (previous.step.completedQuantity || 0) * (previous.step.unitRatio || 1)
+  const requiredBaseUnits = ((state.step.completedQuantity || 0) + 1) * (state.step.unitRatio || 1)
+  const needed = Math.max(0, Math.ceil(requiredBaseUnits - previousBaseUnits))
+  const previousName = displayProductionStepName(previous.step)
+
+  if (needed > 0) return `Needs ${needed.toLocaleString()} more from ${previousName}`
+  return `Waiting on ${previousName}`
+}
+
 export function getLastBatchMovement(steps: ProductionLineStep[]) {
   return steps
     .map(latestStepLog)

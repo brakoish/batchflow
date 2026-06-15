@@ -29,6 +29,7 @@ import {
   getLastBatchMovement,
   getStationSummary,
   getStationStates,
+  getStationWaitingReason,
 } from '@/lib/productionLine'
 
 type Worker = { id: string; name: string }
@@ -1245,11 +1246,11 @@ export default function BatchDetailClient({
                   <p className="mt-0.5 text-[10px] text-muted-foreground truncate">
                     {station.latestLog
                       ? `${station.latestLog.worker.name} moved ${station.latestLog.quantity} · ${formatShortRelativeTime(station.latestLog.createdAt)}`
-                      : station.availableFromPrevious
-                        ? `${station.availableFromPrevious.toLocaleString()} ready from previous step`
+                        : station.availableFromPrevious
+                          ? `${station.availableFromPrevious.toLocaleString()} ready from previous step`
                         : station.index === 0
                           ? 'Ready to start'
-                          : 'Waiting on previous step'}
+                          : getStationWaitingReason(stationStates, station) || 'Waiting on previous step'}
                   </p>
                 </button>
               ))}
@@ -1576,7 +1577,7 @@ export default function BatchDetailClient({
                         <p className="text-[10px] text-muted-foreground mt-0.5">
                           {stationState.availableFromPrevious > 0
                             ? `${stationState.availableFromPrevious.toLocaleString()} ready from previous step`
-                            : 'Waiting on previous step'}
+                            : getStationWaitingReason(stationStates, stationState) || 'Waiting on previous step'}
                         </p>
                       )}
                       {!isSkipped && stationState?.latestLog && (

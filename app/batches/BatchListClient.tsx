@@ -16,10 +16,11 @@ import {
   getLastBatchMovement,
   getStationSummary,
   getStationStates,
+  getStationWaitingReason,
   type ProductionLineLog,
 } from '@/lib/productionLine'
 
-type Step = { id: string; name: string; order: number; status: string; completedQuantity: number; targetQuantity: number | null; progressLogs?: ProductionLineLog[] }
+type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null; unitRatio?: number; unitLabel?: string; progressLogs?: ProductionLineLog[] }
 type Assignment = { worker: { id: string; name: string } }
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string; notes?: string | null
@@ -102,6 +103,9 @@ export default function BatchListClient({
     return 'bg-muted-foreground/30'
   }
 
+  const isBatchReady = (batch: Batch) => getActiveStations(batch.steps, 1)[0]?.label !== 'waiting'
+  const readyCount = batches.filter(isBatchReady).length
+
   return (
     <AppShell session={session} organizationName={organizationName}>
       <main 
@@ -148,8 +152,12 @@ export default function BatchListClient({
         <div className="mb-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Your Batches</h1>
-              <p className="text-muted-foreground mt-1">{batches.length} available</p>
+              <h1 className="text-2xl font-bold text-foreground">{isWorker ? 'Ready Now' : 'Your Batches'}</h1>
+              <p className="text-muted-foreground mt-1">
+                {isWorker
+                  ? `${readyCount} ready · ${Math.max(0, batches.length - readyCount)} waiting`
+                  : `${batches.length} available`}
+              </p>
             </div>
             {onShift && (
               <div className="mt-1 flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
@@ -159,7 +167,7 @@ export default function BatchListClient({
             )}
           </div>
 
-          {/* Search */}
+          {(!isWorker || batches.length > 5 || searchQuery) && (
           <div className="relative mt-4">
             <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -172,7 +180,9 @@ export default function BatchListClient({
               className="w-full pl-10 pr-4 py-2.5 min-h-[48px] rounded-xl bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             />
           </div>
+          )}
 
+          {!isWorker && (
           <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
             <select
               value={sortBy}
@@ -209,6 +219,7 @@ export default function BatchListClient({
               High+
             </button>
           </div>
+          )}
         </div>
 
         {/* Batch Cards */}
@@ -283,6 +294,19 @@ export default function BatchListClient({
               })
             }
 
+            if (isWorker) {
+              filteredBatches.sort((a, b) => {
+                const readyDiff = Number(isBatchReady(b)) - Number(isBatchReady(a))
+                if (readyDiff !== 0) return readyDiff
+                const aLast = getLastBatchMovement(a.steps)?.createdAt
+                const bLast = getLastBatchMovement(b.steps)?.createdAt
+                if (!aLast && !bLast) return 0
+                if (!aLast) return 1
+                if (!bLast) return -1
+                return new Date(bLast).getTime() - new Date(aLast).getTime()
+              })
+            }
+
             if (filteredBatches.length === 0) {
               return searchQuery ? (
                 <EmptyState icon="inbox" title="No batches match" description="Try a different search term." />
@@ -298,6 +322,8 @@ export default function BatchListClient({
             const otherBatches = isWorker && !myBatchFilter
               ? filteredBatches.filter(b => !isMineOrOpen(b))
               : []
+            const readyBatches = isWorker ? myBatches.filter(isBatchReady) : myBatches
+            const waitingBatches = isWorker ? myBatches.filter(b => !isBatchReady(b)) : []
 
             const renderBatch = (batch: Batch) => {
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
@@ -434,7 +460,7 @@ export default function BatchListClient({
                       ))}
                       {waitingStation && (
                         <p className="text-[11px] text-muted-foreground truncate">
-                          Waiting: {displayProductionStepName(waitingStation.step)}
+                          {getStationWaitingReason(stationStates, waitingStation) || `Waiting: ${displayProductionStepName(waitingStation.step)}`}
                         </p>
                       )}
                     </div>
@@ -515,10 +541,18 @@ export default function BatchListClient({
               <div className="space-y-4">
                 {myBatches.length > 0 && (
                   <>
-                    {session.role === 'WORKER' && otherBatches.length > 0 && (
-                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Batches</h2>
+                    {isWorker && readyBatches.length > 0 && (
+                      <h2 className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Ready to Touch</h2>
                     )}
-                    {myBatches.map(renderBatch)}
+                    {readyBatches.map(renderBatch)}
+                    {isWorker && waitingBatches.length > 0 && (
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex-1 h-px bg-border" />
+                        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Waiting on Product</h2>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                    )}
+                    {waitingBatches.map(renderBatch)}
                   </>
                 )}
                 {otherBatches.length > 0 && (
