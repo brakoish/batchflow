@@ -14,6 +14,7 @@ import {
   formatShortRelativeTime,
   getActiveStations,
   getLastBatchMovement,
+  getStationSummary,
   getStationStates,
   type ProductionLineLog,
 } from '@/lib/productionLine'
@@ -41,6 +42,7 @@ export default function BatchListClient({
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
   const [priorityFilter, setPriorityFilter] = useState(false)
   const [myBatchFilter, setMyBatchFilter] = useState(session.role === 'WORKER')
+  const isWorker = session.role === 'WORKER'
 
   const fetchData = async (showLoading = false) => {
     if (showLoading) setRefreshing(true)
@@ -226,7 +228,7 @@ export default function BatchListClient({
               )
               if (!matchesSearch) return false
 
-              if (myBatchFilter) {
+              if (myBatchFilter && isWorker) {
                 const openToEveryone = !b.assignments || b.assignments.length === 0
                 const assignedToMe = b.assignments?.some(a => a.worker.id === session.workerId)
                 if (!openToEveryone && !assignedToMe) return false
@@ -290,10 +292,10 @@ export default function BatchListClient({
             }
 
             const isMineOrOpen = (b: Batch) => !b.assignments || b.assignments.length === 0 || b.assignments.some(a => a.worker.id === session.workerId)
-            const myBatches = session.role === 'WORKER'
+            const myBatches = isWorker
               ? filteredBatches.filter(isMineOrOpen)
               : filteredBatches
-            const otherBatches = session.role === 'WORKER'
+            const otherBatches = isWorker && !myBatchFilter
               ? filteredBatches.filter(b => !isMineOrOpen(b))
               : []
 
@@ -315,7 +317,7 @@ export default function BatchListClient({
               const activeLineText = activeStations.length > 1
                 ? `${activeStations.length} stations active`
                 : activeStations[0]
-                  ? `${activeStations[0].label === 'waiting' ? 'Waiting' : 'Ready'}: ${displayProductionStepName(activeStations[0].step)}`
+                  ? getStationSummary(activeStations[0])
                   : 'Line complete'
 
               return (
@@ -497,7 +499,7 @@ export default function BatchListClient({
                   <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
                     <p className="min-w-0 truncate text-xs text-muted-foreground">
                       {activeStations[0]
-                        ? `${displayProductionStepName(activeStations[0].step)} is next`
+                        ? getStationSummary(activeStations[0])
                         : 'Review completed workflow'}
                     </p>
                     <span className="bf-btn bf-btn-primary bf-btn-sm shrink-0">

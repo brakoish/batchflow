@@ -27,6 +27,7 @@ import {
   formatShortRelativeTime,
   getActiveStations,
   getLastBatchMovement,
+  getStationSummary,
   getStationStates,
 } from '@/lib/productionLine'
 
@@ -243,6 +244,7 @@ export default function BatchDetailClient({
   const [duplicatePriority, setDuplicatePriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>((batch as any).priority || 'NORMAL')
   const [duplicateStrain, setDuplicateStrain] = useState('')
   const [duplicating, setDuplicating] = useState(false)
+  const isWorker = session.role === 'WORKER'
 
   // Auto-refresh — events do the heavy lifting for same-tab mutations,
   // polling is a 15s safety net for cross-tab/other-user changes.
@@ -869,6 +871,15 @@ export default function BatchDetailClient({
     return Math.min(targetRemaining, upstreamAvailable)
   }
 
+  const canLogCountStep = (step: BatchStep) => {
+    if (batch.status !== 'ACTIVE' || isSkippedStep(step) || step.type !== 'COUNT') return false
+    return getSafeRemaining(step) !== 0
+  }
+
+  const canCompleteCheckStep = (step: BatchStep) => (
+    batch.status === 'ACTIVE' && !isSkippedStep(step) && step.type === 'CHECK' && step.status !== 'COMPLETED'
+  )
+
   const submitLog = async (stepBeingLogged: BatchStep, qty: number, noteBeingLogged?: string) => {
     if (!stepBeingLogged || qty <= 0) {
       setError('Enter a valid quantity'); return
@@ -927,6 +938,12 @@ export default function BatchDetailClient({
 
   const handleQuickAmount = (amount: number) => {
     if (!selectedStep) return
+    const safeRemaining = getSafeRemaining(selectedStep)
+    if (safeRemaining !== null && amount > safeRemaining) {
+      haptic('heavy')
+      setError(`Only ${safeRemaining.toLocaleString()} ${selectedStep.unitLabel} can be logged right now`)
+      return
+    }
     submitLog(selectedStep, amount, note || undefined)
   }
 
@@ -1004,7 +1021,9 @@ export default function BatchDetailClient({
   )
   const stationStates = getStationStates(batch.steps)
   const activeStations = batch.status === 'ACTIVE' ? getActiveStations(batch.steps, 4) : []
-  const primaryStation = activeStations[0] ? batch.steps.find(step => step.id === activeStations[0].step.id) || null : null
+  const primaryStation = activeStations
+    .map(station => batch.steps.find(step => step.id === station.step.id) || null)
+    .find((step): step is BatchStep => Boolean(step && (canLogCountStep(step) || canCompleteCheckStep(step)))) || null
   const lastMovement = getLastBatchMovement(batch.steps)
   const producedBaseUnits = getProducedBaseUnits(batch.steps)
   const removedQuantity = getRemovedQuantity(batch.removals)
@@ -1189,7 +1208,7 @@ export default function BatchDetailClient({
                   {activeStations.length > 1
                     ? `${activeStations.length} stations active`
                     : activeStations[0]
-                      ? `${activeStations[0].label === 'waiting' ? 'Waiting' : 'Ready'}: ${displayStepName(activeStations[0].step as BatchStep)}`
+                      ? getStationSummary(activeStations[0])
                       : 'Line complete'}
                 </p>
               </div>
@@ -1207,8 +1226,9 @@ export default function BatchDetailClient({
                 <button
                   key={station.step.id}
                   type="button"
-                  onClick={() => station.step.type === 'COUNT' ? openLogForStep(station.step as BatchStep) : undefined}
-                  className="min-h-[56px] rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40"
+                  onClick={() => canLogCountStep(station.step as BatchStep) ? openLogForStep(station.step as BatchStep) : undefined}
+                  disabled={station.step.type === 'COUNT' && !canLogCountStep(station.step as BatchStep)}
+                  className="min-h-[56px] rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
@@ -1218,7 +1238,7 @@ export default function BatchDetailClient({
                         : 'bg-muted text-muted-foreground'
                     }`}>
                       {station.step.type === 'COUNT'
-                        ? 'Log'
+                        ? canLogCountStep(station.step as BatchStep) ? 'Log' : 'Wait'
                         : `${station.step.completedQuantity}${station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}`}
                     </span>
                   </div>
@@ -1236,6 +1256,7 @@ export default function BatchDetailClient({
             </div>
           </div>
 
+          {!isWorker && (
           <div className="mt-3 rounded-xl border border-border bg-card p-3">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -1282,6 +1303,7 @@ export default function BatchDetailClient({
               </div>
             )}
           </div>
+          )}
 
           {productionResult && batch.status === 'COMPLETED' && (
             <div className={`mt-3 rounded-xl border p-3 ${
@@ -1342,7 +1364,7 @@ export default function BatchDetailClient({
           )}
 
           {/* METRC Fields Display */}
-          {(batch.metrcBatchId || batch.lotNumber || batch.strain || batch.packageTag) && (
+          {!isWorker && (batch.metrcBatchId || batch.lotNumber || batch.strain || batch.packageTag) && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {batch.metrcBatchId && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">METRC: {batch.metrcBatchId}</span>
@@ -1566,7 +1588,7 @@ export default function BatchDetailClient({
                   </div>
 
                   {/* Right: action or status */}
-                  {!isCompleted && !isSkipped && step.type === 'COUNT' && (
+                  {!isCompleted && !isSkipped && step.type === 'COUNT' && canLogCountStep(step) && (
                     <button
                       onClick={() => openLogForStep(step)}
                       className="bf-btn bf-btn-success shrink-0"
@@ -1574,7 +1596,12 @@ export default function BatchDetailClient({
                       <PlusIcon className="w-4 h-4" />Log
                     </button>
                   )}
-                  {!isCompleted && !isSkipped && step.type === 'CHECK' && (
+                  {!isCompleted && !isSkipped && step.type === 'COUNT' && !canLogCountStep(step) && (
+                    <span className="shrink-0 rounded-lg bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">
+                      Waiting
+                    </span>
+                  )}
+                  {!isCompleted && !isSkipped && step.type === 'CHECK' && canCompleteCheckStep(step) && (
                     <button
                       onClick={() => { haptic('light'); handleCheckComplete(step); }}
                       disabled={loading}

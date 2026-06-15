@@ -14,7 +14,7 @@ export async function POST(
 ) {
   try {
     const session = await requireSession()
-    const { stepId } = await params
+    const { id: batchId, stepId } = await params
     const { quantity, note } = await request.json()
 
     if (!quantity || quantity <= 0) {
@@ -30,6 +30,9 @@ export async function POST(
       include: {
         batch: {
           include: {
+            assignments: {
+              select: { workerId: true },
+            },
             steps: {
               orderBy: {
                 order: 'asc',
@@ -47,7 +50,34 @@ export async function POST(
       )
     }
 
-    // Steps are never locked — workers can log on any step
+    if (
+      step.batchId !== batchId ||
+      step.batch.organizationId !== session.user.organizationId ||
+      step.batch.status !== 'ACTIVE'
+    ) {
+      return NextResponse.json(
+        { error: 'Step not found' },
+        { status: 404 }
+      )
+    }
+
+    if (
+      session.user.role === 'WORKER' &&
+      step.batch.assignments.length > 0 &&
+      !step.batch.assignments.some((assignment: { workerId: string }) => assignment.workerId === session.user.workerId)
+    ) {
+      return NextResponse.json(
+        { error: 'Step not found' },
+        { status: 404 }
+      )
+    }
+
+    if (isSkippedStep(step)) {
+      return NextResponse.json(
+        { error: 'This step is skipped for this batch' },
+        { status: 400 }
+      )
+    }
 
     // Find previous step
     const previousStep = [...step.batch.steps]
@@ -56,7 +86,6 @@ export async function POST(
 
     // Calculate ceiling (normalize across different unit ratios)
     const newTotal = step.completedQuantity + quantity
-    let warning = ''
 
     if (previousStep) {
       // Convert previous step's completed qty to base units, then to this step's units
@@ -64,8 +93,10 @@ export async function POST(
       const ceiling = Math.floor(prevBaseUnits / ((step as any).unitRatio || 1))
 
       if (newTotal > ceiling) {
-        const excess = newTotal - ceiling
-        warning = `Exceeds ${(previousStep as any).name} count by ${excess}`
+        return NextResponse.json(
+          { error: `Only ${Math.max(0, ceiling - step.completedQuantity).toLocaleString()} can be logged right now` },
+          { status: 400 }
+        )
       }
     } else {
       // First step: ceiling is the step's own target
@@ -204,7 +235,6 @@ export async function POST(
     return NextResponse.json({
       progressLog,
       step: updatedStep,
-      ...(warning && { warning }),
     })
   } catch (error) {
     console.error('Log progress error:', error)

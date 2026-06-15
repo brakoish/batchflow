@@ -95,6 +95,16 @@ export function getActiveStations(steps: ProductionLineStep[], max = 3) {
   return states.filter((state) => state.label === 'waiting').slice(0, 1)
 }
 
+export function getStationSummary(state: Pick<StationState, 'label' | 'step'>) {
+  const stepName = displayProductionStepName(state.step)
+  if (state.label === 'active') return `Active: ${stepName}`
+  if (state.label === 'ready') return `Ready: ${stepName}`
+  if (state.label === 'waiting') return `Waiting: ${stepName}`
+  if (state.label === 'stale') return `Stale: ${stepName}`
+  if (state.label === 'done') return `Done: ${stepName}`
+  return `Skipped: ${stepName}`
+}
+
 export function getLastBatchMovement(steps: ProductionLineStep[]) {
   return steps
     .map(latestStepLog)
