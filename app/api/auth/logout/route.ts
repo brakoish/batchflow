@@ -1,14 +1,36 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
-export async function POST() {
-  const cookieStore = await cookies()
-  cookieStore.delete('workerId')
-  return NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'))
+const AUTH_COOKIE_NAMES = [
+  'workerId',
+  'next-auth.session-token',
+  '__Secure-next-auth.session-token',
+  'next-auth.csrf-token',
+  '__Host-next-auth.csrf-token',
+  'next-auth.callback-url',
+  '__Secure-next-auth.callback-url',
+]
+
+function logoutResponse(requestUrl: string) {
+  const response = NextResponse.redirect(new URL('/', requestUrl))
+  const expires = new Date(0)
+
+  AUTH_COOKIE_NAMES.forEach((name) => {
+    response.cookies.set(name, '', {
+      path: '/',
+      secure: name.startsWith('__Secure-') || name.startsWith('__Host-'),
+      expires,
+      maxAge: 0,
+    })
+  })
+
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+  return response
 }
 
-export async function GET() {
-  const cookieStore = await cookies()
-  cookieStore.delete('workerId')
-  return NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'))
+export async function POST(request: Request) {
+  return logoutResponse(request.url)
+}
+
+export async function GET(request: Request) {
+  return logoutResponse(request.url)
 }
