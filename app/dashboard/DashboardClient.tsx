@@ -74,8 +74,8 @@ function timeAgo(date: string) {
 
 function stationDotClass(label: string) {
   if (label === 'done') return 'bg-emerald-500'
-  if (label === 'active') return 'bg-blue-500'
-  if (label === 'ready') return 'bg-emerald-400'
+  if (label === 'active') return 'bg-emerald-500'
+  if (label === 'ready') return 'bg-blue-500'
   if (label === 'stale') return 'bg-amber-500'
   if (label === 'skipped') return 'bg-amber-300'
   return 'bg-muted-foreground/30'
