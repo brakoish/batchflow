@@ -404,6 +404,11 @@ export default function BatchListClient({
                     <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
                       {activeLineText}
                     </span>
+                    {lastMovement && (
+                      <span className="max-w-full truncate rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        Recorded: {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
+                      </span>
+                    )}
                     {priority === 'URGENT' && (
                       <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
                         <FlagIcon className="w-3 h-3" />
@@ -447,7 +452,7 @@ export default function BatchListClient({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Line</p>
                       {lastMovement ? (
                         <p className="text-[10px] text-muted-foreground truncate">
-                          Last: {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
+                          {lastMovement.worker.name.split(' ')[0]} recorded +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
                         </p>
                       ) : (
                         <p className="text-[10px] text-muted-foreground">No movement yet</p>

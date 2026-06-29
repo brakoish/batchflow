@@ -570,6 +570,13 @@ export default function DashboardClient({
                             <span className="text-[10px] text-muted-foreground/60">{batch.assignments.map(a => a.worker.name.split(' ')[0]).join(', ')}</span>
                           </div>
                         )}
+                        {lastMovement && (
+                          <div className="mt-2 inline-flex max-w-full items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="truncate">
+                              Recorded: {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-start gap-2 ml-4 shrink-0">
                         <div className="text-right">
@@ -595,7 +602,7 @@ export default function DashboardClient({
                         </p>
                         {lastMovement ? (
                           <p className="text-[10px] text-muted-foreground truncate">
-                            {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
+                            {lastMovement.worker.name.split(' ')[0]} recorded +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
                           </p>
                         ) : (
                           <p className="text-[10px] text-muted-foreground">No movement</p>
