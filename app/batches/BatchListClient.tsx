@@ -104,6 +104,24 @@ export default function BatchListClient({
   }
 
   const isBatchReady = (batch: Batch) => getActiveStations(batch.steps, 1)[0]?.label !== 'waiting'
+  const getBatchActivityTime = (batch: Batch) => {
+    const lastMovement = getLastBatchMovement(batch.steps)
+    return lastMovement ? new Date(lastMovement.createdAt).getTime() : 0
+  }
+  const isRecordedActiveBatch = (batch: Batch) => (
+    batch.status === 'ACTIVE' && getStationStates(batch.steps).some(state => state.label === 'active')
+  )
+  const compareRecordedActiveFirst = (a: Batch, b: Batch) => {
+    const activeDiff = Number(isRecordedActiveBatch(b)) - Number(isRecordedActiveBatch(a))
+    if (activeDiff !== 0) return activeDiff
+
+    const aTime = getBatchActivityTime(a)
+    const bTime = getBatchActivityTime(b)
+    if (!aTime && !bTime) return 0
+    if (!aTime) return 1
+    if (!bTime) return -1
+    return bTime - aTime
+  }
   const readyCount = batches.filter(isBatchReady).length
 
   return (
@@ -298,13 +316,10 @@ export default function BatchListClient({
               filteredBatches.sort((a, b) => {
                 const readyDiff = Number(isBatchReady(b)) - Number(isBatchReady(a))
                 if (readyDiff !== 0) return readyDiff
-                const aLast = getLastBatchMovement(a.steps)?.createdAt
-                const bLast = getLastBatchMovement(b.steps)?.createdAt
-                if (!aLast && !bLast) return 0
-                if (!aLast) return 1
-                if (!bLast) return -1
-                return new Date(bLast).getTime() - new Date(aLast).getTime()
+                return compareRecordedActiveFirst(a, b)
               })
+            } else {
+              filteredBatches.sort(compareRecordedActiveFirst)
             }
 
             if (filteredBatches.length === 0) {

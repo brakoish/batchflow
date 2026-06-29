@@ -81,6 +81,27 @@ function stationDotClass(label: string) {
   return 'bg-muted-foreground/30'
 }
 
+function getBatchActivityTime(batch: Batch) {
+  const lastMovement = getLastBatchMovement(batch.steps)
+  return lastMovement ? new Date(lastMovement.createdAt).getTime() : 0
+}
+
+function isRecordedActiveBatch(batch: Batch) {
+  return batch.status === 'ACTIVE' && getStationStates(batch.steps).some(state => state.label === 'active')
+}
+
+function compareRecordedActiveFirst(a: Batch, b: Batch) {
+  const activeDiff = Number(isRecordedActiveBatch(b)) - Number(isRecordedActiveBatch(a))
+  if (activeDiff !== 0) return activeDiff
+
+  const aTime = getBatchActivityTime(a)
+  const bTime = getBatchActivityTime(b)
+  if (!aTime && !bTime) return 0
+  if (!aTime) return 1
+  if (!bTime) return -1
+  return bTime - aTime
+}
+
 export default function DashboardClient({
   initialBatches, initialActivity, session, organizationName,
 }: {
@@ -231,6 +252,8 @@ export default function DashboardClient({
       })
     }
     // 'newest' keeps the default order from API
+
+    filtered.sort(compareRecordedActiveFirst)
 
     return filtered
   }
