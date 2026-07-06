@@ -47,8 +47,9 @@ type BatchStep = {
   recipeStep?: { notes: string | null; materials?: StepMaterial[] }
   progressLogs: ProgressLog[]
 }
+type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
-  id: string; name: string; targetQuantity: number | null; baseUnit: string; status: string
+  id: string; name: string; targetQuantity: number | null; baseUnit: string; status: string; priority?: BatchPriority
   dueDate?: string
   metrcBatchId?: string
   lotNumber?: string
@@ -242,7 +243,7 @@ export default function BatchDetailClient({
   const [duplicateName, setDuplicateName] = useState('')
   const [duplicateIsOpenEnded, setDuplicateIsOpenEnded] = useState(batch.targetQuantity === null)
   const [duplicateTargetQty, setDuplicateTargetQty] = useState('')
-  const [duplicatePriority, setDuplicatePriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>((batch as any).priority || 'NORMAL')
+  const [duplicatePriority, setDuplicatePriority] = useState<BatchPriority>(batch.priority || 'NORMAL')
   const [duplicateStrain, setDuplicateStrain] = useState('')
   const [duplicating, setDuplicating] = useState(false)
   const isWorker = session.role === 'WORKER'
@@ -801,7 +802,7 @@ export default function BatchDetailClient({
     setDuplicateName(`${batch.name} (copy)`)
     setDuplicateIsOpenEnded(batch.targetQuantity === null)
     setDuplicateTargetQty(batch.targetQuantity?.toString() || '')
-    setDuplicatePriority((batch as any).priority || 'NORMAL')
+    setDuplicatePriority(batch.priority || 'NORMAL')
     setDuplicateStrain(batch.strain || '')
     setShowDuplicateModal(true)
     setError('')
@@ -1115,7 +1116,7 @@ export default function BatchDetailClient({
             <span className="text-xs text-foreground">{batch.recipe.name}</span>
             <span className="text-muted-foreground/30">·</span>
             {(() => {
-              const priority = (batch as any).priority || 'NORMAL'
+              const priority = batch.priority || 'NORMAL'
               if (priority === 'URGENT') {
                 return (
                   <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20">
@@ -1142,7 +1143,7 @@ export default function BatchDetailClient({
               }
               return null
             })()}
-            {(batch as any).priority === 'URGENT' || (batch as any).priority === 'HIGH' || (batch as any).priority === 'LOW' ? <span className="text-muted-foreground/30">·</span> : null}
+            {batch.priority === 'URGENT' || batch.priority === 'HIGH' || batch.priority === 'LOW' ? <span className="text-muted-foreground/30">·</span> : null}
             {isOpenEnded ? (
               <>
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">Open</span>

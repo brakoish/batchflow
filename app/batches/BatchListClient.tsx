@@ -22,8 +22,9 @@ import {
 
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null; unitRatio?: number; unitLabel?: string; progressLogs?: ProductionLineLog[] }
 type Assignment = { worker: { id: string; name: string } }
+type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
-  id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string; notes?: string | null
+  id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
   recipe: { name: string }; steps: Step[]; assignments?: Assignment[]
 }
 
@@ -264,7 +265,7 @@ export default function BatchListClient({
               }
 
               if (priorityFilter) {
-                const priority = (b as any).priority || 'NORMAL'
+                const priority = b.priority || 'NORMAL'
                 if (priority !== 'HIGH' && priority !== 'URGENT') return false
               }
               return true
@@ -275,8 +276,8 @@ export default function BatchListClient({
             if (sortBy === 'priority') {
               const priorityOrder: Record<string, number> = { URGENT: 4, HIGH: 3, NORMAL: 2, LOW: 1 }
               filteredBatches.sort((a, b) => {
-                const aPriority = (a as any).priority || 'NORMAL'
-                const bPriority = (b as any).priority || 'NORMAL'
+                const aPriority = a.priority || 'NORMAL'
+                const bPriority = b.priority || 'NORMAL'
                 const diff = priorityOrder[bPriority] - priorityOrder[aPriority]
                 // Secondary sort by dueDate for same priority
                 if (diff !== 0) return diff
@@ -343,7 +344,7 @@ export default function BatchListClient({
             const renderBatch = (batch: Batch) => {
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const pct = Math.round((completedSteps / batch.steps.length) * 100)
-              const priority = (batch as any).priority || 'NORMAL'
+              const priority = batch.priority || 'NORMAL'
               const isUrgent = priority === 'URGENT'
               const activeStations = getActiveStations(batch.steps, 2)
               const stationStates = getStationStates(batch.steps)

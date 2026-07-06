@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
-import { CheckCircleIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, FlagIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
 import EditBatchModal from '@/app/components/EditBatchModal'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
@@ -20,8 +20,9 @@ import {
   type ProductionLineLog,
 } from '@/lib/productionLine'
 type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null; progressLogs?: ProductionLineLog[] }
+type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
-  id: string; name: string; targetQuantity: number | null; status: string; strain?: string; dueDate?: string; notes?: string | null
+  id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
   lotNumber?: string; metrcBatchId?: string; packageTag?: string
   recipe: { name: string }; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
 }
@@ -81,6 +82,38 @@ function stationDotClass(label: string) {
   return 'bg-muted-foreground/30'
 }
 
+function priorityRank(priority: BatchPriority = 'NORMAL') {
+  return { URGENT: 4, HIGH: 3, NORMAL: 2, LOW: 1 }[priority]
+}
+
+function PriorityBadge({ priority }: { priority?: BatchPriority }) {
+  if (priority === 'URGENT') {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-500 dark:text-red-400">
+        <FlagIcon className="h-3 w-3" />
+        URGENT
+      </span>
+    )
+  }
+  if (priority === 'HIGH') {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+        <FlagIcon className="h-3 w-3" />
+        HIGH
+      </span>
+    )
+  }
+  if (priority === 'LOW') {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+        <FlagIcon className="h-3 w-3" />
+        Low
+      </span>
+    )
+  }
+  return null
+}
+
 function getBatchActivityTime(batch: Batch) {
   const lastMovement = getLastBatchMovement(batch.steps)
   return lastMovement ? new Date(lastMovement.createdAt).getTime() : 0
@@ -115,7 +148,7 @@ export default function DashboardClient({
   const [loading, setLoading] = useState(!initialBatches.length && !initialActivity.length)
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'newest' | 'dueDate' | 'progress'>('newest')
+  const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
   const [filterRecipe, setFilterRecipe] = useState('')
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null)
   const [allWorkers, setAllWorkers] = useState<{ id: string; name: string }[]>([])
@@ -191,6 +224,8 @@ export default function DashboardClient({
     .sort((a, b) => {
       const readyDiff = Number(b.ready) - Number(a.ready)
       if (readyDiff !== 0) return readyDiff
+      const priorityDiff = priorityRank(b.batch.priority) - priorityRank(a.batch.priority)
+      if (priorityDiff !== 0) return priorityDiff
       if (!a.lastMovement && !b.lastMovement) return 0
       if (!a.lastMovement) return 1
       if (!b.lastMovement) return -1
@@ -221,7 +256,9 @@ export default function DashboardClient({
     }
 
     // Apply sorting
-    if (sortBy === 'dueDate') {
+    if (sortBy === 'priority') {
+      filtered.sort((a, b) => priorityRank(b.priority) - priorityRank(a.priority))
+    } else if (sortBy === 'dueDate') {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
@@ -334,11 +371,20 @@ export default function DashboardClient({
                   <Link
                     key={batch.id}
                     href={`/batches/${batch.id}`}
-                    className="rounded-lg border border-border bg-muted/25 px-3 py-2 transition-colors hover:border-foreground/20 hover:bg-muted/40"
+                    className={`rounded-lg border bg-muted/25 px-3 py-2 transition-colors hover:border-foreground/20 hover:bg-muted/40 ${
+                      batch.priority === 'URGENT'
+                        ? 'border-border border-l-4 border-l-red-500'
+                        : batch.priority === 'HIGH'
+                          ? 'border-border border-l-4 border-l-amber-500'
+                          : 'border-border'
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{batch.name}</p>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <p className="truncate text-sm font-semibold text-foreground">{batch.name}</p>
+                          <PriorityBadge priority={batch.priority} />
+                        </div>
                         <p className={`text-xs font-medium truncate ${
                           ready ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
                         }`}>
@@ -434,6 +480,16 @@ export default function DashboardClient({
             {/* Sort Pills */}
             <div className="flex gap-2 overflow-x-auto">
               <button
+                onClick={() => setSortBy('priority')}
+                className={`bf-select-btn whitespace-nowrap ${
+                  sortBy === 'priority'
+                    ? 'bf-select-btn-active'
+                    : ''
+                }`}
+              >
+                Urgency
+              </button>
+              <button
                 onClick={() => setSortBy('newest')}
                 className={`bf-select-btn whitespace-nowrap ${
                   sortBy === 'newest'
@@ -493,6 +549,8 @@ export default function DashboardClient({
                 const stationStates = getStationStates(batch.steps)
                 const activeStations = getActiveStations(batch.steps, 3)
                 const lastMovement = getLastBatchMovement(batch.steps)
+                const isUrgent = batch.priority === 'URGENT'
+                const isHigh = batch.priority === 'HIGH'
                 const activeWorkers = Array.from(new Set(
                   activeStations
                     .map(station => station.latestLog?.worker.name.split(' ')[0])
@@ -503,12 +561,19 @@ export default function DashboardClient({
                   <Link
                     key={batch.id}
                     href={`/batches/${batch.id}`}
-                    className="group block rounded-xl border border-border bg-card p-4 transition-colors duration-150 hover:border-foreground/20 hover:bg-muted/20 active:bg-muted/35"
+                    className={`group block rounded-xl border bg-card p-4 transition-colors duration-150 hover:border-foreground/20 hover:bg-muted/20 active:bg-muted/35 ${
+                      isUrgent
+                        ? 'border-border border-l-4 border-l-red-500'
+                        : isHigh
+                          ? 'border-border border-l-4 border-l-amber-500'
+                          : 'border-border'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-sm font-semibold text-foreground truncate">{batch.name}</h3>
+                          <PriorityBadge priority={batch.priority} />
                           {batch.strain && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
                               {batch.strain}
