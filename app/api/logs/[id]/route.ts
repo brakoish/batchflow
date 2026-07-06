@@ -8,6 +8,39 @@ function isSkippedStep(step: { name: string }) {
   return step.name.startsWith(SKIPPED_PREFIX)
 }
 
+function getStepCeilingFromPrevious(
+  previousStep: { completedQuantity: number; unitRatio: number | null },
+  step: { unitRatio: number | null }
+) {
+  return Math.floor(
+    (previousStep.completedQuantity * (previousStep.unitRatio || 1)) / (step.unitRatio || 1)
+  )
+}
+
+function isCountStepComplete(
+  step: {
+    completedQuantity: number
+    targetQuantity: number | null
+    type: string
+    name: string
+    status: string
+    unitRatio: number | null
+  },
+  previousStep?: {
+    completedQuantity: number
+    status: string
+    unitRatio: number | null
+  } | null
+) {
+  if (isSkippedStep(step)) return true
+  if (step.type === 'CHECK') return step.status === 'COMPLETED'
+  if (step.targetQuantity != null && step.completedQuantity >= step.targetQuantity) return true
+  if (!previousStep || previousStep.status !== 'COMPLETED') return false
+
+  const ceiling = getStepCeilingFromPrevious(previousStep, step)
+  return step.completedQuantity >= ceiling
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,7 +52,13 @@ export async function PATCH(
 
     const log = await prisma.progressLog.findUnique({
       where: { id },
-      include: { batchStep: true },
+      include: {
+        batchStep: {
+          include: {
+            batch: { include: { steps: { orderBy: { order: 'asc' } } } },
+          },
+        },
+      },
     })
 
     if (!log) {
@@ -76,13 +115,18 @@ export async function PATCH(
 
     const newTotal = totalResult._sum.quantity || 0
     const step = log.batchStep
+    const previousStep = [...step.batch.steps]
+      .reverse()
+      .find((s) => s.order < step.order && s.type !== 'CHECK' && !isSkippedStep(s))
+    const nextStepState = { ...step, completedQuantity: newTotal }
+    const shouldCompleteStep = isCountStepComplete(nextStepState, previousStep)
 
     // Update step
     const updatedStep = await prisma.batchStep.update({
       where: { id: step.id },
       data: {
         completedQuantity: newTotal,
-        status: newTotal >= step.targetQuantity ? 'COMPLETED' : 'IN_PROGRESS',
+        status: shouldCompleteStep ? 'COMPLETED' : 'IN_PROGRESS',
       },
     })
 
@@ -95,7 +139,13 @@ export async function PATCH(
     if (batch && batch.status === 'COMPLETED') {
       const allDone = batch.steps.every((s) => {
         if (isSkippedStep(s)) return true
-        return s.id === step.id ? newTotal >= s.targetQuantity : s.completedQuantity >= s.targetQuantity
+        const candidate = s.id === step.id
+          ? { ...s, completedQuantity: newTotal, status: shouldCompleteStep ? 'COMPLETED' : s.status }
+          : s
+        const previousCountStep = [...batch.steps]
+          .reverse()
+          .find((p) => p.order < s.order && p.type !== 'CHECK' && !isSkippedStep(p))
+        return isCountStepComplete(candidate, previousCountStep)
       })
       if (!allDone) {
         await prisma.batch.update({
@@ -122,7 +172,13 @@ export async function DELETE(
 
     const log = await prisma.progressLog.findUnique({
       where: { id },
-      include: { batchStep: true },
+      include: {
+        batchStep: {
+          include: {
+            batch: { include: { steps: { orderBy: { order: 'asc' } } } },
+          },
+        },
+      },
     })
 
     if (!log) {
@@ -157,17 +213,18 @@ export async function DELETE(
 
     const newTotal = remaining._sum.quantity || 0
     const step = log.batchStep
+    const previousStep = [...step.batch.steps]
+      .reverse()
+      .find((s) => s.order < step.order && s.type !== 'CHECK' && !isSkippedStep(s))
+    const nextStepState = { ...step, completedQuantity: newTotal }
+    const shouldCompleteStep = isCountStepComplete(nextStepState, previousStep)
 
     // Update step
     await prisma.batchStep.update({
       where: { id: step.id },
       data: {
         completedQuantity: newTotal,
-        status: newTotal >= step.targetQuantity
-          ? 'COMPLETED'
-          : newTotal > 0
-          ? 'IN_PROGRESS'
-          : 'IN_PROGRESS', // keep unlocked even at 0
+        status: shouldCompleteStep ? 'COMPLETED' : 'IN_PROGRESS',
       },
     })
 
@@ -180,7 +237,13 @@ export async function DELETE(
     if (batch && batch.status === 'COMPLETED') {
       const allDone = batch.steps.every((s) => {
         if (isSkippedStep(s)) return true
-        return s.id === step.id ? newTotal >= s.targetQuantity : s.completedQuantity >= s.targetQuantity
+        const candidate = s.id === step.id
+          ? { ...s, completedQuantity: newTotal, status: shouldCompleteStep ? 'COMPLETED' : s.status }
+          : s
+        const previousCountStep = [...batch.steps]
+          .reverse()
+          .find((p) => p.order < s.order && p.type !== 'CHECK' && !isSkippedStep(p))
+        return isCountStepComplete(candidate, previousCountStep)
       })
       if (!allDone) {
         await prisma.batch.update({

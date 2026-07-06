@@ -8,6 +8,40 @@ function isSkippedStep(step: { name: string }) {
   return step.name.startsWith(SKIPPED_PREFIX)
 }
 
+function getStepCeilingFromPrevious(
+  previousStep: { completedQuantity: number; unitRatio: number | null },
+  step: { unitRatio: number | null }
+) {
+  return Math.floor(
+    (previousStep.completedQuantity * (previousStep.unitRatio || 1)) / (step.unitRatio || 1)
+  )
+}
+
+function isCountStepComplete(
+  step: {
+    completedQuantity: number
+    targetQuantity: number | null
+    type: string
+    name: string
+    status: string
+    unitRatio: number | null
+  },
+  previousStep?: {
+    completedQuantity: number
+    targetQuantity: number | null
+    status: string
+    unitRatio: number | null
+  } | null
+) {
+  if (isSkippedStep(step)) return true
+  if (step.type === 'CHECK') return step.status === 'COMPLETED'
+  if (step.targetQuantity != null && step.completedQuantity >= step.targetQuantity) return true
+  if (!previousStep || previousStep.status !== 'COMPLETED') return false
+
+  const ceiling = getStepCeilingFromPrevious(previousStep, step)
+  return step.completedQuantity >= ceiling
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; stepId: string }> }
@@ -89,8 +123,7 @@ export async function POST(
 
     if (previousStep) {
       // Convert previous step's completed qty to base units, then to this step's units
-      const prevBaseUnits = (previousStep as any).completedQuantity * ((previousStep as any).unitRatio || 1)
-      const ceiling = Math.floor(prevBaseUnits / ((step as any).unitRatio || 1))
+      const ceiling = getStepCeilingFromPrevious(previousStep as any, step as any)
 
       if (newTotal > ceiling) {
         return NextResponse.json(
@@ -141,11 +174,20 @@ export async function POST(
 
     // Update step completed quantity and status
     // For open-ended steps (targetQuantity is null), never auto-complete
+    const nextStepState = {
+      ...step,
+      completedQuantity: newTotal,
+    }
+    const shouldCompleteStep = step.targetQuantity != null && (
+      newTotal >= step.targetQuantity ||
+      isCountStepComplete(nextStepState as any, previousStep as any)
+    )
+
     const updatedStep = await prisma.batchStep.update({
       where: { id: stepId },
       data: {
         completedQuantity: newTotal,
-        status: step.targetQuantity != null && newTotal >= step.targetQuantity ? 'COMPLETED' : 'IN_PROGRESS',
+        status: shouldCompleteStep ? 'COMPLETED' : 'IN_PROGRESS',
       },
     })
 
@@ -194,11 +236,16 @@ export async function POST(
 
     if (!hasOpenEndedSteps) {
       const allCompleted = allSteps.every(
-        (s: { id: string; name: string; targetQuantity: number; completedQuantity: number }) => {
+        (s: { id: string; name: string; order: number; type: string; status: string; targetQuantity: number | null; completedQuantity: number; unitRatio: number | null }) => {
           if (isSkippedStep(s)) return true
-          return s.id === stepId
-            ? newTotal >= s.targetQuantity
-            : s.completedQuantity >= s.targetQuantity
+          const candidate = s.id === stepId
+            ? { ...s, completedQuantity: newTotal, status: shouldCompleteStep ? 'COMPLETED' : s.status }
+            : s
+          const previousCountStep = [...allSteps]
+            .reverse()
+            .find((p: { order: number; name: string; type: string }) => p.order < s.order && p.type !== 'CHECK' && !isSkippedStep(p))
+
+          return isCountStepComplete(candidate, previousCountStep as any)
         }
       )
 
