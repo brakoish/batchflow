@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
-import { CheckCircleIcon, FlagIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, ChevronRightIcon, FlagIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
 import EditBatchModal from '@/app/components/EditBatchModal'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
@@ -525,7 +525,19 @@ export default function DashboardClient({
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Batches */}
-          <div className={`${mobileTab === 'batches' ? 'block' : 'hidden'} lg:block lg:col-span-2 space-y-2.5`}>
+          <div className={`${mobileTab === 'batches' ? 'block' : 'hidden'} lg:hidden`}>
+            <Link
+              href="/batches"
+              className="flex min-h-[64px] items-center justify-between rounded-xl border border-border bg-card px-4 py-3 active:bg-muted/35"
+            >
+              <div>
+                <p className="font-semibold text-foreground">View all batches</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">Search, filter, edit, and open workflows</p>
+              </div>
+              <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+            </Link>
+          </div>
+          <div className="hidden lg:block lg:col-span-2 space-y-2.5">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Active Batches</h2>
             {loading ? (
               <>

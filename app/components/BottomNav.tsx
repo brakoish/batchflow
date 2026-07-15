@@ -82,7 +82,7 @@ export default function BottomNav({ session }: Props) {
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-xl border-t border-border/50 safe-bottom">
-        <div className="flex items-center justify-around h-14">
+        <div className="flex items-center justify-around h-16">
           {items.map((item) => {
             const active = isActive(item.href)
             const Icon = active ? item.IconActive : item.Icon
@@ -90,12 +90,12 @@ export default function BottomNav({ session }: Props) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${
+                className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
                   active ? 'text-emerald-500' : 'text-muted-foreground'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-[9px] font-medium">{item.label}</span>
+                <Icon className="w-6 h-6" />
+                <span className="text-[11px] leading-none font-medium">{item.label}</span>
               </Link>
             )
           })}
@@ -104,15 +104,15 @@ export default function BottomNav({ session }: Props) {
             aria-label={onShift ? 'More options. You are on shift.' : 'More options'}
             aria-haspopup="dialog"
             aria-expanded={moreOpen}
-            className={`relative flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${
+            className={`relative flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
               moreOpen ? 'text-emerald-500' : 'text-muted-foreground'
             }`}
           >
             <span className="relative inline-flex">
               {moreOpen ? (
-                <EllipsisHorizontalCircleIconSolid className="w-5 h-5" />
+                <EllipsisHorizontalCircleIconSolid className="w-6 h-6" />
               ) : (
-                <EllipsisHorizontalCircleIcon className="w-5 h-5" />
+                <EllipsisHorizontalCircleIcon className="w-6 h-6" />
               )}
               {onShift && (
                 <span
@@ -124,7 +124,7 @@ export default function BottomNav({ session }: Props) {
                 </span>
               )}
             </span>
-            <span className="text-[9px] font-medium">More</span>
+            <span className="text-[11px] leading-none font-medium">More</span>
           </button>
         </div>
       </nav>

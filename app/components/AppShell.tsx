@@ -17,7 +17,7 @@ export default function AppShell({
       {children}
       <BottomNav session={session} />
       {/* Bottom padding for mobile nav */}
-      <div className="h-14 sm:h-0" />
+      <div className="h-16 sm:h-0" />
     </div>
   )
 }

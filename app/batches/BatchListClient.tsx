@@ -362,6 +362,74 @@ export default function BatchListClient({
                   ? getStationSummary(activeStations[0])
                   : 'Line complete'
 
+              if (isWorker) {
+                const station = activeStations[0]
+                const stationName = station ? displayProductionStepName(station.step) : 'Line complete'
+                const quantity = station
+                  ? station.step.targetQuantity
+                    ? `${station.step.completedQuantity}/${station.step.targetQuantity}`
+                    : `${station.step.completedQuantity} produced`
+                  : `${completedSteps}/${batch.steps.length} steps`
+                const dueLabel = batch.dueDate ? (() => {
+                  const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+                  const days = Math.round((due.getTime() - today.getTime()) / 86400000)
+                  if (days < 0) return `${Math.abs(days)}d overdue`
+                  if (days === 0) return 'Due today'
+                  if (days === 1) return 'Due tomorrow'
+                  return `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                })() : null
+
+                return (
+                  <Link
+                    key={batch.id}
+                    href={`/batches/${batch.id}`}
+                    className={`group block rounded-2xl border bg-card p-4 transition-colors active:bg-muted/35 ${
+                      isUrgent ? 'border-l-4 border-l-red-500 border-y-border border-r-border' : 'border-border'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h2 className="truncate text-lg font-semibold text-foreground">{batch.name}</h2>
+                          {(priority === 'URGENT' || priority === 'HIGH') && (
+                            <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
+                              priority === 'URGENT'
+                                ? 'bg-red-500/10 text-red-500 dark:text-red-400'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            }`}>
+                              {priority}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 truncate text-sm text-muted-foreground">{batch.recipe.name}</p>
+                      </div>
+                      {dueLabel && (
+                        <span className={`shrink-0 text-xs font-semibold ${dueLabel.includes('overdue') ? 'text-red-500' : 'text-muted-foreground'}`}>
+                          {dueLabel}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between gap-4 rounded-xl bg-muted/40 px-3 py-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {station?.label === 'waiting' ? 'Waiting' : 'Ready now'}
+                        </p>
+                        <p className="mt-0.5 truncate text-base font-semibold text-foreground">{stationName}</p>
+                      </div>
+                      <p className="shrink-0 text-base font-bold tabular-nums text-foreground">{quantity}</p>
+                    </div>
+
+                    <div className="mt-3 flex min-h-[44px] items-center justify-between border-t border-border/60 pt-3">
+                      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Open Batch</span>
+                      <ChevronRightIcon className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  </Link>
+                )
+              }
+
               return (
                 <Link
                   key={batch.id}
