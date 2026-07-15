@@ -14,6 +14,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   DocumentDuplicateIcon,
+  EllipsisHorizontalIcon,
   EyeSlashIcon,
   FlagIcon,
   PencilSquareIcon,
@@ -218,6 +219,7 @@ export default function BatchDetailClient({
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showActionsSheet, setShowActionsSheet] = useState(false)
   const [editingSteps, setEditingSteps] = useState(() => searchParams.get('editSteps') === '1')
   const [showAddStepModal, setShowAddStepModal] = useState(false)
   const [newStepName, setNewStepName] = useState('')
@@ -1384,68 +1386,14 @@ export default function BatchDetailClient({
           )}
 
           {/* Owner/Supervisor batch controls */}
-          {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && (
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-              {session.role === 'OWNER' && (
-                <button onClick={() => handleStatusChange('COMPLETED')}
-                  className="bf-btn bf-btn-success bf-btn-sm">
-                  Mark Complete
-                </button>
-              )}
-              {session.role === 'OWNER' && (
-                <button onClick={() => setShowEditModal(true)}
-                  className="bf-btn bf-btn-secondary bf-btn-sm">
-                  Edit Batch
-                </button>
-              )}
-              <button onClick={toggleStepEditing}
-                className={`bf-btn bf-btn-sm ${
-                  editingSteps
-                    ? 'bf-btn-success'
-                    : 'bf-btn-secondary'
-                }`}>
-                {editingSteps ? 'Done Editing Steps' : 'Edit Steps'}
-              </button>
-              {editingSteps && (
-                <button onClick={handleOpenAddStep}
-                  className="bf-btn bf-btn-secondary bf-btn-sm">
-                  <PlusIcon className="w-4 h-4" />
-                  Add Step
-                </button>
-              )}
-              <button onClick={handleOpenDuplicate}
-                className="bf-btn bf-btn-secondary bf-btn-sm">
-                <DocumentDuplicateIcon className="w-4 h-4" />
-                Duplicate
-              </button>
-              {session.role === 'OWNER' && (
-                <button onClick={() => handleStatusChange('CANCELLED')}
-                  className="bf-btn bf-btn-soft-danger bf-btn-sm">
-                  Cancel Batch
-                </button>
-              )}
-            </div>
-          )}
-          {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status !== 'ACTIVE' && (
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <button onClick={handleOpenDuplicate}
-                className="bf-btn bf-btn-secondary bf-btn-sm">
-                <DocumentDuplicateIcon className="w-4 h-4" />
-                Duplicate
-              </button>
-              {session.role === 'OWNER' && (
-                <button onClick={() => handleStatusChange('ACTIVE')}
-                  className="bf-btn bf-btn-soft bf-btn-sm">
-                  Reopen Batch
-                </button>
-              )}
-              {session.role === 'OWNER' && batch.status === 'CANCELLED' && (
-                <button onClick={handleDeleteBatch}
-                  className="bf-btn bf-btn-soft-danger bf-btn-sm">
-                  Delete Batch
-                </button>
-              )}
-            </div>
+          {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
+            <button
+              onClick={() => { haptic('light'); setShowActionsSheet(true) }}
+              className="bf-btn bf-btn-secondary mt-3 w-full sm:w-auto"
+            >
+              <EllipsisHorizontalIcon className="h-5 w-5" />
+              Batch Actions
+            </button>
           )}
         </div>
 
@@ -1891,6 +1839,97 @@ export default function BatchDetailClient({
         onCancel={() => setConfirmAction(null)}
         onConfirm={() => confirmAction?.onConfirm()}
       />
+
+      {/* Supervisor/owner actions sheet */}
+      {showActionsSheet && (session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+          onClick={() => setShowActionsSheet(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="batch-actions-title"
+            className="safe-bottom w-full max-w-md rounded-t-2xl border border-border bg-card sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div className="min-w-0">
+                <p id="batch-actions-title" className="font-semibold text-foreground">Batch Actions</p>
+                <p className="truncate text-sm text-muted-foreground">{batch.name}</p>
+              </div>
+              <button onClick={() => setShowActionsSheet(false)} className="bf-icon-btn" aria-label="Close batch actions">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 p-4">
+              {batch.status === 'ACTIVE' && session.role === 'OWNER' && (
+                <button
+                  onClick={() => { setShowActionsSheet(false); handleStatusChange('COMPLETED') }}
+                  className="bf-btn bf-btn-success w-full justify-start"
+                >
+                  <CheckCircleIcon className="h-5 w-5" />
+                  Mark Complete
+                </button>
+              )}
+              {batch.status === 'ACTIVE' && session.role === 'OWNER' && (
+                <button
+                  onClick={() => { setShowActionsSheet(false); setShowEditModal(true) }}
+                  className="bf-btn bf-btn-secondary w-full justify-start"
+                >
+                  <PencilSquareIcon className="h-5 w-5" />
+                  Edit Batch Details
+                </button>
+              )}
+              {batch.status === 'ACTIVE' && (
+                <button
+                  onClick={() => { setShowActionsSheet(false); toggleStepEditing() }}
+                  className="bf-btn bf-btn-secondary w-full justify-start"
+                >
+                  <PencilSquareIcon className="h-5 w-5" />
+                  {editingSteps ? 'Done Editing Steps' : 'Edit Production Steps'}
+                </button>
+              )}
+              <button
+                onClick={() => { setShowActionsSheet(false); handleOpenDuplicate() }}
+                className="bf-btn bf-btn-secondary w-full justify-start"
+              >
+                <DocumentDuplicateIcon className="h-5 w-5" />
+                Duplicate Batch
+              </button>
+              {batch.status !== 'ACTIVE' && session.role === 'OWNER' && (
+                <button
+                  onClick={() => { setShowActionsSheet(false); handleStatusChange('ACTIVE') }}
+                  className="bf-btn bf-btn-secondary w-full justify-start"
+                >
+                  Reopen Batch
+                </button>
+              )}
+            </div>
+
+            {session.role === 'OWNER' && (batch.status === 'ACTIVE' || batch.status === 'CANCELLED') && (
+              <div className="border-t border-border p-4">
+                {batch.status === 'ACTIVE' ? (
+                  <button
+                    onClick={() => { setShowActionsSheet(false); handleStatusChange('CANCELLED') }}
+                    className="bf-btn bf-btn-soft-danger w-full justify-start"
+                  >
+                    Cancel Batch
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setShowActionsSheet(false); handleDeleteBatch() }}
+                    className="bf-btn bf-btn-soft-danger w-full justify-start"
+                  >
+                    Delete Batch
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Add Batch Step Modal */}
       {showAddStepModal && (
