@@ -74,6 +74,29 @@
   --radius-full: 9999px;
 }
 
+@keyframes bf-announcement-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.bf-announcement-track {
+  display: inline-block;
+  min-width: max-content;
+  animation: bf-announcement-scroll 18s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bf-announcement-track {
+    animation: none;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .bf-announcement-track > [aria-hidden='true'] {
+    display: none;
+  }
+}
+
 .dark {
   --color-background: #0a0a0a;
   --color-foreground: #fafafa;

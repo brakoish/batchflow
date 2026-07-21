@@ -14,6 +14,7 @@ import {
   UsersIcon,
   BuildingOffice2Icon,
   DocumentTextIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline'
 import ThemeToggle from './ThemeToggle'
 import { haptic } from '@/lib/haptic'
@@ -111,8 +112,15 @@ export default function MoreMenu({ session, open, onClose }: Props) {
         { href: '/history', label: 'Reports', Icon: DocumentTextIcon },
         { href: '/workers', label: 'Team', Icon: UsersIcon },
         { href: '/org/invite', label: 'Org settings', Icon: BuildingOffice2Icon },
+        { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
       ]
-    : [
+    : session.role === 'SUPERVISOR'
+      ? [
+          { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
+          { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },
+          { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },
+        ]
+      : [
         { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },
         { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },
       ]

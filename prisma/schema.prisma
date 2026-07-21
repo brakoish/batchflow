@@ -111,8 +111,21 @@ model Organization {
   workers     Worker[]
   batches     Batch[]
   recipes     Recipe[]
+  announcement Announcement?
 
   @@index([slug])
+}
+
+model Announcement {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  message        String       @db.Text
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
 }
 
 model Worker {

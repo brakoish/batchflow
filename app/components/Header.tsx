@@ -67,12 +67,14 @@ export default function Header({ session, organizationName }: HeaderProps) {
     { href: '/recipes', label: 'Recipes' },
     { href: '/workers', label: 'Workers' },
     { href: '/org/invite', label: 'Org' },
+    { href: '/announcements', label: 'Alert' },
   ]
 
   const supervisorNavItems = [
     { href: '/batches', label: 'Batches' },
     { href: '/batches/new', label: 'New Batch' },
     { href: '/recipes', label: 'Recipes' },
+    { href: '/announcements', label: 'Alert' },
   ]
 
   const workerNavItems = [
@@ -84,7 +86,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
-    <header className="sticky top-0 z-40 bg-background border-b border-border">
+    <header className="bg-background border-b border-border">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link href={isOwner ? '/dashboard' : '/batches'} className="flex items-center gap-2">
