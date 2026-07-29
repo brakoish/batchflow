@@ -68,6 +68,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
     { href: '/workers', label: 'Workers' },
     { href: '/org/invite', label: 'Org' },
     { href: '/announcements', label: 'Alert' },
+    { href: '/tools', label: 'Tools' },
   ]
 
   const supervisorNavItems = [
@@ -75,10 +76,12 @@ export default function Header({ session, organizationName }: HeaderProps) {
     { href: '/batches/new', label: 'New Batch' },
     { href: '/recipes', label: 'Recipes' },
     { href: '/announcements', label: 'Alert' },
+    { href: '/tools', label: 'Tools' },
   ]
 
   const workerNavItems = [
     { href: '/batches', label: 'Batches' },
+    { href: '/tools', label: 'Tools' },
   ]
 
   const navItems = isOwner ? ownerNavItems : isSupervisor ? supervisorNavItems : workerNavItems

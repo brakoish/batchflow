@@ -60,6 +60,13 @@
       "description": "Production overview",
       "url": "/dashboard",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Retail ID Scanner",
+      "short_name": "Scan Retail ID",
+      "description": "Scan a Metrc Retail ID and identify the product",
+      "url": "/tools/retail-id",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

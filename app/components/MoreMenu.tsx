@@ -15,6 +15,7 @@ import {
   BuildingOffice2Icon,
   DocumentTextIcon,
   MegaphoneIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline'
 import ThemeToggle from './ThemeToggle'
 import { haptic } from '@/lib/haptic'
@@ -106,6 +107,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
   type Item = { href: string; label: string; Icon: any }
   const items: Item[] = isOwner
     ? [
+        { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
         { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon },
         { href: '/timesheet', label: 'Timesheets', Icon: ClockIcon },
         { href: '/recipes', label: 'Recipes', Icon: BeakerIcon },
@@ -116,11 +118,13 @@ export default function MoreMenu({ session, open, onClose }: Props) {
       ]
     : session.role === 'SUPERVISOR'
       ? [
+          { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
           { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
           { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },
           { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },
         ]
       : [
+        { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
         { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },
         { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },
       ]
