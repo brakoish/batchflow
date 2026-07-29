@@ -19,7 +19,7 @@ type ScanResult = {
   sourceUrl: string
 }
 
-type ScannerState = 'starting' | 'scanning' | 'loading' | 'result' | 'error'
+type ScannerState = 'starting' | 'scanning' | 'loading' | 'error'
 
 type ExtendedTrackCapabilities = MediaTrackCapabilities & {
   focusMode?: string[]
@@ -57,20 +57,31 @@ export default function RetailIdScanner() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const scannerRef = useRef<QrScanner | null>(null)
   const scanLockedRef = useRef(false)
+  const lastScannedRef = useRef({ value: '', at: 0 })
   const mountedRef = useRef(true)
 
   const [state, setState] = useState<ScannerState>('starting')
   const [result, setResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState('')
+  const [scanError, setScanError] = useState('')
   const [torchAvailable, setTorchAvailable] = useState(false)
   const [torchOn, setTorchOn] = useState(false)
 
   const lookUpRetailId = useCallback(async (url: string) => {
     if (scanLockedRef.current) return
 
+    const now = Date.now()
+    if (
+      lastScannedRef.current.value === url &&
+      now - lastScannedRef.current.at < 2_500
+    ) {
+      return
+    }
+
     scanLockedRef.current = true
-    scannerRef.current?.stop()
+    lastScannedRef.current = { value: url, at: now }
     setState('loading')
+    setScanError('')
     haptic('medium')
 
     try {
@@ -88,17 +99,19 @@ export default function RetailIdScanner() {
 
       if (!mountedRef.current) return
       setResult(data)
-      setState('result')
       haptic('medium')
     } catch (lookupError) {
       if (!mountedRef.current) return
-      setError(
+      setScanError(
         lookupError instanceof Error
           ? lookupError.message
           : 'Could not read that Retail ID.'
       )
-      setState('error')
       haptic('heavy')
+    } finally {
+      if (!mountedRef.current) return
+      scanLockedRef.current = false
+      setState('scanning')
     }
   }, [])
 
@@ -106,6 +119,7 @@ export default function RetailIdScanner() {
     scannerRef.current?.destroy()
     scannerRef.current = null
     setError('')
+    setScanError('')
     setResult(null)
     setTorchAvailable(false)
     setTorchOn(false)
@@ -123,10 +137,10 @@ export default function RetailIdScanner() {
         },
         {
           preferredCamera: 'environment',
-          maxScansPerSecond: 5,
+          maxScansPerSecond: 10,
           calculateScanRegion: (cameraVideo) => {
             const size = Math.round(
-              Math.min(cameraVideo.videoWidth, cameraVideo.videoHeight) * 0.85
+              Math.min(cameraVideo.videoWidth, cameraVideo.videoHeight) * 0.62
             )
 
             return {
@@ -191,32 +205,6 @@ export default function RetailIdScanner() {
     }
   }
 
-  const scanAgain = async () => {
-    const scanner = scannerRef.current
-    if (!scanner) {
-      await startCamera()
-      return
-    }
-
-    setResult(null)
-    setError('')
-    setState('starting')
-    scanLockedRef.current = false
-
-    try {
-      await scanner.start()
-      if (!mountedRef.current) return
-      setTorchAvailable(await scanner.hasFlash())
-      setState('scanning')
-    } catch {
-      if (!mountedRef.current) return
-      setError(
-        'Could not restart the camera. Check camera access for BatchFlow, then try again.'
-      )
-      setState('error')
-    }
-  }
-
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-4">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -236,7 +224,7 @@ export default function RetailIdScanner() {
           </div>
         </div>
 
-        {torchAvailable && state !== 'result' && (
+        {torchAvailable && (
           <button
             type="button"
             onClick={toggleTorch}
@@ -260,14 +248,14 @@ export default function RetailIdScanner() {
           aria-label="Camera preview"
         />
 
-        {(state === 'starting' || state === 'scanning') && (
+        {state !== 'error' && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="relative aspect-square w-[58%] rounded-3xl border border-white/30">
               <span className="absolute -left-0.5 -top-0.5 h-12 w-12 rounded-tl-3xl border-l-4 border-t-4 border-emerald-400" />
               <span className="absolute -right-0.5 -top-0.5 h-12 w-12 rounded-tr-3xl border-r-4 border-t-4 border-emerald-400" />
               <span className="absolute -bottom-0.5 -left-0.5 h-12 w-12 rounded-bl-3xl border-b-4 border-l-4 border-emerald-400" />
               <span className="absolute -bottom-0.5 -right-0.5 h-12 w-12 rounded-br-3xl border-b-4 border-r-4 border-emerald-400" />
-              {state === 'scanning' && (
+              {state !== 'starting' && (
                 <span className="absolute left-3 right-3 top-1/2 h-0.5 bg-emerald-400/90 shadow-[0_0_14px_rgba(52,211,153,0.9)]" />
               )}
             </div>
@@ -282,40 +270,9 @@ export default function RetailIdScanner() {
         )}
 
         {state === 'loading' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/75 px-8 text-center text-white">
-            <span className="h-10 w-10 animate-spin rounded-full border-4 border-white/25 border-t-emerald-400" />
-            <p className="font-semibold">Finding product…</p>
-          </div>
-        )}
-
-        {state === 'result' && result && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/75 p-4">
-            <div className="w-full rounded-3xl bg-white p-5 text-slate-950 shadow-2xl">
-              <CheckCircleIcon className="mb-3 h-10 w-10 text-emerald-600" />
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">
-                Product found
-              </p>
-              <h2 className="mt-2 text-2xl font-extrabold leading-tight">
-                {result.name}
-              </h2>
-              {result.strain && (
-                <p className="mt-2 text-base font-semibold text-slate-600">
-                  {result.strain}
-                </p>
-              )}
-              {result.packageLabel && (
-                <p className="mt-4 break-all font-mono text-xs text-slate-500">
-                  {result.packageLabel}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={scanAgain}
-                className="mt-5 min-h-[52px] w-full rounded-xl bg-emerald-600 px-4 text-base font-bold text-white active:scale-[0.98]"
-              >
-                Scan next item
-              </button>
-            </div>
+          <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-center justify-center gap-2 rounded-full bg-black/70 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-emerald-400" />
+            Finding product…
           </div>
         )}
 
@@ -334,6 +291,47 @@ export default function RetailIdScanner() {
               </button>
             </div>
           </div>
+        )}
+      </div>
+
+      <div aria-live="polite" className="mt-3">
+        {scanError ? (
+          <div className="flex items-start gap-3 rounded-2xl border border-red-500/25 bg-red-500/10 p-4">
+            <XCircleIcon className="mt-0.5 h-6 w-6 shrink-0 text-red-500" />
+            <div>
+              <p className="font-bold">Couldn’t read that QR</p>
+              <p className="mt-1 text-sm text-muted-foreground">{scanError}</p>
+              <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">
+                Camera is still ready—try the next code.
+              </p>
+            </div>
+          </div>
+        ) : result ? (
+          <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+            <CheckCircleIcon className="mt-0.5 h-7 w-7 shrink-0 text-emerald-600" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+                Scanned — ready for next
+              </p>
+              <h2 className="mt-1 text-lg font-extrabold leading-tight">
+                {result.name}
+              </h2>
+              {result.strain && (
+                <p className="mt-1 text-sm font-semibold text-muted-foreground">
+                  {result.strain}
+                </p>
+              )}
+              {result.packageLabel && (
+                <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
+                  {result.packageLabel}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-center text-sm font-semibold text-muted-foreground">
+            Camera stays open—move straight to the next QR after each scan.
+          </p>
         )}
       </div>
 
