@@ -9,15 +9,8 @@ import {
   QrCodeIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
+import QrScanner from 'qr-scanner'
 import { haptic } from '@/lib/haptic'
-
-type BarcodeDetectorInstance = {
-  detect(source: CanvasImageSource): Promise<Array<{ rawValue: string }>>
-}
-
-type BarcodeDetectorConstructor = new (options: {
-  formats: string[]
-}) => BarcodeDetectorInstance
 
 type ScanResult = {
   name: string
@@ -30,9 +23,7 @@ type ScannerState = 'starting' | 'scanning' | 'loading' | 'result' | 'error'
 
 export default function RetailIdScanner() {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const detectorRef = useRef<BarcodeDetectorInstance | null>(null)
-  const scanTimerRef = useRef<number | null>(null)
+  const scannerRef = useRef<QrScanner | null>(null)
   const scanLockedRef = useRef(false)
   const mountedRef = useRef(true)
 
@@ -42,16 +33,11 @@ export default function RetailIdScanner() {
   const [torchAvailable, setTorchAvailable] = useState(false)
   const [torchOn, setTorchOn] = useState(false)
 
-  const stopTimer = useCallback(() => {
-    if (scanTimerRef.current !== null) {
-      window.clearTimeout(scanTimerRef.current)
-      scanTimerRef.current = null
-    }
-  }, [])
-
   const lookUpRetailId = useCallback(async (url: string) => {
+    if (scanLockedRef.current) return
+
     scanLockedRef.current = true
-    stopTimer()
+    scannerRef.current?.stop()
     setState('loading')
     haptic('medium')
 
@@ -82,87 +68,44 @@ export default function RetailIdScanner() {
       setState('error')
       haptic('heavy')
     }
-  }, [stopTimer])
-
-  const scanFrame = useCallback(async () => {
-    const detector = detectorRef.current
-    const video = videoRef.current
-
-    if (
-      !detector ||
-      !video ||
-      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
-      scanLockedRef.current
-    ) {
-      scanTimerRef.current = window.setTimeout(scanFrame, 180)
-      return
-    }
-
-    try {
-      const barcodes = await detector.detect(video)
-      const value = barcodes.find((barcode) => barcode.rawValue)?.rawValue
-
-      if (value) {
-        await lookUpRetailId(value)
-        return
-      }
-    } catch {
-      // Individual frames can fail while the camera is focusing.
-    }
-
-    scanTimerRef.current = window.setTimeout(scanFrame, 180)
-  }, [lookUpRetailId])
+  }, [])
 
   const startCamera = useCallback(async () => {
-    stopTimer()
+    scannerRef.current?.destroy()
+    scannerRef.current = null
     setError('')
     setResult(null)
+    setTorchAvailable(false)
     setTorchOn(false)
     setState('starting')
     scanLockedRef.current = false
 
     try {
-      const Detector = (
-        window as typeof window & {
-          BarcodeDetector?: BarcodeDetectorConstructor
-        }
-      ).BarcodeDetector
+      const video = videoRef.current
+      if (!video) return
 
-      if (!Detector) {
-        throw new Error(
-          'QR scanning is not supported by this browser yet. Open BatchFlow in current Chrome or your installed PWA.'
-        )
-      }
-
-      detectorRef.current = new Detector({ formats: ['qr_code'] })
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+      const scanner = new QrScanner(
+        video,
+        (scan) => {
+          void lookUpRetailId(scan.data)
         },
-      })
+        {
+          preferredCamera: 'environment',
+          maxScansPerSecond: 8,
+          returnDetailedScanResult: true,
+        }
+      )
+
+      scannerRef.current = scanner
+      await scanner.start()
 
       if (!mountedRef.current) {
-        stream.getTracks().forEach((track) => track.stop())
+        scanner.destroy()
         return
       }
 
-      streamRef.current = stream
-      const track = stream.getVideoTracks()[0]
-      const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & {
-        torch?: boolean
-      }
-      setTorchAvailable(Boolean(capabilities?.torch))
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-
+      setTorchAvailable(await scanner.hasFlash())
       setState('scanning')
-      scanTimerRef.current = window.setTimeout(scanFrame, 120)
     } catch (cameraError) {
       if (!mountedRef.current) return
 
@@ -171,14 +114,12 @@ export default function RetailIdScanner() {
         (cameraError.name === 'NotAllowedError' ||
           cameraError.name === 'PermissionDeniedError')
           ? 'Camera access is blocked. Allow camera access for BatchFlow, then try again.'
-          : cameraError instanceof Error
-            ? cameraError.message
-            : 'Could not start the camera.'
+          : 'Could not start the camera. Check camera access for BatchFlow, then try again.'
 
       setError(message)
       setState('error')
     }
-  }, [scanFrame, stopTimer])
+  }, [lookUpRetailId])
 
   useEffect(() => {
     mountedRef.current = true
@@ -186,22 +127,18 @@ export default function RetailIdScanner() {
 
     return () => {
       mountedRef.current = false
-      stopTimer()
-      streamRef.current?.getTracks().forEach((track) => track.stop())
+      scannerRef.current?.destroy()
+      scannerRef.current = null
     }
-  }, [startCamera, stopTimer])
+  }, [startCamera])
 
   const toggleTorch = async () => {
-    const track = streamRef.current?.getVideoTracks()[0]
-    if (!track) return
-
-    const nextTorchState = !torchOn
+    const scanner = scannerRef.current
+    if (!scanner) return
 
     try {
-      await track.applyConstraints({
-        advanced: [{ torch: nextTorchState } as MediaTrackConstraintSet],
-      })
-      setTorchOn(nextTorchState)
+      await scanner.toggleFlash()
+      setTorchOn(scanner.isFlashOn())
       haptic('light')
     } catch {
       setTorchAvailable(false)
@@ -209,12 +146,30 @@ export default function RetailIdScanner() {
     }
   }
 
-  const scanAgain = () => {
+  const scanAgain = async () => {
+    const scanner = scannerRef.current
+    if (!scanner) {
+      await startCamera()
+      return
+    }
+
     setResult(null)
     setError('')
-    setState('scanning')
+    setState('starting')
     scanLockedRef.current = false
-    scanTimerRef.current = window.setTimeout(scanFrame, 120)
+
+    try {
+      await scanner.start()
+      if (!mountedRef.current) return
+      setTorchAvailable(await scanner.hasFlash())
+      setState('scanning')
+    } catch {
+      if (!mountedRef.current) return
+      setError(
+        'Could not restart the camera. Check camera access for BatchFlow, then try again.'
+      )
+      setState('error')
+    }
   }
 
   return (
