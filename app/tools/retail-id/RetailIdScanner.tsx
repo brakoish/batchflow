@@ -21,6 +21,38 @@ type ScanResult = {
 
 type ScannerState = 'starting' | 'scanning' | 'loading' | 'result' | 'error'
 
+type ExtendedTrackCapabilities = MediaTrackCapabilities & {
+  focusMode?: string[]
+  zoom?: { min: number; max: number }
+}
+
+type ExtendedTrackConstraintSet = MediaTrackConstraintSet & {
+  focusMode?: string
+  zoom?: number
+}
+
+async function optimizeRearCamera(video: HTMLVideoElement) {
+  if (!(video.srcObject instanceof MediaStream)) return
+
+  const track = video.srcObject.getVideoTracks()[0]
+  if (!track?.getCapabilities) return
+
+  const capabilities = track.getCapabilities() as ExtendedTrackCapabilities
+  const cameraSettings: ExtendedTrackConstraintSet = {}
+
+  if (capabilities.focusMode?.includes('continuous')) {
+    cameraSettings.focusMode = 'continuous'
+  }
+
+  if (capabilities.zoom && capabilities.zoom.max > 1) {
+    cameraSettings.zoom = Math.min(1.5, capabilities.zoom.max)
+  }
+
+  if (Object.keys(cameraSettings).length > 0) {
+    await track.applyConstraints({ advanced: [cameraSettings] })
+  }
+}
+
 export default function RetailIdScanner() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const scannerRef = useRef<QrScanner | null>(null)
@@ -91,13 +123,26 @@ export default function RetailIdScanner() {
         },
         {
           preferredCamera: 'environment',
-          maxScansPerSecond: 8,
+          maxScansPerSecond: 5,
+          calculateScanRegion: (cameraVideo) => {
+            const size = Math.round(
+              Math.min(cameraVideo.videoWidth, cameraVideo.videoHeight) * 0.85
+            )
+
+            return {
+              x: Math.round((cameraVideo.videoWidth - size) / 2),
+              y: Math.round((cameraVideo.videoHeight - size) / 2),
+              width: size,
+              height: size,
+            }
+          },
           returnDetailedScanResult: true,
         }
       )
 
       scannerRef.current = scanner
       await scanner.start()
+      await optimizeRearCamera(video).catch(() => undefined)
 
       if (!mountedRef.current) {
         scanner.destroy()
@@ -186,7 +231,7 @@ export default function RetailIdScanner() {
           <div className="min-w-0">
             <h1 className="truncate text-lg font-bold">Retail ID Scanner</h1>
             <p className="text-xs text-muted-foreground">
-              Hold the QR code inside the frame
+              Move close and center the QR code
             </p>
           </div>
         </div>
@@ -217,7 +262,7 @@ export default function RetailIdScanner() {
 
         {(state === 'starting' || state === 'scanning') && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="relative h-[58%] w-[76%] rounded-3xl border border-white/30">
+            <div className="relative aspect-square w-[58%] rounded-3xl border border-white/30">
               <span className="absolute -left-0.5 -top-0.5 h-12 w-12 rounded-tl-3xl border-l-4 border-t-4 border-emerald-400" />
               <span className="absolute -right-0.5 -top-0.5 h-12 w-12 rounded-tr-3xl border-r-4 border-t-4 border-emerald-400" />
               <span className="absolute -bottom-0.5 -left-0.5 h-12 w-12 rounded-bl-3xl border-b-4 border-l-4 border-emerald-400" />
