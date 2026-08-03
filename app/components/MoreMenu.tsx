@@ -119,6 +119,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
     : session.role === 'SUPERVISOR'
       ? [
           { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
+          { href: '/recipes', label: 'Recipes', Icon: BeakerIcon },
           { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
           { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },
           { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },

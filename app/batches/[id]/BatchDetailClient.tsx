@@ -1864,7 +1864,7 @@ export default function BatchDetailClient({
             </div>
 
             <div className="space-y-2 p-4">
-              {batch.status === 'ACTIVE' && session.role === 'OWNER' && (
+              {batch.status === 'ACTIVE' && (
                 <button
                   onClick={() => { setShowActionsSheet(false); handleStatusChange('COMPLETED') }}
                   className="bf-btn bf-btn-success w-full justify-start"
@@ -1873,7 +1873,7 @@ export default function BatchDetailClient({
                   Mark Complete
                 </button>
               )}
-              {batch.status === 'ACTIVE' && session.role === 'OWNER' && (
+              {batch.status === 'ACTIVE' && (
                 <button
                   onClick={() => { setShowActionsSheet(false); setShowEditModal(true) }}
                   className="bf-btn bf-btn-secondary w-full justify-start"
@@ -2613,7 +2613,7 @@ export default function BatchDetailClient({
       )}
 
       {/* Edit Batch Modal */}
-      {session.role === 'OWNER' && (
+      {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
         <EditBatchModal
           batch={showEditModal ? batch : null}
           workers={workers}

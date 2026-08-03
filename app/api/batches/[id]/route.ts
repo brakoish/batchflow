@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSession, requireOwner } from '@/lib/auth'
+import { requireSession, requireOwner, requireSupervisorOrOwner } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -71,15 +71,30 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireOwner()
+    const session = await requireSupervisorOrOwner()
     const { id } = await params
     const body = await request.json()
+
+    const existingBatch = await prisma.batch.findFirst({
+      where: { id, organizationId: session.user.organizationId },
+      select: { id: true },
+    })
+
+    if (!existingBatch) {
+      return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+    }
     
     // Handle status-only updates (from batch actions)
     if (body.status && !body.name) {
       const { status } = body
       if (!['ACTIVE', 'COMPLETED', 'CANCELLED'].includes(status)) {
         return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+      }
+
+      // Supervisors can finish production runs, while destructive/lifecycle
+      // reversals (cancel and reopen) remain owner-only.
+      if (session.user.role === 'SUPERVISOR' && status !== 'COMPLETED') {
+        return NextResponse.json({ error: 'Owner access required for this status change' }, { status: 403 })
       }
       
       await prisma.batch.update({
