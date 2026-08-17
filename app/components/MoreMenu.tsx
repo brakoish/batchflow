@@ -110,6 +110,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
       ]
     : session.role === 'SUPERVISOR'
       ? [
+          { href: '/history', label: 'Batch history', Icon: ClockIcon },
           { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
           { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
           { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },

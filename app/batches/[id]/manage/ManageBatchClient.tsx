@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { CheckCircleIcon, HashtagIcon } from '@heroicons/react/24/solid'
 import AppShell from '@/app/components/AppShell'
 import ConfirmModal from '@/app/components/ConfirmModal'
 import { emitBatchChanged } from '@/lib/batchEvents'
@@ -44,6 +45,24 @@ function Section({ title, summary, children, defaultOpen = false }: {
 
 const inputClass = 'w-full min-h-[48px] rounded-xl border border-input bg-muted px-3 py-2.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50'
 const labelClass = 'mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground'
+
+function StepTypePicker({ value, onChange }: { value: 'COUNT' | 'CHECK'; onChange: (value: 'COUNT' | 'CHECK') => void }) {
+  return (
+    <div>
+      <label className={labelClass}>What does the worker do?</label>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => onChange('CHECK')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'CHECK' ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400' : ''}`}>
+          <CheckCircleIcon className="h-6 w-6 shrink-0" />
+          <span className="text-left"><span className="block">Checkpoint</span><span className="block text-[11px] font-normal opacity-70">Mark done</span></span>
+        </button>
+        <button type="button" onClick={() => onChange('COUNT')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'COUNT' ? 'bf-select-btn-active' : ''}`}>
+          <HashtagIcon className="h-6 w-6 shrink-0" />
+          <span className="text-left"><span className="block">Count</span><span className="block text-[11px] font-normal opacity-70">Log quantities</span></span>
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function ManageBatchClient({ initialBatch, workers, session, duplicate }: {
   initialBatch: Batch; workers: Worker[]; session: Session; duplicate: boolean
@@ -197,6 +216,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
 
         {toast && <div className="fixed left-1/2 top-4 z-[70] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">{toast}</div>}
         {error && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>}
+        {!duplicate && batch.status !== 'ACTIVE' && <div className="mb-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-sm text-muted-foreground">This {batch.status.toLowerCase()} batch is closed. Owners and supervisors can correct its setup or duplicate it; its recorded production workflow stays locked.</div>}
 
         <div className="space-y-3">
           <Section title="Setup" summary={`${summaryTarget} · ${priority}`} defaultOpen>
@@ -224,19 +244,28 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
           </Section>
 
           {!duplicate && batch.status === 'ACTIVE' && <Section title="Workflow" summary={`${batch.steps.filter((s) => !s.name.startsWith(SKIPPED_PREFIX)).length} active steps`}>
-            <p className="text-sm text-muted-foreground">This changes only this batch. The recipe stays untouched.</p>
-            <div className="space-y-2">{batch.steps.map((step, index) => <div key={step.id} className={`rounded-xl border p-3 ${step.name.startsWith(SKIPPED_PREFIX) ? 'border-amber-500/20 bg-amber-500/5 opacity-70' : 'border-border bg-muted/30'}`}>
-              {editingStep === step.id ? <div className="space-y-2">
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-sm text-muted-foreground">
+              This is this batch&apos;s worker flow. Changes here do not alter the original recipe.
+            </div>
+            <div className="space-y-2">{batch.steps.map((step, index) => <div key={step.id} className={`overflow-hidden rounded-xl border ${editingStep === step.id ? 'border-emerald-500/40 bg-emerald-500/5' : step.name.startsWith(SKIPPED_PREFIX) ? 'border-amber-500/20 bg-amber-500/5 opacity-70' : 'border-border bg-muted/30'}`}>
+              {editingStep === step.id ? <div className="space-y-3 p-3">
+                <div><label className={labelClass}>Step {index + 1}</label>
                 <input className={inputClass} value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" />
-                <div className="grid grid-cols-2 gap-2"><select className={inputClass} value={stepDraft.type} onChange={(e) => setStepDraft({ ...stepDraft, type: e.target.value as 'COUNT' | 'CHECK' })}><option value="COUNT">Count</option><option value="CHECK">Done tap</option></select><input className={inputClass} value={stepDraft.unitLabel} onChange={(e) => setStepDraft({ ...stepDraft, unitLabel: e.target.value })} placeholder="Unit" /></div>
-                {stepDraft.type === 'COUNT' && <input className={inputClass} type="number" inputMode="numeric" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open-ended target" />}
+                </div>
+                <StepTypePicker value={stepDraft.type} onChange={(type) => setStepDraft({ ...stepDraft, type })} />
+                {stepDraft.type === 'COUNT' && <div className="grid grid-cols-2 gap-2"><div><label className={labelClass}>Worker counts</label><input className={inputClass} value={stepDraft.unitLabel} onChange={(e) => setStepDraft({ ...stepDraft, unitLabel: e.target.value })} placeholder="Units" /></div><div><label className={labelClass}>Step target</label><input className={inputClass} type="number" inputMode="decimal" min="0" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /></div></div>}
+                {step.completedQuantity > 0 && <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">This step already has {step.completedQuantity.toLocaleString()} logged. Its production history will be kept.</p>}
                 <div className="flex gap-2"><button type="button" onClick={() => saveStep(step)} className="bf-btn bf-btn-primary flex-1">Save step</button><button type="button" onClick={() => setEditingStep(null)} className="bf-btn bf-btn-secondary">Cancel</button></div>
               </div> : <>
-                <div className="flex items-start justify-between gap-2"><div><p className="font-medium text-foreground">{index + 1}. {cleanStepName(step.name)}</p><p className="text-xs text-muted-foreground">{step.type === 'CHECK' ? 'Done tap' : step.targetQuantity == null ? `Open count · ${step.unitLabel}` : `${step.targetQuantity} ${step.unitLabel}`}</p></div><button type="button" onClick={() => openStepEditor(step)} className="bf-btn bf-btn-ghost bf-btn-sm">Edit</button></div>
-                <div className="mt-2 flex gap-2"><button type="button" disabled={index === 0} onClick={() => stepAction(step, 'move-up')} className="bf-icon-btn" aria-label="Move step up">↑</button><button type="button" disabled={index === batch.steps.length - 1} onClick={() => stepAction(step, 'move-down')} className="bf-icon-btn" aria-label="Move step down">↓</button><button type="button" onClick={() => stepAction(step, step.name.startsWith(SKIPPED_PREFIX) ? 'unskip' : 'skip')} className="bf-btn bf-btn-ghost bf-btn-sm ml-auto">{step.name.startsWith(SKIPPED_PREFIX) ? 'Restore' : 'Skip'}</button></div>
+                <button type="button" onClick={() => openStepEditor(step)} className="flex min-h-[62px] w-full items-center gap-3 px-3 py-2 text-left">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card text-xs font-bold text-muted-foreground">{index + 1}</span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-foreground">{cleanStepName(step.name)}</span><span className="block text-[11px] text-muted-foreground">{step.type === 'CHECK' ? 'Checkpoint · mark done' : step.targetQuantity == null ? `Count · ${step.unitLabel} · open target` : `Count · ${step.targetQuantity} ${step.unitLabel}`}</span></span>
+                  <span className="text-xs font-medium text-muted-foreground">Edit</span>
+                </button>
+                <div className="flex gap-2 border-t border-border/70 px-3 py-2"><button type="button" disabled={index === 0} onClick={() => stepAction(step, 'move-up')} className="bf-icon-btn" aria-label="Move step up">↑</button><button type="button" disabled={index === batch.steps.length - 1} onClick={() => stepAction(step, 'move-down')} className="bf-icon-btn" aria-label="Move step down">↓</button><button type="button" onClick={() => stepAction(step, step.name.startsWith(SKIPPED_PREFIX) ? 'unskip' : 'skip')} className="bf-btn bf-btn-ghost bf-btn-sm ml-auto">{step.name.startsWith(SKIPPED_PREFIX) ? 'Restore' : 'Skip'}</button></div>
               </>}
             </div>)}</div>
-            {addingStep ? <div className="space-y-2 rounded-xl border border-border p-3"><input className={inputClass} value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="New step name" /><div className="grid grid-cols-2 gap-2"><select className={inputClass} value={stepDraft.type} onChange={(e) => setStepDraft({ ...stepDraft, type: e.target.value as 'COUNT' | 'CHECK' })}><option value="COUNT">Count</option><option value="CHECK">Done tap</option></select><input className={inputClass} value={stepDraft.unitLabel} onChange={(e) => setStepDraft({ ...stepDraft, unitLabel: e.target.value })} placeholder="Unit" /></div>{stepDraft.type === 'COUNT' && <input className={inputClass} type="number" inputMode="numeric" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Target (blank = open)" />}<div className="flex gap-2"><button type="button" onClick={addStep} className="bf-btn bf-btn-primary flex-1">Add step</button><button type="button" onClick={() => setAddingStep(false)} className="bf-btn bf-btn-secondary">Cancel</button></div></div> : <button type="button" onClick={() => { setAddingStep(true); setStepDraft({ name: '', type: 'COUNT', target: '', unitLabel: 'units' }) }} className="bf-btn bf-btn-secondary w-full">+ Add one-off step</button>}
+            {addingStep ? <div className="space-y-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3"><div><label className={labelClass}>New one-off step</label><input className={inputClass} value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" /></div><StepTypePicker value={stepDraft.type} onChange={(type) => setStepDraft({ ...stepDraft, type })} />{stepDraft.type === 'COUNT' && <div className="grid grid-cols-2 gap-2"><div><label className={labelClass}>Worker counts</label><input className={inputClass} value={stepDraft.unitLabel} onChange={(e) => setStepDraft({ ...stepDraft, unitLabel: e.target.value })} placeholder="Units" /></div><div><label className={labelClass}>Step target</label><input className={inputClass} type="number" inputMode="decimal" min="0" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /></div></div>}<div className="flex gap-2"><button type="button" onClick={addStep} className="bf-btn bf-btn-primary flex-1">Add step</button><button type="button" onClick={() => setAddingStep(false)} className="bf-btn bf-btn-secondary">Cancel</button></div></div> : <button type="button" onClick={() => { setAddingStep(true); setStepDraft({ name: '', type: 'COUNT', target: '', unitLabel: 'units' }) }} className="bf-btn bf-btn-secondary w-full">+ Add one-off step</button>}
           </Section>}
 
           {duplicate && <Section title="Workflow" summary={`${batch.steps.filter((s) => !s.name.startsWith(SKIPPED_PREFIX)).length} steps will be copied`}>

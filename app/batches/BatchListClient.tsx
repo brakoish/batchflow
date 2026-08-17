@@ -180,7 +180,7 @@ export default function BatchListClient({
             </div>
             {!isWorker ? (
               <div className="flex items-center gap-2 shrink-0">
-                {session.role === 'OWNER' && <Link href="/history" className="bf-btn bf-btn-secondary">History</Link>}
+                {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && <Link href="/history" className="bf-btn bf-btn-secondary">History</Link>}
                 <Link href="/batches/new" className="bf-btn bf-btn-primary">New Batch</Link>
               </div>
             ) : onShift && (

@@ -7,10 +7,13 @@ import HistoryClient from './HistoryClient'
 export default async function HistoryPage() {
   const session = await getSession()
   if (!session) redirect('/')
-  if (session.role !== 'OWNER') redirect('/batches')
+  if (session.role !== 'OWNER' && session.role !== 'SUPERVISOR') redirect('/batches')
 
   const batches = await prisma.batch.findMany({
-    where: { status: { in: ['COMPLETED', 'CANCELLED'] } },
+    where: {
+      organizationId: session.organizationId,
+      status: { in: ['COMPLETED', 'CANCELLED'] },
+    },
     include: {
       recipe: true,
       steps: { orderBy: { order: 'asc' } },
