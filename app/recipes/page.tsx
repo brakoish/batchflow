@@ -3,6 +3,8 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import AppShell from '@/app/components/AppShell'
 import RecipesClient from './RecipesClient'
+import Link from 'next/link'
+import { ArchiveBoxIcon } from '@heroicons/react/24/outline'
 
 const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
 
@@ -29,7 +31,13 @@ export default async function RecipesPage() {
     <AppShell session={session}>
 
       <main className="max-w-5xl mx-auto px-4 py-5">
-        <h1 className="text-lg font-semibold tracking-tight text-foreground mb-5">Recipes</h1>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">Recipes</h1>
+          <Link href="/recipes/archived" className="bf-btn bf-btn-secondary">
+            <ArchiveBoxIcon className="h-4 w-4" />
+            Archived
+          </Link>
+        </div>
         <RecipesClient initialRecipes={JSON.parse(JSON.stringify(recipes))} />
       </main>
     </AppShell>

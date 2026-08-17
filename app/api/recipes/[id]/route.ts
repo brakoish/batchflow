@@ -181,6 +181,44 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireSupervisorOrOwner()
+    const { id } = await params
+    const { action } = await request.json()
+
+    if (action !== 'restore') {
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    }
+
+    const recipe = await prisma.recipe.findFirst({
+      where: {
+        id,
+        organizationId: session.user.organizationId,
+        archivedAt: { not: null },
+      },
+      select: { id: true },
+    })
+
+    if (!recipe) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    await prisma.recipe.update({
+      where: { id },
+      data: { archivedAt: null },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Restore recipe error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

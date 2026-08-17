@@ -26,6 +26,7 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
   const [editId, setEditId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const router = useRouter()
 
@@ -48,10 +49,17 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
     setConfirmAction(null)
     setDeleting(id)
     setError('')
+    setSuccess('')
     try {
       const res = await fetch(`/api/recipes/${id}`, { method: 'DELETE' })
       if (res.ok) {
-        setRecipes(recipes.filter(r => r.id !== id))
+        const result = await res.json()
+        const recipe = recipes.find(r => r.id === id)
+        setRecipes(current => current.filter(r => r.id !== id))
+        setSuccess(result.archived
+          ? `${recipe?.name || 'Recipe'} removed — batch history preserved.`
+          : `${recipe?.name || 'Recipe'} deleted.`)
+        window.setTimeout(() => setSuccess(''), 4000)
       } else {
         setError((await res.json()).error || 'Failed to delete')
       }
@@ -81,6 +89,12 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
       {error && (
         <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
           <p className="text-sm font-medium text-red-500 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-md rounded-xl border border-emerald-500/30 bg-emerald-600 px-4 py-3 shadow-lg">
+          <p className="text-sm font-semibold text-white">{success}</p>
         </div>
       )}
 
