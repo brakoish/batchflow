@@ -132,6 +132,9 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [starterLabel, setStarterLabel] = useState('')
+  const [advancedOpen, setAdvancedOpen] = useState(isEdit && !!editRecipe?.units.length)
+  const [expandedStep, setExpandedStep] = useState<number | null>(0)
+  const [reviewing, setReviewing] = useState(false)
   const router = useRouter()
   const trimmedUnits = units.map(u => ({ ...u, name: u.name.trim(), basedOn: (u.basedOn || '').trim() }))
   const validUnitNames = trimmedUnits.filter(u => u.name).map(u => u.name)
@@ -217,8 +220,16 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   }
 
   // Step helpers
-  const addStep = () => { haptic('light'); setSteps([...steps, { name: '', notes: '', type: 'COUNT', unitName: '' }]) }
-  const removeStep = (i: number) => steps.length > 1 && setSteps(steps.filter((_, idx) => idx !== i))
+  const addStep = () => {
+    haptic('light')
+    setSteps([...steps, { name: '', notes: '', type: 'COUNT', unitName: '' }])
+    setExpandedStep(steps.length)
+  }
+  const removeStep = (i: number) => {
+    if (steps.length <= 1) return
+    setSteps(steps.filter((_, idx) => idx !== i))
+    setExpandedStep((current) => current === i ? null : current != null && current > i ? current - 1 : current)
+  }
   const updateStep = (i: number, field: string, value: string) => {
     const s = [...steps]; (s[i] as any)[field] = value; setSteps(s)
   }
@@ -227,6 +238,21 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     if (t < 0 || t >= steps.length) return
     haptic('light')
     const s = [...steps]; [s[i], s[t]] = [s[t], s[i]]; setSteps(s)
+    setExpandedStep(t)
+  }
+
+  const reviewRecipe = () => {
+    if (!name.trim()) { setError('Give your recipe a name — like "1g Pre-Rolls" or "Flower Jars"'); return }
+    if (!baseUnit.trim()) { setError('What are you counting? Enter a base unit like "bags", "jars", or "pre-rolls"'); return }
+    if (!steps.some((s) => s.name.trim())) { setError('Add at least one step so your team knows what to do'); return }
+    if (duplicateUnits.length) { setError(`Unit names must be unique: ${Array.from(new Set(duplicateUnits)).join(', ')}`); return }
+    if (duplicateSteps.length) { setError(`Step names must be unique: ${Array.from(new Set(duplicateSteps)).join(', ')}`); return }
+    if (missingStepUnits.length) { setError(`These steps point to a missing unit: ${missingStepUnits.join(', ')}`); return }
+    const badUnit = trimmedUnits.find(u => u.name && (!Number.isFinite(u.count) || u.count <= 0))
+    if (badUnit) { setError(`Check the relation for ${badUnit.name}. The number must be greater than 0.`); return }
+    setError('')
+    setReviewing(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // How many base units are in one of `unitName`. Walks the basedOn chain,
@@ -377,11 +403,18 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
           )}
         </div>
 
-        {/* ── Relations ── */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">Relations</label>
+        {/* ── Advanced quantities ── */}
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <button type="button" onClick={() => setAdvancedOpen(!advancedOpen)} className="flex min-h-[64px] w-full items-center justify-between gap-3 p-5 text-left">
+            <span>
+              <span className="block text-base font-semibold text-foreground">Advanced quantities</span>
+              <span className="block text-sm text-muted-foreground">Optional · materials, inner packs, cases, and conversions</span>
+            </span>
+            <ChevronDownIcon className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {advancedOpen && <div className="border-t border-border p-5">
           <p className="text-sm text-muted-foreground mb-1">
-            Optional. Add any unit a step needs to count in — inputs flowing into your {baseUnit || 'product'}, or shipping containers going out. Just fill in the sentence.
+            Add only the extra things workers count. Fill in a plain conversion sentence; batches will still target {baseUnit || 'the finished product'}.
           </p>
           <p className="text-xs text-muted-foreground/60 mb-4">
             e.g., <span className="font-medium">14 Pre-rolls = 1 {baseUnit || 'Tin'}</span> · <span className="font-medium">1 Case = 20 {baseUnit || 'Tins'}</span>
@@ -528,6 +561,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
               </button>
             </div>
           )}
+          </div>}
         </div>
 
         {/* ── Steps ── */}
@@ -542,10 +576,14 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
 
           <div className="space-y-3">
             {steps.map((step, i) => (
-              <div key={i} className="rounded-xl bg-muted/30 border border-border p-4">
+              <div key={i} className={`overflow-hidden rounded-xl border ${expandedStep === i ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-border bg-muted/30'}`}>
                 {/* Header with step number and controls */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-muted-foreground font-bold tabular-nums">Step {i + 1}</span>
+                <div className="flex min-h-[58px] items-center gap-2 px-3 py-2">
+                  <button type="button" onClick={() => setExpandedStep(expandedStep === i ? null : i)} className="min-w-0 flex-1 text-left">
+                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Step {i + 1}</span>
+                    <span className="block truncate text-sm font-semibold text-foreground">{step.name.trim() || 'Name this step'}</span>
+                    <span className="block text-[11px] text-muted-foreground">{step.type === 'CHECK' ? 'Checkpoint · mark done' : `Count · ${step.unitName || baseUnit || 'finished units'}`}</span>
+                  </button>
                   <div className="flex items-center gap-0.5">
                     <button onClick={() => moveStep(i, 'up')} disabled={i === 0}
                       className="bf-icon-btn">
@@ -559,9 +597,13 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                       className="bf-icon-btn bf-icon-btn-danger">
                       <XMarkIcon className="w-5 h-5" />
                     </button>
+                    <button type="button" onClick={() => setExpandedStep(expandedStep === i ? null : i)} className="bf-icon-btn" aria-label={expandedStep === i ? 'Collapse step' : 'Edit step'}>
+                      <ChevronDownIcon className={`h-5 w-5 transition-transform ${expandedStep === i ? 'rotate-180' : ''}`} />
+                    </button>
                   </div>
                 </div>
 
+                {expandedStep === i && <div className="border-t border-border/70 p-4">
                 {/* Step name */}
                 <div className="mb-3">
                   <input type="text" value={step.name} onChange={(e) => updateStep(i, 'name', e.target.value)}
@@ -640,6 +682,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
                 <input type="text" value={step.notes} onChange={(e) => updateStep(i, 'notes', e.target.value)}
                   placeholder="Instructions or notes — e.g., Use 3.5g per jar, keep lids tight" disabled={loading}
                   className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+                </div>}
               </div>
             ))}
           </div>
@@ -722,18 +765,37 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
           </div>
         )}
 
-        {/* ── Submit ── */}
-        <button onClick={handleSubmit} disabled={loading}
-          className="bf-btn bf-btn-success bf-btn-lg bf-btn-full">
-          {loading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {isEdit ? 'Saving...' : 'Creating...'}
-            </>
-          ) : (
-            <>{isEdit ? 'Save Changes' : 'Create Recipe'} &rarr;</>
-          )}
-        </button>
+        {/* ── Review and submit ── */}
+        {reviewing ? (
+          <div className="rounded-xl border-2 border-emerald-500/40 bg-emerald-500/5 p-5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Final review</p>
+            <h3 className="mt-1 text-xl font-bold text-foreground">{name.trim()}</h3>
+            <p className="text-sm text-muted-foreground">Batch targets: {baseUnit.trim()} · {steps.filter(s => s.name.trim()).length} worker steps</p>
+            <div className="mt-4 space-y-2">
+              {steps.filter(s => s.name.trim()).map((step, index) => (
+                <div key={`${step.name}-${index}`} className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold text-muted-foreground">{index + 1}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground">{step.name}</span>
+                    {step.notes && <span className="block truncate text-[11px] text-muted-foreground">{step.notes}</span>}
+                  </span>
+                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{step.type === 'CHECK' ? 'Done tap' : step.unitName || baseUnit}</span>
+                </div>
+              ))}
+            </div>
+            {units.some(unit => unit.name.trim()) && <p className="mt-3 text-xs text-muted-foreground">Advanced quantities: {units.filter(unit => unit.name.trim()).map(unit => unit.name.trim()).join(', ')}</p>}
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setReviewing(false)} disabled={loading} className="bf-btn bf-btn-secondary">Back to edit</button>
+              <button type="button" onClick={handleSubmit} disabled={loading} className="bf-btn bf-btn-success">
+                {loading ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Confirm & Save' : 'Confirm & Create')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={reviewRecipe} disabled={loading} className="bf-btn bf-btn-success bf-btn-lg bf-btn-full">
+            Review Recipe &rarr;
+          </button>
+        )}
       </div>
     </div>
   )
