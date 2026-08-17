@@ -13,7 +13,6 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   DocumentDuplicateIcon,
-  EllipsisHorizontalIcon,
   EyeSlashIcon,
   FlagIcon,
   PencilSquareIcon,
@@ -218,7 +217,6 @@ export default function BatchDetailClient({
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
-  const [showActionsSheet, setShowActionsSheet] = useState(false)
   const [editingSteps, setEditingSteps] = useState(false)
   const [showAddStepModal, setShowAddStepModal] = useState(false)
   const [newStepName, setNewStepName] = useState('')
@@ -1386,13 +1384,26 @@ export default function BatchDetailClient({
 
           {/* Owner/Supervisor batch controls */}
           {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
-            <button
-              onClick={() => { haptic('light'); setShowActionsSheet(true) }}
-              className="bf-btn bf-btn-secondary mt-3 w-full sm:w-auto"
-            >
-              <EllipsisHorizontalIcon className="h-5 w-5" />
-              Batch Actions
-            </button>
+            <div className="mt-3 flex items-center gap-2" aria-label="Batch actions">
+              <button
+                type="button"
+                onClick={() => { haptic('light'); router.push(`/batches/${batch.id}/manage`) }}
+                className="bf-icon-btn h-11 w-11 border border-border bg-card"
+                aria-label="Manage batch"
+                title="Manage batch"
+              >
+                <PencilSquareIcon className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => { haptic('light'); router.push(`/batches/${batch.id}/manage?duplicate=1`) }}
+                className="bf-icon-btn h-11 w-11 border border-border bg-card"
+                aria-label="Duplicate batch"
+                title="Duplicate batch"
+              >
+                <DocumentDuplicateIcon className="h-5 w-5" />
+              </button>
+            </div>
           )}
         </div>
 
@@ -1838,49 +1849,6 @@ export default function BatchDetailClient({
         onCancel={() => setConfirmAction(null)}
         onConfirm={() => confirmAction?.onConfirm()}
       />
-
-      {/* Supervisor/owner actions sheet */}
-      {showActionsSheet && (session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
-          onClick={() => setShowActionsSheet(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="batch-actions-title"
-            className="safe-bottom w-full max-w-md rounded-t-2xl border border-border bg-card sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div className="min-w-0">
-                <p id="batch-actions-title" className="font-semibold text-foreground">Batch Actions</p>
-                <p className="truncate text-sm text-muted-foreground">{batch.name}</p>
-              </div>
-              <button onClick={() => setShowActionsSheet(false)} className="bf-icon-btn" aria-label="Close batch actions">
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-2 p-4">
-              <button
-                onClick={() => { setShowActionsSheet(false); router.push(`/batches/${batch.id}/manage`) }}
-                className="bf-btn bf-btn-secondary w-full justify-start"
-              >
-                <PencilSquareIcon className="h-5 w-5" />
-                Manage Batch
-              </button>
-              <button
-                onClick={() => { setShowActionsSheet(false); router.push(`/batches/${batch.id}/manage?duplicate=1`) }}
-                className="bf-btn bf-btn-secondary w-full justify-start"
-              >
-                <DocumentDuplicateIcon className="h-5 w-5" />
-                Duplicate Batch
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Add Batch Step Modal */}
       {showAddStepModal && (
