@@ -114,7 +114,7 @@ export async function PATCH(
       }
 
       return NextResponse.json({ step: updatedStep })
-    } else if (body.name !== undefined || body.targetQuantity !== undefined || body.unitLabel !== undefined || body.type !== undefined) {
+    } else if (body.name !== undefined || body.targetQuantity !== undefined || body.unitLabel !== undefined || body.unitRatio !== undefined || body.type !== undefined) {
       activityAction = 'step_edit'
       activityOldQuantity = step.targetQuantity
       activityOldNote = `${withoutSkippedPrefix(step.name)} · ${step.type} · ${step.unitLabel}`
@@ -136,6 +136,14 @@ export async function PATCH(
 
       if (body.unitLabel !== undefined) {
         updateData.unitLabel = (String(body.unitLabel || 'units').trim() || 'units').slice(0, 30)
+      }
+
+      if (body.unitRatio !== undefined) {
+        const unitRatio = Number(body.unitRatio)
+        if (!Number.isFinite(unitRatio) || unitRatio <= 0) {
+          return NextResponse.json({ error: 'Unit conversion must be greater than 0' }, { status: 400 })
+        }
+        updateData.unitRatio = unitRatio
       }
 
       if (body.targetQuantity !== undefined) {

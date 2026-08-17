@@ -20,7 +20,14 @@ export default async function ManageBatchPage({
     prisma.batch.findFirst({
       where: { id, organizationId: session.organizationId },
       include: {
-        recipe: { select: { id: true, name: true } },
+        recipe: {
+          select: {
+            id: true,
+            name: true,
+            baseUnit: true,
+            units: { select: { name: true, ratio: true }, orderBy: { name: 'asc' } },
+          },
+        },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
         steps: { orderBy: { order: 'asc' } },
       },

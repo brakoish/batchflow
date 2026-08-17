@@ -19,11 +19,13 @@ type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority: Priority
   dueDate?: string | null; strain?: string | null; lotNumber?: string | null
   metrcBatchId?: string | null; packageTag?: string | null; notes?: string | null
-  recipe: { id: string; name: string }; assignments: { worker: Worker }[]; steps: Step[]
+  recipe: { id: string; name: string; baseUnit: string; units: { name: string; ratio: number }[] }
+  assignments: { worker: Worker }[]; steps: Step[]
 }
 
 const SKIPPED_PREFIX = '[Skipped] '
 const cleanStepName = (name: string) => name.startsWith(SKIPPED_PREFIX) ? name.slice(SKIPPED_PREFIX.length) : name
+const unitKey = (label: string, ratio: number | string) => JSON.stringify([label, Number(ratio)])
 
 function Section({ title, summary, children, defaultOpen = false }: {
   title: string; summary: string; children: React.ReactNode; defaultOpen?: boolean
@@ -84,7 +86,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [editingStep, setEditingStep] = useState<string | null>(null)
-  const [stepDraft, setStepDraft] = useState({ name: '', type: 'COUNT' as 'COUNT' | 'CHECK', target: '', unitLabel: 'units' })
+  const [stepDraft, setStepDraft] = useState({ name: '', type: 'COUNT' as 'COUNT' | 'CHECK', target: '', unitLabel: initialBatch.recipe.baseUnit, unitRatio: '1' })
   const [addingStep, setAddingStep] = useState(false)
   const [confirm, setConfirm] = useState<{ title: string; message: string; label: string; action: () => void } | null>(null)
 
@@ -98,6 +100,13 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
   }), [initialBatch, duplicate])
   const current = JSON.stringify({ name, openEnded, target, dueDate, priority, strain, lotNumber, metrcBatchId, packageTag, notes, workerIds: [...workerIds].sort() })
   const dirty = current !== original
+  const unitOptions = useMemo(() => {
+    const byKey = new Map<string, { label: string; ratio: number }>()
+    byKey.set(unitKey(batch.recipe.baseUnit, 1), { label: batch.recipe.baseUnit, ratio: 1 })
+    for (const unit of batch.recipe.units) byKey.set(unitKey(unit.name, unit.ratio), { label: unit.name, ratio: unit.ratio })
+    for (const step of batch.steps) byKey.set(unitKey(step.unitLabel, step.unitRatio), { label: step.unitLabel, ratio: step.unitRatio })
+    return Array.from(byKey.values())
+  }, [batch.recipe.baseUnit, batch.recipe.units, batch.steps])
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault() }
@@ -165,13 +174,20 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
 
   const openStepEditor = (step: Step) => {
     setEditingStep(step.id)
-    setStepDraft({ name: cleanStepName(step.name), type: step.type, target: step.targetQuantity?.toString() || '', unitLabel: step.unitLabel })
+    setStepDraft({ name: cleanStepName(step.name), type: step.type, target: step.targetQuantity?.toString() || '', unitLabel: step.unitLabel, unitRatio: String(step.unitRatio || 1) })
+  }
+
+  const selectStepUnit = (selectedKey: string) => {
+    const option = unitOptions.find((unit) => selectedKey === unitKey(unit.label, unit.ratio))
+    if (!option) return
+    const calculatedTarget = batch.targetQuantity == null ? '' : String(Math.max(1, Math.ceil(batch.targetQuantity / option.ratio)))
+    setStepDraft((draft) => ({ ...draft, unitLabel: option.label, unitRatio: String(option.ratio), target: calculatedTarget }))
   }
 
   const saveStep = async (step: Step) => {
     const res = await fetch(`/api/batches/${batch.id}/steps/${step.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: stepDraft.name, type: stepDraft.type, targetQuantity: stepDraft.type === 'CHECK' ? 1 : stepDraft.target || null, unitLabel: stepDraft.unitLabel }),
+      body: JSON.stringify({ name: stepDraft.name, type: stepDraft.type, targetQuantity: stepDraft.type === 'CHECK' ? 1 : stepDraft.target || null, unitLabel: stepDraft.unitLabel, unitRatio: Number(stepDraft.unitRatio) }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return setError(data.error || 'Failed to update step')
@@ -181,11 +197,11 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
   const addStep = async () => {
     const res = await fetch(`/api/batches/${batch.id}/steps`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: stepDraft.name, type: stepDraft.type, targetQuantity: stepDraft.type === 'CHECK' ? 1 : stepDraft.target || null, unitLabel: stepDraft.unitLabel }),
+      body: JSON.stringify({ name: stepDraft.name, type: stepDraft.type, targetQuantity: stepDraft.type === 'CHECK' ? 1 : stepDraft.target || null, unitLabel: stepDraft.unitLabel, unitRatio: Number(stepDraft.unitRatio) }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return setError(data.error || 'Failed to add step')
-    setAddingStep(false); setStepDraft({ name: '', type: 'COUNT', target: '', unitLabel: 'units' })
+    setAddingStep(false); setStepDraft({ name: '', type: 'COUNT', target: '', unitLabel: batch.recipe.baseUnit, unitRatio: '1' })
     await refreshBatch(); emitBatchChanged(batch.id, 'step-edit'); notify('Step added')
   }
 
@@ -253,7 +269,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
                 <input className={inputClass} value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" />
                 </div>
                 <StepTypePicker value={stepDraft.type} onChange={(type) => setStepDraft({ ...stepDraft, type })} />
-                {stepDraft.type === 'COUNT' && <div className="grid grid-cols-2 gap-2"><div><label className={labelClass}>Worker counts</label><input className={inputClass} value={stepDraft.unitLabel} onChange={(e) => setStepDraft({ ...stepDraft, unitLabel: e.target.value })} placeholder="Units" /></div><div><label className={labelClass}>Step target</label><input className={inputClass} type="number" inputMode="decimal" min="0" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /></div></div>}
+                {stepDraft.type === 'COUNT' && <div className="space-y-2"><div><label className={labelClass}>Worker counts</label><select className={inputClass} value={unitKey(stepDraft.unitLabel, stepDraft.unitRatio)} onChange={(e) => selectStepUnit(e.target.value)}>{unitOptions.map((unit) => <option key={unitKey(unit.label, unit.ratio)} value={unitKey(unit.label, unit.ratio)}>{unit.label}{unit.ratio === 1 ? ' · finished unit' : unit.ratio > 1 ? ` · 1 = ${unit.ratio} ${batch.recipe.baseUnit}` : ` · ${Number((1 / unit.ratio).toFixed(4))} per ${batch.recipe.baseUnit}`}</option>)}</select></div><div><label className={labelClass}>Calculated step target</label><input className={inputClass} type="number" inputMode="numeric" min="1" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /><p className="mt-1 text-xs text-muted-foreground">Calculated from the batch target and selected recipe conversion. You can override it for this run.</p></div></div>}
                 {step.completedQuantity > 0 && <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">This step already has {step.completedQuantity.toLocaleString()} logged. Its production history will be kept.</p>}
                 <div className="flex gap-2"><button type="button" onClick={() => saveStep(step)} className="bf-btn bf-btn-primary flex-1">Save step</button><button type="button" onClick={() => setEditingStep(null)} className="bf-btn bf-btn-secondary">Cancel</button></div>
               </div> : <>
@@ -265,7 +281,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
                 <div className="flex gap-2 border-t border-border/70 px-3 py-2"><button type="button" disabled={index === 0} onClick={() => stepAction(step, 'move-up')} className="bf-icon-btn" aria-label="Move step up">↑</button><button type="button" disabled={index === batch.steps.length - 1} onClick={() => stepAction(step, 'move-down')} className="bf-icon-btn" aria-label="Move step down">↓</button><button type="button" onClick={() => stepAction(step, step.name.startsWith(SKIPPED_PREFIX) ? 'unskip' : 'skip')} className="bf-btn bf-btn-ghost bf-btn-sm ml-auto">{step.name.startsWith(SKIPPED_PREFIX) ? 'Restore' : 'Skip'}</button></div>
               </>}
             </div>)}</div>
-            {addingStep ? <div className="space-y-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3"><div><label className={labelClass}>New one-off step</label><input className={inputClass} value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" /></div><StepTypePicker value={stepDraft.type} onChange={(type) => setStepDraft({ ...stepDraft, type })} />{stepDraft.type === 'COUNT' && <div className="grid grid-cols-2 gap-2"><div><label className={labelClass}>Worker counts</label><input className={inputClass} value={stepDraft.unitLabel} onChange={(e) => setStepDraft({ ...stepDraft, unitLabel: e.target.value })} placeholder="Units" /></div><div><label className={labelClass}>Step target</label><input className={inputClass} type="number" inputMode="decimal" min="0" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /></div></div>}<div className="flex gap-2"><button type="button" onClick={addStep} className="bf-btn bf-btn-primary flex-1">Add step</button><button type="button" onClick={() => setAddingStep(false)} className="bf-btn bf-btn-secondary">Cancel</button></div></div> : <button type="button" onClick={() => { setAddingStep(true); setStepDraft({ name: '', type: 'COUNT', target: '', unitLabel: 'units' }) }} className="bf-btn bf-btn-secondary w-full">+ Add one-off step</button>}
+            {addingStep ? <div className="space-y-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3"><div><label className={labelClass}>New one-off step</label><input className={inputClass} value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" /></div><StepTypePicker value={stepDraft.type} onChange={(type) => setStepDraft({ ...stepDraft, type })} />{stepDraft.type === 'COUNT' && <div className="space-y-2"><div><label className={labelClass}>Worker counts</label><select className={inputClass} value={unitKey(stepDraft.unitLabel, stepDraft.unitRatio)} onChange={(e) => selectStepUnit(e.target.value)}>{unitOptions.map((unit) => <option key={unitKey(unit.label, unit.ratio)} value={unitKey(unit.label, unit.ratio)}>{unit.label}{unit.ratio === 1 ? ' · finished unit' : unit.ratio > 1 ? ` · 1 = ${unit.ratio} ${batch.recipe.baseUnit}` : ` · ${Number((1 / unit.ratio).toFixed(4))} per ${batch.recipe.baseUnit}`}</option>)}</select></div><div><label className={labelClass}>Calculated step target</label><input className={inputClass} type="number" inputMode="numeric" min="1" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /></div></div>}<div className="flex gap-2"><button type="button" onClick={addStep} className="bf-btn bf-btn-primary flex-1">Add step</button><button type="button" onClick={() => setAddingStep(false)} className="bf-btn bf-btn-secondary">Cancel</button></div></div> : <button type="button" onClick={() => { setAddingStep(true); setStepDraft({ name: '', type: 'COUNT', target: batch.targetQuantity?.toString() || '', unitLabel: batch.recipe.baseUnit, unitRatio: '1' }) }} className="bf-btn bf-btn-secondary w-full">+ Add one-off step</button>}
           </Section>}
 
           {duplicate && <Section title="Workflow" summary={`${batch.steps.filter((s) => !s.name.startsWith(SKIPPED_PREFIX)).length} steps will be copied`}>

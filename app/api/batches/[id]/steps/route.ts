@@ -30,6 +30,7 @@ export async function POST(
     const name = String(body.name || '').trim()
     const type = body.type === 'CHECK' ? 'CHECK' : 'COUNT'
     const unitLabel = String(body.unitLabel || 'units').trim() || 'units'
+    const unitRatio = Number(body.unitRatio ?? 1)
     const targetQuantity = type === 'CHECK'
       ? 1
       : body.targetQuantity == null || body.targetQuantity === ''
@@ -38,6 +39,10 @@ export async function POST(
 
     if (!name) {
       return NextResponse.json({ error: 'Step name is required' }, { status: 400 })
+    }
+
+    if (!Number.isFinite(unitRatio) || unitRatio <= 0) {
+      return NextResponse.json({ error: 'Unit conversion must be greater than 0' }, { status: 400 })
     }
 
     if (targetQuantity !== null && (!Number.isInteger(targetQuantity) || targetQuantity <= 0)) {
@@ -86,7 +91,7 @@ export async function POST(
         order: nextOrder,
         type,
         unitLabel: unitLabel.slice(0, 30),
-        unitRatio: 1,
+        unitRatio,
         targetQuantity,
         status: 'IN_PROGRESS',
       },

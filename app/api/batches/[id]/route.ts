@@ -13,7 +13,7 @@ export async function GET(
     const batch = await prisma.batch.findFirst({
       where: { id, organizationId: session.user.organizationId },
       include: {
-        recipe: true,
+        recipe: { include: { units: { orderBy: { name: 'asc' } } } },
         steps: {
           orderBy: {
             order: 'asc',
