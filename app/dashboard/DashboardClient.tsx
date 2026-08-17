@@ -315,16 +315,15 @@ export default function DashboardClient({
               <h1 className="text-xl font-bold tracking-tight text-foreground">Dashboard</h1>
               <p className="text-xs text-muted-foreground">Today&apos;s production snapshot</p>
             </div>
-            <button
-              onClick={() => setShowCompleted(!showCompleted)}
-              className={`bf-select-btn bf-btn-sm ${
-                showCompleted
-                  ? 'bf-select-btn-active'
-                  : ''
-              }`}
-            >
-              {showCompleted ? 'Showing completed' : 'Active only'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCompleted(!showCompleted)}
+                className={`bf-select-btn bf-btn-sm ${showCompleted ? 'bf-select-btn-active' : ''}`}
+              >
+                {showCompleted ? 'Completed' : 'Active only'}
+              </button>
+              <Link href="/batches/new" className="bf-btn bf-btn-primary bf-btn-sm">New Batch</Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

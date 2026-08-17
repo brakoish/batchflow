@@ -5,22 +5,20 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   HomeIcon,
-  PlusCircleIcon,
   ClockIcon,
   BeakerIcon,
-  UsersIcon,
-  QueueListIcon,
   ChartBarIcon,
+  QueueListIcon,
+  BuildingOffice2Icon,
   EllipsisHorizontalCircleIcon,
 } from '@heroicons/react/24/outline'
 import {
   HomeIcon as HomeIconSolid,
-  PlusCircleIcon as PlusCircleIconSolid,
   ClockIcon as ClockIconSolid,
   BeakerIcon as BeakerIconSolid,
-  UsersIcon as UsersIconSolid,
-  QueueListIcon as QueueListIconSolid,
   ChartBarIcon as ChartBarIconSolid,
+  QueueListIcon as QueueListIconSolid,
+  BuildingOffice2Icon as BuildingOffice2IconSolid,
   EllipsisHorizontalCircleIcon as EllipsisHorizontalCircleIconSolid,
 } from '@heroicons/react/24/solid'
 import MoreMenu from './MoreMenu'
@@ -57,14 +55,14 @@ export default function BottomNav({ session }: Props) {
   // supervisors, Org settings, etc.) live in the More sheet.
   const ownerItems = [
     { href: '/dashboard', label: 'Home', Icon: HomeIcon, IconActive: HomeIconSolid },
-    { href: '/batches/new', label: 'New', Icon: PlusCircleIcon, IconActive: PlusCircleIconSolid },
-    { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
-    { href: '/workers', label: 'Team', Icon: UsersIcon, IconActive: UsersIconSolid },
+    { href: '/batches', label: 'Batches', Icon: QueueListIcon, IconActive: QueueListIconSolid },
+    { href: '/recipes', label: 'Recipes', Icon: BeakerIcon, IconActive: BeakerIconSolid },
+    { href: '/org', label: 'Org', Icon: BuildingOffice2Icon, IconActive: BuildingOffice2IconSolid },
   ]
 
   const supervisorItems = [
     { href: '/batches', label: 'Batches', Icon: QueueListIcon, IconActive: QueueListIconSolid },
-    { href: '/batches/new', label: 'New', Icon: PlusCircleIcon, IconActive: PlusCircleIconSolid },
+    { href: '/recipes', label: 'Recipes', Icon: BeakerIcon, IconActive: BeakerIconSolid },
     { href: '/shift', label: 'Shift', Icon: ClockIcon, IconActive: ClockIconSolid },
     { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
   ]

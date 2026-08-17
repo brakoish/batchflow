@@ -178,7 +178,12 @@ export default function BatchListClient({
                   : `${batches.length} available`}
               </p>
             </div>
-            {onShift && (
+            {!isWorker ? (
+              <div className="flex items-center gap-2 shrink-0">
+                {session.role === 'OWNER' && <Link href="/history" className="bf-btn bf-btn-secondary">History</Link>}
+                <Link href="/batches/new" className="bf-btn bf-btn-primary">New Batch</Link>
+              </div>
+            ) : onShift && (
               <div className="mt-1 flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 On shift

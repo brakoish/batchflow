@@ -10,10 +10,7 @@ import {
   PlayIcon,
   ClockIcon,
   ChartBarIcon,
-  BeakerIcon,
-  UsersIcon,
   BuildingOffice2Icon,
-  DocumentTextIcon,
   MegaphoneIcon,
   WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline'
@@ -107,19 +104,13 @@ export default function MoreMenu({ session, open, onClose }: Props) {
   type Item = { href: string; label: string; Icon: any }
   const items: Item[] = isOwner
     ? [
-        { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
         { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon },
-        { href: '/timesheet', label: 'Timesheets', Icon: ClockIcon },
-        { href: '/recipes', label: 'Recipes', Icon: BeakerIcon },
-        { href: '/history', label: 'Reports', Icon: DocumentTextIcon },
-        { href: '/workers', label: 'Team', Icon: UsersIcon },
-        { href: '/org/invite', label: 'Org settings', Icon: BuildingOffice2Icon },
-        { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
+        { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
+        { href: '/org', label: 'Organization', Icon: BuildingOffice2Icon },
       ]
     : session.role === 'SUPERVISOR'
       ? [
           { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
-          { href: '/recipes', label: 'Recipes', Icon: BeakerIcon },
           { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
           { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },
           { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },
