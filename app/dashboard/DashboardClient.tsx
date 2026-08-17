@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { CheckCircleIcon, ChevronRightIcon, FlagIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
-import EditBatchModal from '@/app/components/EditBatchModal'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
 import {
@@ -140,6 +140,7 @@ export default function DashboardClient({
 }: {
   initialBatches: Batch[]; initialActivity: ActivityLog[]; session: Session; organizationName?: string
 }) {
+  const router = useRouter()
   const [batches, setBatches] = useState(initialBatches)
   const [activity, setActivity] = useState<ActivityLog[]>(initialActivity)
   const [workerSummary, setWorkerSummary] = useState<{ id: string; name: string; todayLogs: number; todayUnits: number; batches: string[]; onShift?: boolean; lastActivity?: string }[]>([])
@@ -150,25 +151,14 @@ export default function DashboardClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
   const [filterRecipe, setFilterRecipe] = useState('')
-  const [editingBatch, setEditingBatch] = useState<Batch | null>(null)
-  const [allWorkers, setAllWorkers] = useState<{ id: string; name: string }[]>([])
   const [mobileTab, setMobileTab] = useState<'batches' | 'activity' | 'team'>('batches')
 
-  useEffect(() => {
-    // Fetch workers list for assignment
-    fetch('/api/workers', { cache: "no-store" }).then(r => r.json()).then(d => {
-      if (d.workers) setAllWorkers(d.workers.filter((w: any) => w.role === 'WORKER'))
-    }).catch(() => {})
-  }, [])
-
-  const editingRef = useRef<string | null>(null)
-  useEffect(() => { editingRef.current = editingBatch?.id || null }, [editingBatch])
   const lastSaveTsRef = useRef<number>(0)
 
   const poll = async (opts: { force?: boolean } = {}) => {
     // Skip list replacement while editing or just after a save to avoid
     // clobbering fresh local state with a stale read.
-    const guarded = !opts.force && (editingRef.current || Date.now() - lastSaveTsRef.current < 3000)
+    const guarded = !opts.force && Date.now() - lastSaveTsRef.current < 3000
     try {
       const [bRes, aRes, wRes] = await Promise.all([
         fetch('/api/batches', { cache: "no-store" }),
@@ -660,7 +650,7 @@ export default function DashboardClient({
                           <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
                         </div>
                         <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingBatch(batch) }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/batches/${batch.id}/manage`) }}
                           className="bf-icon-btn min-h-[36px] min-w-[36px]"
                           title="Edit batch"
                         >
@@ -904,21 +894,6 @@ export default function DashboardClient({
         </div>
       </main>
 
-      <EditBatchModal
-        batch={editingBatch}
-        workers={allWorkers}
-        onClose={() => setEditingBatch(null)}
-        onSaved={(updated) => {
-          setBatches(prev => prev.map(b => b.id === updated.id ? updated as Batch : b))
-          lastSaveTsRef.current = Date.now()
-          // Force a full refetch to ensure steps are in sync
-          fetch('/api/batches', { cache: "no-store" })
-            .then(res => res.ok ? res.json() : null)
-            .then(fresh => { if (fresh?.batches) setBatches(fresh.batches) })
-            .catch(() => {})
-          emitBatchChanged(updated.id, 'dashboard-edit')
-        }}
-      />
     </AppShell>
   )
 }

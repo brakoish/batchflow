@@ -7,11 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireSession()
+    const session = await requireSession()
     const { id } = await params
 
-    const batch = await prisma.batch.findUnique({
-      where: { id },
+    const batch = await prisma.batch.findFirst({
+      where: { id, organizationId: session.user.organizationId },
       include: {
         recipe: true,
         steps: {
@@ -77,7 +77,7 @@ export async function PATCH(
 
     const existingBatch = await prisma.batch.findFirst({
       where: { id, organizationId: session.user.organizationId },
-      select: { id: true },
+      include: { steps: { orderBy: { order: 'asc' } } },
     })
 
     if (!existingBatch) {
@@ -150,55 +150,56 @@ export async function PATCH(
     if (packageTag !== undefined) updateData.packageTag = packageTag || null
     if (notes !== undefined) updateData.notes = notes ? String(notes).slice(0, 2000) : null
     
-    // Handle worker assignment updates
     if (workerIds !== undefined) {
-      // Delete existing assignments and create new ones
-      await prisma.batchAssignment.deleteMany({ where: { batchId: id } })
-      if (workerIds.length > 0) {
-        await prisma.batchAssignment.createMany({
-          data: workerIds.map((workerId: string) => ({ batchId: id, workerId }))
-        })
+      if (!Array.isArray(workerIds)) {
+        return NextResponse.json({ error: 'Invalid worker assignments' }, { status: 400 })
+      }
+      const uniqueWorkerIds = [...new Set(workerIds as string[])]
+      const validWorkers = await prisma.worker.count({
+        where: {
+          id: { in: uniqueWorkerIds },
+          organizationId: session.user.organizationId,
+          role: { in: ['WORKER', 'SUPERVISOR'] },
+        },
+      })
+      if (validWorkers !== uniqueWorkerIds.length) {
+        return NextResponse.json({ error: 'One or more workers are invalid' }, { status: 400 })
       }
     }
-    
-    // Handle target quantity changes (recalculate step targets)
+
+    // Recalculate from this batch's step snapshots, never the live recipe.
+    const stepUpdates: { id: string; targetQuantity: number | null }[] = []
     if (targetQuantity !== undefined) {
+      if (targetQuantity !== null && (!Number.isInteger(targetQuantity) || targetQuantity <= 0)) {
+        return NextResponse.json({ error: 'Target must be a whole number greater than 0' }, { status: 400 })
+      }
       updateData.targetQuantity = targetQuantity ?? null
+      for (const step of existingBatch.steps) {
+        let nextTarget: number | null
+        if (step.type === 'CHECK') nextTarget = 1
+        else if (targetQuantity === null) nextTarget = null
+        else if (existingBatch.targetQuantity && step.targetQuantity != null) {
+          nextTarget = Math.max(1, Math.ceil((step.targetQuantity * targetQuantity) / existingBatch.targetQuantity))
+        } else {
+          nextTarget = Math.max(1, Math.ceil(targetQuantity / (step.unitRatio || 1)))
+        }
+        stepUpdates.push({ id: step.id, targetQuantity: nextTarget })
+      }
+    }
 
-      // Get batch with recipe to recalculate steps
-      const batch = await prisma.batch.findUnique({
-        where: { id },
-        include: { recipe: { include: { steps: { include: { unit: true } } } } }
-      })
-
-      if (batch) {
-        // Update each step's target quantity
-        for (const recipeStep of batch.recipe.steps) {
-          const unitRatio = recipeStep.unit?.ratio || 1
-
-          // For open-ended batches (null targetQuantity), set step targets to null
-          // Except for CHECK steps which always have target of 1
-          let stepTarget: number | null
-          if (recipeStep.type === 'CHECK') {
-            stepTarget = 1
-          } else if (targetQuantity == null) {
-            stepTarget = null
-          } else {
-            stepTarget = Math.ceil(targetQuantity / unitRatio)
-          }
-
-          await prisma.batchStep.updateMany({
-            where: { batchId: id, recipeStepId: recipeStep.id },
-            data: { targetQuantity: stepTarget }
+    await prisma.$transaction(async (tx) => {
+      await tx.batch.update({ where: { id }, data: updateData })
+      for (const step of stepUpdates) {
+        await tx.batchStep.update({ where: { id: step.id }, data: { targetQuantity: step.targetQuantity } })
+      }
+      if (workerIds !== undefined) {
+        await tx.batchAssignment.deleteMany({ where: { batchId: id } })
+        if (workerIds.length) {
+          await tx.batchAssignment.createMany({
+            data: [...new Set(workerIds as string[])].map((workerId) => ({ batchId: id, workerId })),
           })
         }
       }
-    }
-    
-    // Re-fetch the full batch with all nested data (matching GET shape)
-    await prisma.batch.update({
-      where: { id },
-      data: updateData,
     })
 
     const batch = await prisma.batch.findUnique({
@@ -253,12 +254,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
     const { id } = await params
 
     // Check if batch exists and is cancelled
-    const batch = await prisma.batch.findUnique({
-      where: { id },
+    const batch = await prisma.batch.findFirst({
+      where: { id, organizationId: session.user.organizationId },
       select: { status: true }
     })
 

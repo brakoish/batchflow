@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
-import EditBatchModal from '@/app/components/EditBatchModal'
 import ConfirmModal from '@/app/components/ConfirmModal'
 import {
   CheckCircleIcon,
@@ -220,7 +219,7 @@ export default function BatchDetailClient({
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
   const [showActionsSheet, setShowActionsSheet] = useState(false)
-  const [editingSteps, setEditingSteps] = useState(() => searchParams.get('editSteps') === '1')
+  const [editingSteps, setEditingSteps] = useState(false)
   const [showAddStepModal, setShowAddStepModal] = useState(false)
   const [newStepName, setNewStepName] = useState('')
   const [newStepType, setNewStepType] = useState<'COUNT' | 'CHECK'>('COUNT')
@@ -1864,69 +1863,21 @@ export default function BatchDetailClient({
             </div>
 
             <div className="space-y-2 p-4">
-              {batch.status === 'ACTIVE' && (
-                <button
-                  onClick={() => { setShowActionsSheet(false); handleStatusChange('COMPLETED') }}
-                  className="bf-btn bf-btn-success w-full justify-start"
-                >
-                  <CheckCircleIcon className="h-5 w-5" />
-                  Mark Complete
-                </button>
-              )}
-              {batch.status === 'ACTIVE' && (
-                <button
-                  onClick={() => { setShowActionsSheet(false); setShowEditModal(true) }}
-                  className="bf-btn bf-btn-secondary w-full justify-start"
-                >
-                  <PencilSquareIcon className="h-5 w-5" />
-                  Edit Batch Details
-                </button>
-              )}
-              {batch.status === 'ACTIVE' && (
-                <button
-                  onClick={() => { setShowActionsSheet(false); toggleStepEditing() }}
-                  className="bf-btn bf-btn-secondary w-full justify-start"
-                >
-                  <PencilSquareIcon className="h-5 w-5" />
-                  {editingSteps ? 'Done Editing Steps' : 'Edit Production Steps'}
-                </button>
-              )}
               <button
-                onClick={() => { setShowActionsSheet(false); handleOpenDuplicate() }}
+                onClick={() => { setShowActionsSheet(false); router.push(`/batches/${batch.id}/manage`) }}
+                className="bf-btn bf-btn-secondary w-full justify-start"
+              >
+                <PencilSquareIcon className="h-5 w-5" />
+                Manage Batch
+              </button>
+              <button
+                onClick={() => { setShowActionsSheet(false); router.push(`/batches/${batch.id}/manage?duplicate=1`) }}
                 className="bf-btn bf-btn-secondary w-full justify-start"
               >
                 <DocumentDuplicateIcon className="h-5 w-5" />
                 Duplicate Batch
               </button>
-              {batch.status !== 'ACTIVE' && session.role === 'OWNER' && (
-                <button
-                  onClick={() => { setShowActionsSheet(false); handleStatusChange('ACTIVE') }}
-                  className="bf-btn bf-btn-secondary w-full justify-start"
-                >
-                  Reopen Batch
-                </button>
-              )}
             </div>
-
-            {session.role === 'OWNER' && (batch.status === 'ACTIVE' || batch.status === 'CANCELLED') && (
-              <div className="border-t border-border p-4">
-                {batch.status === 'ACTIVE' ? (
-                  <button
-                    onClick={() => { setShowActionsSheet(false); handleStatusChange('CANCELLED') }}
-                    className="bf-btn bf-btn-soft-danger w-full justify-start"
-                  >
-                    Cancel Batch
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => { setShowActionsSheet(false); handleDeleteBatch() }}
-                    className="bf-btn bf-btn-soft-danger w-full justify-start"
-                  >
-                    Delete Batch
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -2612,25 +2563,6 @@ export default function BatchDetailClient({
         </div>
       )}
 
-      {/* Edit Batch Modal */}
-      {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
-        <EditBatchModal
-          batch={showEditModal ? batch : null}
-          workers={workers}
-          onClose={() => setShowEditModal(false)}
-          onSaved={(updated) => {
-            setBatch(updated as Batch)
-            lastSaveTsRef.current = Date.now()
-            showToast('Batch updated')
-            // Force a full refetch to ensure steps/targets are in sync
-            fetch(`/api/batches/${batch.id}`, { cache: "no-store" })
-              .then(res => res.ok ? res.json() : null)
-              .then(fresh => { if (fresh?.batch) setBatch(fresh.batch) })
-              .catch(() => {})
-            emitBatchChanged(updated.id, 'edit')
-          }}
-        />
-      )}
     </AppShell>
   )
 }
