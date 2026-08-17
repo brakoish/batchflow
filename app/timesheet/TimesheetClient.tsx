@@ -6,10 +6,10 @@ import { formatDuration } from '@/lib/format'
 import { formatTimeInTz, formatDateInTz, toDateTimeLocalString, fromDateTimeLocalString } from '@/lib/timezone'
 import ConfirmModal from '@/app/components/ConfirmModal'
 
-type Worker = { id: string; name: string }
+type Worker = { id: string; name: string; hourlyRate: number | null }
 type Shift = {
   id: string
-  worker: { id: string; name: string }
+  worker: { id: string; name: string; hourlyRate: number | null }
   status: string
   startedAt: string
   endedAt: string | null
@@ -18,7 +18,9 @@ type Shift = {
 type WeeklySummary = {
   workerId: string
   workerName: string
+  hourlyRate: number | null
   totalHours: number
+  estimatedPay: number | null
   shiftCount: number
   days: Record<string, { hours: number; shiftCount: number }>
 }
@@ -88,6 +90,8 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const [weeklyData, setWeeklyData] = useState<WeeklySummary[]>([])
   const [weeklyTotalHours, setWeeklyTotalHours] = useState(0)
   const [weeklyTotalShifts, setWeeklyTotalShifts] = useState(0)
+  const [weeklyEstimatedPay, setWeeklyEstimatedPay] = useState(0)
+  const [weeklyMissingWages, setWeeklyMissingWages] = useState(0)
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
     // Get Monday of current week
     const today = new Date()
@@ -136,6 +140,8 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
         setWeeklyData(data.weeks || [])
         setWeeklyTotalHours(data.totalHours || 0)
         setWeeklyTotalShifts(data.totalShifts || 0)
+        setWeeklyEstimatedPay(data.estimatedPay || 0)
+        setWeeklyMissingWages(data.missingWageCount || 0)
         setTimezone(data.timezone || 'America/New_York')
       }
     } catch {}
@@ -155,6 +161,20 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   }, [])
 
   const totalHours = shifts.reduce((sum, s) => sum + s.hours, 0)
+  const totalPay = shifts.reduce((sum, shift) => {
+    if (shift.status !== 'COMPLETED' || shift.worker.hourlyRate === null) return sum
+    return sum + shift.hours * shift.worker.hourlyRate
+  }, 0)
+  const missingWages = new Set(
+    shifts
+      .filter((shift) => shift.status === 'COMPLETED' && shift.worker.hourlyRate === null)
+      .map((shift) => shift.worker.id)
+  ).size
+
+  const formatMoney = (amount: number) => new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount)
 
   const goToPreviousWeek = () => {
     haptic('light')
@@ -407,12 +427,18 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
 
       {/* Summary */}
       {viewMode === 'shifts' ? (
-        <div className="text-sm">
-          <span className="text-muted-foreground">Total: </span>
-          <span className="text-foreground font-semibold tabular-nums">{formatDuration(totalHours)}</span>
-          <span className="text-muted-foreground"> · </span>
-          <span className="text-foreground font-semibold tabular-nums">{shifts.length}</span>
-          <span className="text-muted-foreground"> shifts</span>
+        <div>
+          <div className="text-sm">
+            <span className="text-muted-foreground">Total: </span>
+            <span className="text-foreground font-semibold tabular-nums">{formatDuration(totalHours)}</span>
+            <span className="text-muted-foreground"> · </span>
+            <span className="text-foreground font-semibold tabular-nums">{shifts.length}</span>
+            <span className="text-muted-foreground"> shifts</span>
+            <span className="text-muted-foreground"> · Estimated gross pay: </span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{formatMoney(totalPay)}</span>
+            {missingWages > 0 && <span className="text-amber-600 dark:text-amber-400"> · {missingWages} wage{missingWages === 1 ? '' : 's'} not set</span>}
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">Uses current hourly wages and completed shifts. Overtime, taxes, and deductions are not included.</p>
         </div>
       ) : (
         <div className="text-sm">
@@ -602,6 +628,12 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
                           <p className="text-lg font-semibold tabular-nums text-foreground">
                             {formatDuration(worker.totalHours)}
                           </p>
+                          <p className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                            {worker.estimatedPay === null ? 'Wage not set' : formatMoney(worker.estimatedPay)}
+                          </p>
+                          {worker.hourlyRate !== null && (
+                            <p className="text-[11px] text-muted-foreground tabular-nums">{formatMoney(worker.hourlyRate)}/hr</p>
+                          )}
                         </div>
                       </div>
                       {/* Day breakdown */}
@@ -645,8 +677,19 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
                       <p className="text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
                         {formatDuration(weeklyTotalHours)}
                       </p>
+                      <p className="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                        {formatMoney(weeklyEstimatedPay)} estimated
+                      </p>
+                      {weeklyMissingWages > 0 && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                          {weeklyMissingWages} wage{weeklyMissingWages === 1 ? '' : 's'} not set
+                        </p>
+                      )}
                     </div>
                   </div>
+                  <p className="mt-3 border-t border-emerald-500/15 pt-2 text-[11px] text-muted-foreground">
+                    Estimate uses current hourly wages. Overtime, taxes, and deductions are not included.
+                  </p>
                 </div>
               </>
             )}

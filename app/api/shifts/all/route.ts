@@ -31,9 +31,8 @@ export async function GET(request: Request) {
 
     const shifts = await prisma.shift.findMany({
       where,
-      include: { worker: { select: { id: true, name: true } } },
+      include: { worker: { select: { id: true, name: true, hourlyRate: true } } },
       orderBy: { startedAt: 'desc' },
-      take: 100,
     })
 
     // Calculate hours for each shift

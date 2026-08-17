@@ -133,6 +133,7 @@ model Worker {
   name           String
   pin            String        @unique
   role           Role
+  hourlyRate     Float?
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())

@@ -207,7 +207,6 @@ export async function POST(
       // Notify assigned workers about the unlocked step
       const assignments = await prisma.batchAssignment.findMany({
         where: { batchId: step.batchId },
-        include: { worker: true },
       })
 
       assignments.forEach((assignment) => {
@@ -261,7 +260,6 @@ export async function POST(
         // Notify all assigned workers about batch completion
         const assignments = await prisma.batchAssignment.findMany({
           where: { batchId: step.batchId },
-          include: { worker: true },
         })
 
         assignments.forEach((assignment) => {

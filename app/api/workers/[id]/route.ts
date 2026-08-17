@@ -8,9 +8,17 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
     const { id } = await params
-    const { name, role, pin } = await request.json()
+    const { name, role, pin, hourlyRate } = await request.json()
+
+    const target = await prisma.worker.findFirst({
+      where: { id, organizationId: session.user.organizationId },
+      select: { id: true },
+    })
+    if (!target) {
+      return NextResponse.json({ error: 'Worker not found' }, { status: 404 })
+    }
 
     // Handle PIN update
     if (pin !== undefined) {
@@ -39,6 +47,7 @@ export async function PATCH(
           name: true,
           pin: true,
           role: true,
+          hourlyRate: true,
           createdAt: true,
         },
       })
@@ -46,9 +55,16 @@ export async function PATCH(
     }
 
     // Handle name/role update
-    const updateData: { name?: string; role?: Role } = {}
+    const updateData: { name?: string; role?: Role; hourlyRate?: number | null } = {}
     if (name) updateData.name = name
     if (role && ['WORKER', 'SUPERVISOR', 'OWNER'].includes(role)) updateData.role = role as Role
+    if (hourlyRate !== undefined) {
+      const parsedHourlyRate = hourlyRate === '' || hourlyRate === null ? null : Number(hourlyRate)
+      if (parsedHourlyRate !== null && (!Number.isFinite(parsedHourlyRate) || parsedHourlyRate < 0 || parsedHourlyRate > 10000)) {
+        return NextResponse.json({ error: 'Hourly rate must be between $0 and $10,000' }, { status: 400 })
+      }
+      updateData.hourlyRate = parsedHourlyRate === null ? null : Math.round(parsedHourlyRate * 100) / 100
+    }
 
     const worker = await prisma.worker.update({
       where: { id },
@@ -58,6 +74,7 @@ export async function PATCH(
         name: true,
         pin: true,
         role: true,
+        hourlyRate: true,
         createdAt: true,
       },
     })
@@ -77,12 +94,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
     const { id } = await params
 
-    await prisma.worker.delete({
-      where: { id },
+    const deleted = await prisma.worker.deleteMany({
+      where: { id, organizationId: session.user.organizationId },
     })
+
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: 'Worker not found' }, { status: 404 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

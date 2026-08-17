@@ -10,6 +10,7 @@ type Worker = {
   name: string
   pin: string
   role: string
+  hourlyRate: number | null
 }
 type ConfirmAction = {
   title: string
@@ -23,6 +24,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
   const [role, setRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
+  const [hourlyRate, setHourlyRate] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -31,6 +33,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [editPin, setEditPin] = useState('')
   const [editName, setEditName] = useState('')
   const [editRole, setEditRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
+  const [editHourlyRate, setEditHourlyRate] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
   const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
@@ -53,12 +56,12 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       const res = await fetch('/api/workers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, role, pin: pin || undefined }),
+        body: JSON.stringify({ name, role, pin: pin || undefined, hourlyRate }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
       setSuccess(`Created: ${data.worker.name} / PIN: ${data.worker.pin}`)
-      setName(''); setPin(''); setRole('WORKER')
+      setName(''); setPin(''); setRole('WORKER'); setHourlyRate('')
       setShowAddForm(false)
       router.refresh()
       setTimeout(() => setSuccess(''), 5000)
@@ -75,7 +78,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       const res = await fetch(`/api/workers/${editingWorker.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, role: editRole }),
+        body: JSON.stringify({ name: editName, role: editRole, hourlyRate: editHourlyRate }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -144,6 +147,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
     setEditingWorker(worker)
     setEditName(worker.name)
     setEditRole(worker.role as 'WORKER' | 'SUPERVISOR' | 'OWNER')
+    setEditHourlyRate(worker.hourlyRate === null ? '' : worker.hourlyRate.toFixed(2))
     setEditPin('')
     setError('')
     setShowEditModal(true)
@@ -195,6 +199,25 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           >
             Random
           </button>
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1.5">Hourly wage (admin only)</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              max="10000"
+              step="0.01"
+              value={hourlyRate}
+              onChange={(e) => setHourlyRate(e.target.value)}
+              placeholder="0.00"
+              className="w-full pl-7 pr-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm tabular-nums focus:outline-none focus:border-primary transition-colors"
+              disabled={loading}
+            />
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -273,6 +296,24 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             ))}
           </div>
 
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1.5">Hourly wage (admin only)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max="10000"
+                step="0.01"
+                value={editHourlyRate}
+                onChange={(e) => setEditHourlyRate(e.target.value)}
+                placeholder="Not set"
+                className="w-full pl-7 pr-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm tabular-nums focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+          </div>
+
           <div className="pt-3 border-t border-border">
             <label className="text-xs text-muted-foreground block mb-2">Change PIN</label>
             <div className="flex gap-2">
@@ -340,6 +381,9 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
                     : 'bg-primary/10 text-primary border-primary/20'
                 }`}>
                   {worker.role}
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {worker.hourlyRate === null ? 'Wage not set' : `$${worker.hourlyRate.toFixed(2)}/hr`}
                 </span>
               </div>
             </div>

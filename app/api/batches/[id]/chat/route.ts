@@ -50,7 +50,7 @@ export async function POST(
       include: {
         assignments: {
           include: {
-            worker: true,
+            worker: { select: { id: true, name: true, role: true } },
           },
         },
       },

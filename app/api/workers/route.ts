@@ -19,6 +19,7 @@ export async function GET() {
         name: true,
         pin: true,
         role: true,
+        hourlyRate: true,
         createdAt: true,
       },
       orderBy: {
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireOwner()
 
-    const { name, role, pin: customPin } = await request.json()
+    const { name, role, pin: customPin, hourlyRate } = await request.json()
 
     if (!name || !role) {
       return NextResponse.json(
@@ -54,6 +55,13 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid role' },
         { status: 400 }
       )
+    }
+
+    const parsedHourlyRate = hourlyRate === '' || hourlyRate === null || hourlyRate === undefined
+      ? null
+      : Number(hourlyRate)
+    if (parsedHourlyRate !== null && (!Number.isFinite(parsedHourlyRate) || parsedHourlyRate < 0 || parsedHourlyRate > 10000)) {
+      return NextResponse.json({ error: 'Hourly rate must be between $0 and $10,000' }, { status: 400 })
     }
 
     // Validate custom PIN if provided
@@ -95,6 +103,7 @@ export async function POST(request: NextRequest) {
         name,
         role,
         pin,
+        hourlyRate: parsedHourlyRate === null ? null : Math.round(parsedHourlyRate * 100) / 100,
         organizationId: session.user.organizationId,
       },
       select: {
@@ -102,6 +111,7 @@ export async function POST(request: NextRequest) {
         name: true,
         pin: true,
         role: true,
+        hourlyRate: true,
         createdAt: true,
       },
     })

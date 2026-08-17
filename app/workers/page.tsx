@@ -10,7 +10,8 @@ export default async function WorkersPage() {
   if (session.role !== 'OWNER') redirect('/batches')
 
   const workers = await prisma.worker.findMany({
-    select: { id: true, name: true, pin: true, role: true, createdAt: true },
+    where: { organizationId: session.organizationId },
+    select: { id: true, name: true, pin: true, role: true, hourlyRate: true, createdAt: true },
     orderBy: { name: 'asc' },
   })
 

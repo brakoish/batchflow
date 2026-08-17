@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
     const shifts = await prisma.shift.findMany({
       where,
-      include: { worker: { select: { id: true, name: true } } },
+      include: { worker: { select: { id: true, name: true, hourlyRate: true } } },
       orderBy: { startedAt: 'desc' },
     })
 
@@ -50,7 +50,9 @@ export async function GET(request: Request) {
     const workerMap = new Map<string, {
       workerId: string
       workerName: string
+      hourlyRate: number | null
       totalHours: number
+      estimatedPay: number | null
       shiftCount: number
       days: Record<string, { hours: number; shiftCount: number }>
     }>()
@@ -66,6 +68,9 @@ export async function GET(request: Request) {
       const existing = workerMap.get(shift.workerId)
       if (existing) {
         existing.totalHours += hours
+        if (existing.estimatedPay !== null && shift.worker.hourlyRate !== null) {
+          existing.estimatedPay += hours * shift.worker.hourlyRate
+        }
         existing.shiftCount += 1
         existing.days[dayKey] = existing.days[dayKey]
           ? { hours: existing.days[dayKey].hours + hours, shiftCount: existing.days[dayKey].shiftCount + 1 }
@@ -74,22 +79,34 @@ export async function GET(request: Request) {
         workerMap.set(shift.workerId, {
           workerId: shift.workerId,
           workerName: shift.worker.name,
+          hourlyRate: shift.worker.hourlyRate,
           totalHours: hours,
+          estimatedPay: shift.worker.hourlyRate === null ? null : hours * shift.worker.hourlyRate,
           shiftCount: 1,
           days: { [dayKey]: { hours, shiftCount: 1 } },
         })
       }
     })
 
-    const weeks = Array.from(workerMap.values()).sort((a, b) => b.totalHours - a.totalHours)
+    const weeks = Array.from(workerMap.values())
+      .map((worker) => ({
+        ...worker,
+        totalHours: Math.round(worker.totalHours * 100) / 100,
+        estimatedPay: worker.estimatedPay === null ? null : Math.round(worker.estimatedPay * 100) / 100,
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours)
 
     const totalHours = weeks.reduce((sum, w) => sum + w.totalHours, 0)
     const totalShifts = weeks.reduce((sum, w) => sum + w.shiftCount, 0)
+    const estimatedPay = weeks.reduce((sum, w) => sum + (w.estimatedPay || 0), 0)
+    const missingWageCount = weeks.filter((w) => w.hourlyRate === null).length
 
     return NextResponse.json({
       weeks,
       totalHours: Math.round(totalHours * 100) / 100,
       totalShifts,
+      estimatedPay: Math.round(estimatedPay * 100) / 100,
+      missingWageCount,
       timezone: organization?.timezone || 'America/New_York',
       allDays,
     })
