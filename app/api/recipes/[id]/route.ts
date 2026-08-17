@@ -186,19 +186,30 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireSupervisorOrOwner()
+    const session = await requireSupervisorOrOwner()
     const { id } = await params
 
-    // Check if recipe has active batches
-    const activeBatches = await prisma.batch.count({
-      where: { recipeId: id, status: 'ACTIVE' },
+    const recipe = await prisma.recipe.findFirst({
+      where: { id, organizationId: session.user.organizationId, archivedAt: null },
+      select: { id: true },
     })
 
-    if (activeBatches > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete recipe with active batches' },
-        { status: 400 }
-      )
+    if (!recipe) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    // Preserve recipes referenced by production history, but remove them from
+    // recipe pickers. Recipes that were never used can still be hard-deleted.
+    const batchCount = await prisma.batch.count({
+      where: { recipeId: id },
+    })
+
+    if (batchCount > 0) {
+      await prisma.recipe.update({
+        where: { id },
+        data: { archivedAt: new Date() },
+      })
+      return NextResponse.json({ success: true, archived: true })
     }
 
     await prisma.recipe.delete({ where: { id } })

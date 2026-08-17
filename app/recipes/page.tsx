@@ -12,7 +12,11 @@ export default async function RecipesPage() {
   if (session.role !== 'OWNER' && session.role !== 'SUPERVISOR') redirect('/batches')
 
   const recipes = await prisma.recipe.findMany({
-    where: { organizationId: session.organizationId, name: { not: BATCH_OVERRIDE_RECIPE_NAME } },
+    where: {
+      organizationId: session.organizationId,
+      archivedAt: null,
+      name: { not: BATCH_OVERRIDE_RECIPE_NAME },
+    },
     include: {
       units: { orderBy: { order: 'asc' } },
       steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },

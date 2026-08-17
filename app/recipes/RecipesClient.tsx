@@ -36,7 +36,7 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
     setConfirmAction({
       title: 'Delete recipe?',
       message: recipe?._count.batches
-        ? 'Recipes connected to batches usually cannot be deleted. If blocked, keep it for history.'
+        ? `Remove ${recipe.name} from your recipe list? Existing batch history will be kept.`
         : `Delete ${recipe?.name || 'this recipe'} from your recipe list.`,
       confirmLabel: 'Delete Recipe',
       confirmStyle: 'danger',

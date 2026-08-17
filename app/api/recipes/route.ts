@@ -22,6 +22,7 @@ export async function GET() {
     const recipes = await prisma.recipe.findMany({
       where: {
         organizationId: session.user.organizationId,
+        archivedAt: null,
         name: { not: BATCH_OVERRIDE_RECIPE_NAME },
       },
       include: {
