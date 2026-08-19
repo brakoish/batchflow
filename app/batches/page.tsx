@@ -7,7 +7,6 @@ import BatchListClient from './BatchListClient'
 export default async function BatchesPage() {
   const session = await getSession()
   if (!session) redirect('/')
-  if (session.role === 'OWNER') redirect('/dashboard')
 
   const organizationName = await getOrganizationName(session.organizationId)
 
