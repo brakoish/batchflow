@@ -379,7 +379,7 @@ export default function BatchDetailClient({
       }
       emitBatchChanged(batch.id, 'delete')
       showToast('Batch deleted')
-      router.push('/dashboard')
+      router.push('/batches')
     } catch (err) { 
       setError('Network error. Please check your connection.')
     }

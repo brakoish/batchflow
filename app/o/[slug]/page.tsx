@@ -25,7 +25,7 @@ export default function OrgLoginPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data?.user?.id) {
-          router.replace(data.user.role === 'OWNER' ? '/dashboard' : '/batches')
+          router.replace('/batches')
         } else {
           setChecking(false)
         }
@@ -101,7 +101,7 @@ export default function OrgLoginPage() {
       haptic('medium')
       setSuccess(true)
       setTimeout(() => {
-        router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/batches')
+        router.push('/batches')
       }, 300)
     } catch (err) {
       haptic('heavy')

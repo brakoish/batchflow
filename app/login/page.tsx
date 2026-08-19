@@ -12,7 +12,7 @@ function LoginForm() {
   const [emailSent, setEmailSent] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+  const callbackUrl = searchParams.get('callbackUrl') || '/batches'
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()

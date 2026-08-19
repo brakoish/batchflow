@@ -17,7 +17,7 @@ export default function NewOrgPage() {
       router.push('/login')
     }
     if (status === 'authenticated' && session?.user?.organizationId) {
-      router.push('/dashboard')
+      router.push('/batches')
     }
   }, [status, session, router])
 
@@ -47,7 +47,7 @@ export default function NewOrgPage() {
       }
 
       haptic('medium')
-      router.push('/dashboard')
+      router.push('/batches')
       router.refresh()
     } catch (err) {
       haptic('heavy')

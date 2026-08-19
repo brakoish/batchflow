@@ -59,8 +59,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
   }
 
   const ownerNavItems = [
-    { href: '/dashboard', label: 'Dashboard' },
-    { href: '/batches', label: 'Batches' },
+    { href: '/batches', label: 'Home' },
     { href: '/stock', label: 'Stock' },
     { href: '/recipes', label: 'Recipes' },
     { href: '/analytics', label: 'Analytics' },
@@ -88,7 +87,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
     <header className="bg-background border-b border-border">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
-        <Link href={isOwner ? '/dashboard' : '/batches'} className="flex items-center gap-2">
+        <Link href="/batches" className="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-7 h-7 text-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="12" y="12" width="32" height="32" rx="6" fill="currentColor" stroke="none"/>
             <rect x="56" y="12" width="32" height="32" rx="6"/>

@@ -54,9 +54,9 @@ export default function BottomNav({ session }: Props) {
   // Role-based primary destinations. Secondary destinations (Recipes for
   // supervisors, Org settings, etc.) live in the More sheet.
   const ownerItems = [
-    { href: '/dashboard', label: 'Home', Icon: HomeIcon, IconActive: HomeIconSolid },
-    { href: '/batches', label: 'Batches', Icon: QueueListIcon, IconActive: QueueListIconSolid },
+    { href: '/batches', label: 'Home', Icon: HomeIcon, IconActive: HomeIconSolid },
     { href: '/recipes', label: 'Recipes', Icon: BeakerIcon, IconActive: BeakerIconSolid },
+    { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
     { href: '/org', label: 'Org', Icon: BuildingOffice2Icon, IconActive: BuildingOffice2IconSolid },
   ]
 

@@ -82,7 +82,7 @@ export default function JoinOrgPage() {
       haptic('medium')
       setSuccess(true)
       setTimeout(() => {
-        router.push(data.worker.role === 'OWNER' ? '/dashboard' : '/batches')
+        router.push('/batches')
         router.refresh()
       }, 300)
     } catch (err) {

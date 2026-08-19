@@ -104,7 +104,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
 
   // Owners skip this screen
   if (worker.role === 'OWNER') {
-    router.push('/dashboard')
+    router.push('/batches')
     return null
   }
 
