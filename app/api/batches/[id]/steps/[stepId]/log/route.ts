@@ -212,7 +212,7 @@ export async function POST(
       assignments.forEach((assignment) => {
         fetch(`${request.nextUrl.origin}/api/notifications/send`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') || '' },
           body: JSON.stringify({
             workerId: assignment.workerId,
             title: `Your turn: ${step.batch.name}`,
@@ -265,7 +265,7 @@ export async function POST(
         assignments.forEach((assignment) => {
           fetch(`${request.nextUrl.origin}/api/notifications/send`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') || '' },
             body: JSON.stringify({
               workerId: assignment.workerId,
               title: `Batch completed: ${step.batch.name}`,

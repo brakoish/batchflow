@@ -19,8 +19,8 @@ export async function PATCH(
     return NextResponse.json({ error: 'action must be APPROVED or REJECTED' }, { status: 400 })
   }
 
-  const correctionReq = await prisma.shiftCorrectionRequest.findUnique({
-    where: { id: params.id },
+  const correctionReq = await prisma.shiftCorrectionRequest.findFirst({
+    where: { id: params.id, worker: { organizationId: session.user.organizationId! } },
     include: { shift: true },
   })
 

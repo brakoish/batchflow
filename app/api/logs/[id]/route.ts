@@ -65,13 +65,22 @@ export async function PATCH(
       return NextResponse.json({ error: 'Log not found' }, { status: 404 })
     }
 
+    if (log.batchStep.batch.organizationId !== session.user.organizationId) {
+      return NextResponse.json({ error: 'Log not found' }, { status: 404 })
+    }
+
+    const nextQuantity = quantity === undefined ? log.quantity : Number(quantity)
+    if (!Number.isInteger(nextQuantity) || nextQuantity <= 0) {
+      return NextResponse.json({ error: 'Quantity must be a whole number greater than 0' }, { status: 400 })
+    }
+
     // Only the worker who made it or an owner can edit
     if (log.workerId !== session.user.workerId && session.user.role !== 'OWNER') {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
     // At least one field must differ
-    if (quantity === log.quantity && note === log.note) {
+    if (nextQuantity === log.quantity && note === log.note) {
       return NextResponse.json({ error: 'No changes detected' }, { status: 400 })
     }
 
@@ -83,7 +92,7 @@ export async function PATCH(
         workerId: session.user.workerId,
         action: 'edit',
         oldQuantity: log.quantity,
-        newQuantity: quantity,
+        newQuantity: nextQuantity,
         oldNote: log.note,
         newNote: note,
       },
@@ -93,7 +102,7 @@ export async function PATCH(
     const updatedLog = await prisma.progressLog.update({
       where: { id },
       data: {
-        quantity,
+        quantity: nextQuantity,
         note,
         editedAt: new Date(),
       },
@@ -182,6 +191,10 @@ export async function DELETE(
     })
 
     if (!log) {
+      return NextResponse.json({ error: 'Log not found' }, { status: 404 })
+    }
+
+    if (log.batchStep.batch.organizationId !== session.user.organizationId) {
       return NextResponse.json({ error: 'Log not found' }, { status: 404 })
     }
 

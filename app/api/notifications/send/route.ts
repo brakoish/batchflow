@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import webpush from 'web-push';
+import { requireSession } from '@/lib/auth';
 
 // Force dynamic so Next.js doesn't evaluate VAPID config at build time.
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ function ensureVapidConfigured() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireSession();
     if (!ensureVapidConfigured()) {
       return NextResponse.json(
         { error: 'Push notifications not configured on this server' },
@@ -33,6 +35,14 @@ export async function POST(request: NextRequest) {
 
     if (!workerId || !title || !messageBody) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const targetWorker = await prisma.worker.findFirst({
+      where: { id: workerId, organizationId: session.user.organizationId },
+      select: { id: true },
+    });
+    if (!targetWorker) {
+      return NextResponse.json({ error: 'Worker not found' }, { status: 404 });
     }
 
     // Fetch all push subscriptions for the worker

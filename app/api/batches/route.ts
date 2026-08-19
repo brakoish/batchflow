@@ -113,6 +113,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Source batch not found' }, { status: 404 })
     }
 
+
+    const uniqueWorkerIds = Array.isArray(workerIds) ? [...new Set(workerIds as string[])] : []
+    if (workerIds !== undefined && !Array.isArray(workerIds)) {
+      return NextResponse.json({ error: 'Invalid worker assignments' }, { status: 400 })
+    }
+    if (uniqueWorkerIds.length) {
+      const validWorkers = await prisma.worker.count({
+        where: {
+          id: { in: uniqueWorkerIds },
+          organizationId: session.user.organizationId,
+          role: { in: ['WORKER', 'SUPERVISOR'] },
+        },
+      })
+      if (validWorkers !== uniqueWorkerIds.length) {
+        return NextResponse.json({ error: 'One or more workers are invalid' }, { status: 400 })
+      }
+    }
+
     const nextBatchTarget = targetQuantity ?? null
     const buildClonedStepTarget = (step: NonNullable<typeof sourceBatch>['steps'][number]) => {
       if (step.type === 'CHECK') return 1
@@ -183,8 +201,8 @@ export async function POST(request: NextRequest) {
         strain: strain || undefined,
         packageTag: packageTag || undefined,
         notes: notes ? String(notes).slice(0, 2000) : undefined,
-        assignments: workerIds?.length
-          ? { create: workerIds.map((id: string) => ({ workerId: id })) }
+        assignments: uniqueWorkerIds.length
+          ? { create: uniqueWorkerIds.map((workerId) => ({ workerId })) }
           : undefined,
         steps: {
           create: batchSteps,

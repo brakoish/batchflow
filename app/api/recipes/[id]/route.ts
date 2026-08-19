@@ -18,11 +18,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireSession()
+    const session = await requireSession()
     const { id } = await params
 
-    const recipe = await prisma.recipe.findUnique({
-      where: { id },
+    const recipe = await prisma.recipe.findFirst({
+      where: { id, organizationId: session.user.organizationId },
       include: {
         units: { orderBy: { order: 'asc' } },
         steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
@@ -45,9 +45,15 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireSupervisorOrOwner()
+    const session = await requireSupervisorOrOwner()
     const { id } = await params
     const { name, description, baseUnit, units, steps } = await request.json()
+
+    const ownedRecipe = await prisma.recipe.findFirst({
+      where: { id, organizationId: session.user.organizationId },
+      select: { id: true },
+    })
+    if (!ownedRecipe) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     if (!name || !steps || steps.length === 0) {
       return NextResponse.json({ error: 'Name and steps required' }, { status: 400 })

@@ -7,8 +7,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireSession()
+    const session = await requireSession()
     const { id } = await params
+
+    const batch = await prisma.batch.findFirst({
+      where: {
+        id,
+        organizationId: session.user.organizationId,
+        ...(session.user.role === 'WORKER' ? {
+          OR: [
+            { assignments: { none: {} } },
+            { assignments: { some: { workerId: session.user.workerId } } },
+          ],
+        } : {}),
+      },
+      select: { id: true },
+    })
+    if (!batch) return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
 
     const messages = await prisma.batchMessage.findMany({
       where: { batchId: id },
@@ -45,8 +60,17 @@ export async function POST(
     }
 
     // Get batch with assignments
-    const batch = await prisma.batch.findUnique({
-      where: { id },
+    const batch = await prisma.batch.findFirst({
+      where: {
+        id,
+        organizationId: session.user.organizationId,
+        ...(session.user.role === 'WORKER' ? {
+          OR: [
+            { assignments: { none: {} } },
+            { assignments: { some: { workerId: session.user.workerId } } },
+          ],
+        } : {}),
+      },
       include: {
         assignments: {
           include: {
@@ -58,6 +82,10 @@ export async function POST(
 
     if (!batch) {
       return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
+    }
+
+    if (!session.user.workerId) {
+      return NextResponse.json({ error: 'A worker profile is required to send chat messages' }, { status: 400 })
     }
 
     const batchMessage = await prisma.batchMessage.create({
@@ -82,7 +110,7 @@ export async function POST(
     assignedWorkers.forEach((worker) => {
       fetch(`${request.nextUrl.origin}/api/notifications/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') || '' },
         body: JSON.stringify({
           workerId: worker.id,
           title: `New message in ${batch.name}`,

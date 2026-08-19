@@ -17,8 +17,17 @@ export default async function BatchDetailPage({
   const { id } = await params
 
   const [batch, organization] = await Promise.all([
-    prisma.batch.findUnique({
-      where: { id },
+    prisma.batch.findFirst({
+      where: {
+        id,
+        organizationId: session.organizationId,
+        ...(session.role === 'WORKER' && session.workerId ? {
+          OR: [
+            { assignments: { none: {} } },
+            { assignments: { some: { workerId: session.workerId } } },
+          ],
+        } : {}),
+      },
       include: {
         recipe: true,
         steps: {

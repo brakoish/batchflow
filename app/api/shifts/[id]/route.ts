@@ -7,9 +7,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
     const { id } = await params
     const { startedAt, endedAt } = await request.json()
+
+    const ownedShift = await prisma.shift.findFirst({
+      where: { id, worker: { organizationId: session.user.organizationId } },
+      select: { id: true },
+    })
+    if (!ownedShift) return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
 
     // Validate dates
     const start = new Date(startedAt)
@@ -55,8 +61,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireOwner()
+    const session = await requireOwner()
     const { id } = await params
+
+    const ownedShift = await prisma.shift.findFirst({
+      where: { id, worker: { organizationId: session.user.organizationId } },
+      select: { id: true },
+    })
+    if (!ownedShift) return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
 
     await prisma.shift.delete({
       where: { id },
