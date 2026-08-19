@@ -25,7 +25,7 @@ type Assignment = { worker: { id: string; name: string } }
 type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
-  recipe: { name: string }; steps: Step[]; assignments?: Assignment[]
+  recipe: { name: string; brand?: string | null }; steps: Step[]; assignments?: Assignment[]
 }
 
 export default function BatchListClient({
@@ -169,6 +169,10 @@ export default function BatchListClient({
 
         {/* Header */}
         <div className="mb-6">
+          <div className="mb-5 grid grid-cols-2 rounded-xl bg-muted p-1">
+            <span className="min-h-[44px] rounded-lg bg-card px-3 py-2.5 text-center text-sm font-semibold text-foreground shadow-sm">In Progress</span>
+            <Link href="/stock" className="min-h-[44px] rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-muted-foreground">Current Stock</Link>
+          </div>
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-foreground">{isWorker ? 'Ready Now' : 'Your Batches'}</h1>
@@ -259,6 +263,7 @@ export default function BatchListClient({
               const matchesSearch = (
                 b.name.toLowerCase().includes(query) ||
                 b.recipe.name.toLowerCase().includes(query) ||
+                (b.recipe.brand && b.recipe.brand.toLowerCase().includes(query)) ||
                 (b.strain && b.strain.toLowerCase().includes(query))
               )
               if (!matchesSearch) return false
@@ -343,8 +348,18 @@ export default function BatchListClient({
             const otherBatches = isWorker && !myBatchFilter
               ? filteredBatches.filter(b => !isMineOrOpen(b))
               : []
-            const readyBatches = isWorker ? myBatches.filter(isBatchReady) : myBatches
-            const waitingBatches = isWorker ? myBatches.filter(b => !isBatchReady(b)) : []
+            const groupByBrand = (items: Batch[]) => {
+              const groups = new Map<string, Batch[]>()
+              for (const batch of items) {
+                const brand = batch.recipe.brand?.trim() || 'Unassigned'
+                groups.set(brand, [...(groups.get(brand) || []), batch])
+              }
+              return [...groups.entries()].sort(([a], [b]) => {
+                if (a === 'Unassigned') return 1
+                if (b === 'Unassigned') return -1
+                return a.localeCompare(b)
+              })
+            }
 
             const renderBatch = (batch: Batch) => {
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
@@ -632,21 +647,26 @@ export default function BatchListClient({
             }
 
             return (
-              <div className="space-y-4">
+              <div className="space-y-7">
                 {myBatches.length > 0 && (
                   <>
-                    {isWorker && readyBatches.length > 0 && (
-                      <h2 className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Ready to Touch</h2>
-                    )}
-                    {readyBatches.map(renderBatch)}
-                    {isWorker && waitingBatches.length > 0 && (
-                      <div className="flex items-center gap-3 mt-2">
-                        <div className="flex-1 h-px bg-border" />
-                        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Waiting on Product</h2>
-                        <div className="flex-1 h-px bg-border" />
-                      </div>
-                    )}
-                    {waitingBatches.map(renderBatch)}
+                    {groupByBrand(myBatches).map(([brand, brandBatches]) => {
+                      const brandReady = isWorker ? brandBatches.filter(isBatchReady) : brandBatches
+                      const brandWaiting = isWorker ? brandBatches.filter(b => !isBatchReady(b)) : []
+                      return (
+                        <section key={brand} className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{brand}</h2>
+                            <div className="h-px flex-1 bg-border" />
+                            <span className="text-xs tabular-nums text-muted-foreground">{brandBatches.length}</span>
+                          </div>
+                          {isWorker && brandReady.length > 0 && <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Ready to Touch</p>}
+                          {brandReady.map(renderBatch)}
+                          {isWorker && brandWaiting.length > 0 && <p className="pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Waiting on Product</p>}
+                          {brandWaiting.map(renderBatch)}
+                        </section>
+                      )
+                    })}
                   </>
                 )}
                 {otherBatches.length > 0 && (
@@ -656,7 +676,12 @@ export default function BatchListClient({
                       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Other Batches</h2>
                       <div className="flex-1 h-px bg-border" />
                     </div>
-                    {otherBatches.map(renderBatch)}
+                    {groupByBrand(otherBatches).map(([brand, brandBatches]) => (
+                      <section key={brand} className="space-y-3">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{brand}</h3>
+                        {brandBatches.map(renderBatch)}
+                      </section>
+                    ))}
                   </>
                 )}
               </div>

@@ -47,7 +47,6 @@ export default async function BatchDetailPage({
         removals: {
           include: { worker: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },
-          take: 5,
         },
       },
     }),

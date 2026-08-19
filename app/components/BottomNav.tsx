@@ -75,7 +75,7 @@ export default function BottomNav({ session }: Props) {
 
   const items = role === 'OWNER' ? ownerItems : role === 'SUPERVISOR' ? supervisorItems : workerItems
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/') || (href === '/batches' && pathname === '/stock')
 
   return (
     <>

@@ -22,6 +22,7 @@ import { haptic } from '@/lib/haptic'
 import { formatTimeInTz, formatDateInTz } from '@/lib/timezone'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
+import { getProducedBaseUnits, getRemovedQuantity } from '@/lib/inventory'
 import {
   formatShortRelativeTime,
   getActiveStations,
@@ -88,19 +89,6 @@ function formatMaterialAmount(material: StepMaterial, step: BatchStep) {
   }
 
   return `${(material.quantityPerUnit * step.targetQuantity).toLocaleString()} ${material.unit}`
-}
-
-function getProducedBaseUnits(steps: BatchStep[]) {
-  const countSteps = steps.filter(step => step.type === 'COUNT' && !isSkippedStep(step))
-  if (!countSteps.length) return 0
-
-  return Math.max(
-    ...countSteps.map(step => Math.floor(step.completedQuantity * (step.unitRatio || 1)))
-  )
-}
-
-function getRemovedQuantity(removals?: BatchRemoval[]) {
-  return (removals || []).reduce((sum, removal) => sum + removal.quantity, 0)
 }
 
 function getProductionResult(batch: Pick<Batch, 'targetQuantity' | 'baseUnit' | 'steps'>) {

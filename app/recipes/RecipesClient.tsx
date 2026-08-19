@@ -8,7 +8,7 @@ import EmptyState from '@/app/components/EmptyState'
 import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Recipe = {
-  id: string; name: string; description: string | null; baseUnit: string
+  id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
   _count: { batches: number }
@@ -129,6 +129,7 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
                       </div>
                       {recipe.description && <p className="text-xs text-muted-foreground mt-0.5">{recipe.description}</p>}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-[10px] font-semibold text-foreground/70">{recipe.brand || 'Unassigned brand'}</span>
                         <span className="text-[10px] text-muted-foreground/60">Base: {recipe.baseUnit}</span>
                         {recipe.units.map((u, i) => (
                           <span key={i} className="text-[10px] text-muted-foreground/60">· {u.name} = {u.ratio} {recipe.baseUnit}</span>

@@ -153,6 +153,7 @@ model Worker {
 model Recipe {
   id             String        @id @default(cuid())
   name           String
+  brand          String?
   description    String?
   baseUnit       String        @default("units")
   organizationId String
@@ -165,6 +166,7 @@ model Recipe {
 
   @@index([organizationId])
   @@index([organizationId, archivedAt])
+  @@index([organizationId, brand])
 }
 
 model RecipeUnit {

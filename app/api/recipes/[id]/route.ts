@@ -47,7 +47,7 @@ export async function PUT(
   try {
     const session = await requireSupervisorOrOwner()
     const { id } = await params
-    const { name, description, baseUnit, units, steps } = await request.json()
+    const { name, brand, description, baseUnit, units, steps } = await request.json()
 
     const ownedRecipe = await prisma.recipe.findFirst({
       where: { id, organizationId: session.user.organizationId },
@@ -92,6 +92,7 @@ export async function PUT(
       where: { id },
       data: {
         name,
+        brand: brand ? String(brand).trim().slice(0, 100) : null,
         description,
         baseUnit: baseUnit || 'units',
         units: {

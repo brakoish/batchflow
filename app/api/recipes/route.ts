@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireSupervisorOrOwner()
 
-    const { name, description, baseUnit, units, steps } = await request.json()
+    const { name, brand, description, baseUnit, units, steps } = await request.json()
 
     if (!name || !steps || steps.length === 0) {
       return NextResponse.json({ error: 'Name and steps are required' }, { status: 400 })
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
     const recipe = await prisma.recipe.create({
       data: {
         name,
+        brand: brand ? String(brand).trim().slice(0, 100) : null,
         description,
         baseUnit: baseUnit || 'units',
         organizationId: session.user.organizationId,

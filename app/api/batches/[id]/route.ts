@@ -44,7 +44,6 @@ export async function GET(
         removals: {
           include: { worker: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },
-          take: 5,
         },
       },
     })
@@ -124,7 +123,6 @@ export async function PATCH(
           removals: {
             include: { worker: { select: { id: true, name: true } } },
             orderBy: { createdAt: 'desc' },
-            take: 5,
           },
         },
       })
@@ -234,7 +232,6 @@ export async function PATCH(
         removals: {
           include: { worker: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },
-          take: 5,
         },
       },
     })

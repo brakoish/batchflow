@@ -28,7 +28,7 @@ type RecipeStarter = {
 }
 
 type EditRecipe = {
-  id: string; name: string; description: string | null; baseUnit: string
+  id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null }[]
 } | null
@@ -97,6 +97,7 @@ function formatRelationCount(value: number) {
 export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: EditRecipe; onDone?: () => void }) {
   const isEdit = !!editRecipe
   const [name, setName] = useState(editRecipe?.name || '')
+  const [brand, setBrand] = useState(editRecipe?.brand || '')
   const [description, setDescription] = useState(editRecipe?.description || '')
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || '')
   // When editing an existing recipe we only have the flat base-unit ratio,
@@ -154,6 +155,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const applyStarter = (starter: RecipeStarter) => {
     haptic('medium')
     setName(starter.name)
+    setBrand('')
     setDescription('')
     setBaseUnit(starter.baseUnit)
     setUnits(starter.units)
@@ -164,9 +166,10 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
 
   const changeStarter = () => {
     haptic('light')
-    const hasWork = name.trim() || description.trim() || baseUnit.trim() || units.length > 0 || steps.some(step => step.name.trim() || step.notes.trim())
+    const hasWork = name.trim() || brand.trim() || description.trim() || baseUnit.trim() || units.length > 0 || steps.some(step => step.name.trim() || step.notes.trim())
     if (hasWork && !window.confirm('Change starter pattern? This clears the recipe fields you have filled in so far.')) return
     setName('')
+    setBrand('')
     setDescription('')
     setBaseUnit('')
     setUnits([])
@@ -301,7 +304,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, description: description || undefined, baseUnit,
+          name, brand: brand || undefined, description: description || undefined, baseUnit,
           // Submit each unit's ratio in base-units-per-1-of-this-unit.
           // getBaseRatio already honors direction ('bigger' multiplies, 'smaller' divides).
           units: units.filter(u => u.name.trim()).map(u => ({
@@ -315,7 +318,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
       })
       if (!res.ok) { setError((await res.json()).error); return }
       if (!isEdit) {
-        setName(''); setDescription(''); setBaseUnit('')
+        setName(''); setBrand(''); setDescription(''); setBaseUnit('')
         setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
       }
       router.refresh()
@@ -381,6 +384,11 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
             placeholder="e.g., 1g Pre-Rolls, 14g Flower Bags, Gummy Bears" disabled={loading}
             className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+
+          <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
+            placeholder="Brand — e.g., Stone Road" disabled={loading} maxLength={100}
+            className="w-full mt-3 px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+          <p className="mt-2 text-xs text-muted-foreground">Used to keep this brand&apos;s work and finished stock together.</p>
 
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
             placeholder="Short description (optional) — e.g., Standard 14g ground flower bags" disabled={loading}
