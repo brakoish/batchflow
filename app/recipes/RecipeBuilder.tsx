@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
@@ -98,6 +98,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const isEdit = !!editRecipe
   const [name, setName] = useState(editRecipe?.name || '')
   const [brand, setBrand] = useState(editRecipe?.brand || '')
+  const [knownBrands, setKnownBrands] = useState<string[]>([])
   const [description, setDescription] = useState(editRecipe?.description || '')
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || '')
   // When editing an existing recipe we only have the flat base-unit ratio,
@@ -137,6 +138,13 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const [expandedStep, setExpandedStep] = useState<number | null>(0)
   const [reviewing, setReviewing] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    fetch('/api/brands', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : { brands: [] })
+      .then((data) => setKnownBrands(Array.isArray(data.brands) ? data.brands : []))
+      .catch(() => {})
+  }, [])
   const trimmedUnits = units.map(u => ({ ...u, name: u.name.trim(), basedOn: (u.basedOn || '').trim() }))
   const validUnitNames = trimmedUnits.filter(u => u.name).map(u => u.name)
   const duplicateUnits = validUnitNames.filter((unit, index) => validUnitNames.indexOf(unit) !== index)
@@ -317,6 +325,10 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
+      const savedBrand = brand.trim()
+      if (savedBrand) {
+        setKnownBrands((current) => Array.from(new Set([...current, savedBrand])).sort((a, b) => a.localeCompare(b)))
+      }
       if (!isEdit) {
         setName(''); setBrand(''); setDescription(''); setBaseUnit('')
         setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
@@ -385,10 +397,13 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             placeholder="e.g., 1g Pre-Rolls, 14g Flower Bags, Gummy Bears" disabled={loading}
             className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
 
-          <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
+          <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} list="batchflow-brand-options"
             placeholder="Brand — e.g., Stone Road" disabled={loading} maxLength={100}
             className="w-full mt-3 px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
-          <p className="mt-2 text-xs text-muted-foreground">Used to keep this brand&apos;s work and finished stock together.</p>
+          <datalist id="batchflow-brand-options">
+            {knownBrands.map((option) => <option key={option} value={option} />)}
+          </datalist>
+          <p className="mt-2 text-xs text-muted-foreground">Pick a saved brand or type a new one. New brands become reusable after saving.</p>
 
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
             placeholder="Short description (optional) — e.g., Standard 14g ground flower bags" disabled={loading}
