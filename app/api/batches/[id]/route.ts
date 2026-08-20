@@ -166,7 +166,11 @@ export async function PATCH(
     }
 
     // Recalculate from this batch's step snapshots, never the live recipe.
-    const stepUpdates: { id: string; targetQuantity: number | null }[] = []
+    const stepUpdates: {
+      id: string
+      targetQuantity: number | null
+      status: (typeof existingBatch.steps)[number]['status']
+    }[] = []
     if (targetQuantity !== undefined) {
       if (targetQuantity !== null && (!Number.isInteger(targetQuantity) || targetQuantity <= 0)) {
         return NextResponse.json({ error: 'Target must be a whole number greater than 0' }, { status: 400 })
@@ -181,14 +185,24 @@ export async function PATCH(
         } else {
           nextTarget = Math.max(1, Math.ceil(targetQuantity / (step.unitRatio || 1)))
         }
-        stepUpdates.push({ id: step.id, targetQuantity: nextTarget })
+        const nextStatus = step.name.startsWith('[Skipped] ')
+          ? step.status
+          : step.type === 'CHECK'
+          ? step.status
+          : nextTarget != null && step.completedQuantity >= nextTarget
+          ? 'COMPLETED'
+          : 'IN_PROGRESS'
+        stepUpdates.push({ id: step.id, targetQuantity: nextTarget, status: nextStatus })
       }
     }
 
     await prisma.$transaction(async (tx) => {
       await tx.batch.update({ where: { id }, data: updateData })
       for (const step of stepUpdates) {
-        await tx.batchStep.update({ where: { id: step.id }, data: { targetQuantity: step.targetQuantity } })
+        await tx.batchStep.update({
+          where: { id: step.id },
+          data: { targetQuantity: step.targetQuantity, status: step.status },
+        })
       }
       if (workerIds !== undefined) {
         await tx.batchAssignment.deleteMany({ where: { batchId: id } })
