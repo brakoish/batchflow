@@ -1254,7 +1254,7 @@ export default function BatchDetailClient({
                   {availableQuantity.toLocaleString()} {batch.baseUnit} on hand
                 </p>
               </div>
-              {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && (
+              {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status !== 'CANCELLED' && (
                 <button
                   onClick={handleOpenRemoval}
                   disabled={availableQuantity <= 0}
