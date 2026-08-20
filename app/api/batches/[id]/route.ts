@@ -14,6 +14,7 @@ export async function GET(
       where: { id, organizationId: session.user.organizationId },
       include: {
         recipe: { include: { units: { orderBy: { name: 'asc' } } } },
+        product: true,
         steps: {
           orderBy: {
             order: 'asc',
@@ -107,6 +108,7 @@ export async function PATCH(
         where: { id },
         include: {
           recipe: true,
+          product: true,
           steps: {
             orderBy: { order: 'asc' },
             include: {

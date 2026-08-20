@@ -30,6 +30,7 @@ type RecipeStarter = {
 type EditRecipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
+  products: { id: string; name: string }[]
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null }[]
 } | null
 
@@ -100,6 +101,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const [brand, setBrand] = useState(editRecipe?.brand || '')
   const [knownBrands, setKnownBrands] = useState<string[]>([])
   const [description, setDescription] = useState(editRecipe?.description || '')
+  const [products, setProducts] = useState<string[]>(editRecipe?.products.map(product => product.name) || [])
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || '')
   // When editing an existing recipe we only have the flat base-unit ratio,
   // not the chain. Default basedOn='' (base unit) and surface the raw count;
@@ -165,6 +167,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     setName(starter.name)
     setBrand('')
     setDescription('')
+    setProducts([])
     setBaseUnit(starter.baseUnit)
     setUnits(starter.units)
     setSteps(starter.steps)
@@ -179,6 +182,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     setName('')
     setBrand('')
     setDescription('')
+    setProducts([])
     setBaseUnit('')
     setUnits([])
     setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
@@ -313,6 +317,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name, brand: brand || undefined, description: description || undefined, baseUnit,
+          products: products.map(product => product.trim()).filter(Boolean),
           // Submit each unit's ratio in base-units-per-1-of-this-unit.
           // getBaseRatio already honors direction ('bigger' multiplies, 'smaller' divides).
           units: units.filter(u => u.name.trim()).map(u => ({
@@ -331,6 +336,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
       }
       if (!isEdit) {
         setName(''); setBrand(''); setDescription(''); setBaseUnit('')
+        setProducts([])
         setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
       }
       router.refresh()
@@ -387,14 +393,14 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
           </div>
         )}
 
-        {/* ── Product Name ── */}
+        {/* ── Recipe and products ── */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">What are you making?</label>
+          <label className="text-base text-foreground font-semibold block mb-1">Name this production flow</label>
           <p className="text-sm text-muted-foreground mb-3">
-            This is the product name your team will see when they start a batch.
+            One recipe can make several finished products when the worker steps are the same.
           </p>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., 1g Pre-Rolls, 14g Flower Bags, Gummy Bears" disabled={loading}
+            placeholder="e.g., Charas Jars, 1g Pre-Roll Tins" disabled={loading}
             className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
 
           <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} list="batchflow-brand-options"
@@ -404,6 +410,32 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             {knownBrands.map((option) => <option key={option} value={option} />)}
           </datalist>
           <p className="mt-2 text-xs text-muted-foreground">Pick a saved brand or type a new one. New brands become reusable after saving.</p>
+
+          <div className="mt-4 border-t border-border pt-4">
+            <label className="text-sm font-semibold text-foreground">Finished products</label>
+            <p className="mb-3 mt-1 text-xs text-muted-foreground">Optional. If you add products, you’ll choose one when starting a batch.</p>
+            <div className="space-y-2">
+              {products.map((product, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={product}
+                    onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))}
+                    placeholder="e.g., Sativa Charas"
+                    maxLength={120}
+                    disabled={loading}
+                    className="min-h-[46px] flex-1 rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none"
+                  />
+                  <button type="button" onClick={() => setProducts(current => current.filter((_, itemIndex) => itemIndex !== index))} className="bf-icon-btn bf-icon-btn-danger" aria-label="Remove product">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => setProducts(current => [...current, ''])} disabled={loading} className="bf-btn bf-btn-secondary mt-3 w-full border-dashed">
+              <PlusIcon className="h-4 w-4" /> Add finished product
+            </button>
+          </div>
 
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
             placeholder="Short description (optional) — e.g., Standard 14g ground flower bags" disabled={loading}

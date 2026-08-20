@@ -28,6 +28,7 @@ export async function GET() {
       where,
       include: {
         recipe: true,
+        product: true,
         steps: {
           orderBy: { order: 'asc' },
           include: {
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
 
     const {
       recipeId,
+      productId,
       name,
       targetQuantity,
       startDate,
@@ -111,6 +113,18 @@ export async function POST(request: NextRequest) {
 
     if (sourceBatchId && !sourceBatch) {
       return NextResponse.json({ error: 'Source batch not found' }, { status: 404 })
+    }
+
+    const selectedProductId = productId || sourceBatch?.productId || null
+    const activeProducts = await prisma.product.findMany({
+      where: { recipeId, organizationId: session.user.organizationId, archivedAt: null },
+      select: { id: true },
+    })
+    if (activeProducts.length > 0 && !activeProducts.some(product => product.id === selectedProductId)) {
+      return NextResponse.json({ error: 'Select a finished product' }, { status: 400 })
+    }
+    if (selectedProductId && activeProducts.length === 0) {
+      return NextResponse.json({ error: 'Product not found for this recipe' }, { status: 400 })
     }
 
 
@@ -189,6 +203,7 @@ export async function POST(request: NextRequest) {
     const batch = await prisma.batch.create({
       data: {
         recipeId,
+        productId: selectedProductId,
         name,
         targetQuantity: targetQuantity ?? null,
         baseUnit: recipe.baseUnit,
@@ -210,6 +225,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         recipe: true,
+        product: true,
         steps: { orderBy: { order: 'asc' } },
       },
     })

@@ -111,6 +111,7 @@ model Organization {
   workers     Worker[]
   batches     Batch[]
   recipes     Recipe[]
+  products    Product[]
   announcement Announcement?
 
   @@index([slug])
@@ -163,10 +164,27 @@ model Recipe {
   steps          RecipeStep[]
   batches        Batch[]
   units          RecipeUnit[]
+  products       Product[]
 
   @@index([organizationId])
   @@index([organizationId, archivedAt])
   @@index([organizationId, brand])
+}
+
+model Product {
+  id             String       @id @default(cuid())
+  name           String
+  recipeId       String
+  recipe         Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  archivedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  batches        Batch[]
+
+  @@unique([recipeId, name])
+  @@index([organizationId, archivedAt])
+  @@index([recipeId, archivedAt])
 }
 
 model RecipeUnit {
@@ -216,6 +234,8 @@ model Batch {
   id              String        @id @default(cuid())
   recipeId        String
   recipe          Recipe        @relation(fields: [recipeId], references: [id])
+  productId       String?
+  product         Product?      @relation(fields: [productId], references: [id])
   name            String
   targetQuantity  Int?
   baseUnit        String        @default("units")
@@ -242,6 +262,7 @@ model Batch {
   removals        BatchRemoval[]
 
   @@index([recipeId])
+  @@index([productId])
   @@index([status])
   @@index([priority])
   @@index([organizationId])

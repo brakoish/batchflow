@@ -14,12 +14,13 @@ type StockBatch = {
   baseUnit: string
   status: string
   recipe: { id: string; name: string; brand: string | null }
+  product: { id: string; name: string } | null
   steps: { name: string; order: number; type: string; completedQuantity: number; unitRatio: number }[]
   removals: { quantity: number }[]
 }
 
 type ProductStock = {
-  recipeId: string
+  key: string
   product: string
   brand: string
   baseUnit: string
@@ -45,6 +46,7 @@ export default async function StockPage() {
         baseUnit: true,
         status: true,
         recipe: { select: { id: true, name: true, brand: true } },
+        product: { select: { id: true, name: true } },
         steps: {
           orderBy: { order: 'asc' },
           select: { name: true, order: true, type: true, completedQuantity: true, unitRatio: true },
@@ -62,9 +64,10 @@ export default async function StockPage() {
     if (produced === 0 && removed === 0) continue
 
     const brand = batch.recipe.brand?.trim() || 'Unassigned'
-    const current = products.get(batch.recipe.id) || {
-      recipeId: batch.recipe.id,
-      product: batch.recipe.name,
+    const productKey = batch.product?.id || `recipe:${batch.recipe.id}`
+    const current = products.get(productKey) || {
+      key: productKey,
+      product: batch.product?.name || batch.recipe.name,
       brand,
       baseUnit: batch.baseUnit,
       produced: 0,
@@ -77,7 +80,7 @@ export default async function StockPage() {
     current.removed += removed
     current.onHand += batchOnHand
     if (batchOnHand > 0) current.batches.push({ id: batch.id, name: batch.name, onHand: batchOnHand, status: batch.status })
-    products.set(batch.recipe.id, current)
+    products.set(productKey, current)
   }
 
   const inStock = [...products.values()]
@@ -113,7 +116,7 @@ export default async function StockPage() {
                 </div>
                 <div className="space-y-3">
                   {brandProducts.map((product) => (
-                    <div key={product.recipeId} className="rounded-2xl border border-border bg-card p-4">
+                    <div key={product.key} className="rounded-2xl border border-border bg-card p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <h3 className="truncate text-base font-semibold text-foreground">{product.product}</h3>

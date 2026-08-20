@@ -9,6 +9,7 @@ import { emitBatchChanged } from '@/lib/batchEvents'
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
   units: { id: string; name: string; ratio: number }[]
+  products: { id: string; name: string }[]
   steps: { id: string; name: string; order: number; notes: string | null }[]
 }
 
@@ -23,6 +24,7 @@ function formatAmount(value: number) {
 export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; workers: Worker[] }) {
   const [selectedId, setSelectedId] = useState('')
   const [name, setName] = useState('')
+  const [productId, setProductId] = useState('')
   const [batchType, setBatchType] = useState<'fixed' | 'open'>('fixed')
   const [targetQuantity, setTargetQuantity] = useState('')
   const [targetMode, setTargetMode] = useState<TargetMode>('base')
@@ -64,6 +66,8 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
     setTargetMode('base')
     setTargetInput('')
     setTargetQuantity('')
+    setProductId('')
+    setName('')
   }, [selectedId])
 
   useEffect(() => {
@@ -87,6 +91,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
 
   const handleSubmit = async () => {
     if (!selectedId) { setError('Pick a recipe'); return }
+    if (selected?.products.length && !productId) { setError('Pick the finished product'); return }
     if (!name.trim()) { setError('Give this batch a name'); return }
     if (batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)) { setError('Enter a quantity'); return }
 
@@ -99,7 +104,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipeId: selectedId, name,
+          recipeId: selectedId, productId: productId || undefined, name,
           targetQuantity: batchType === 'open' ? null : parseInt(targetQuantity),
           priority,
           dueDate,
@@ -156,6 +161,26 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
       {/* ── Details (shown after recipe selection) ── */}
       {selected && (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {selected.products.length > 0 && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">Finished product</label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {selected.products.map(product => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => { haptic('light'); setProductId(product.id); setName(product.name) }}
+                    disabled={loading}
+                    className={`bf-select-btn min-h-[50px] justify-start ${productId === product.id ? 'bf-select-btn-active' : ''}`}
+                  >
+                    {product.name}
+                    {productId === product.id && <CheckCircleIcon className="ml-auto h-5 w-5" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* What workers will get */}
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-start justify-between gap-3 mb-3">

@@ -31,6 +31,7 @@ export async function GET() {
           orderBy: { order: 'asc' },
           include: { unit: true, materials: true },
         },
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
         _count: { select: { batches: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireSupervisorOrOwner()
 
-    const { name, brand, description, baseUnit, units, steps } = await request.json()
+    const { name, brand, description, baseUnit, units, steps, products } = await request.json()
 
     if (!name || !steps || steps.length === 0) {
       return NextResponse.json({ error: 'Name and steps are required' }, { status: 400 })
@@ -59,11 +60,16 @@ export async function POST(request: NextRequest) {
     }
     const duplicateUnit = findDuplicate(cleanUnits.map((u: { name: string }) => u.name))
     const duplicateStep = findDuplicate(cleanSteps.map((s: { name: string }) => s.name))
+    const cleanProducts = (products || []).map((product: string) => String(product).trim()).filter(Boolean)
+    const duplicateProduct = findDuplicate(cleanProducts)
     if (duplicateUnit) {
       return NextResponse.json({ error: `Unit names must be unique: ${duplicateUnit}` }, { status: 400 })
     }
     if (duplicateStep) {
       return NextResponse.json({ error: `Step names must be unique: ${duplicateStep}` }, { status: 400 })
+    }
+    if (duplicateProduct) {
+      return NextResponse.json({ error: `Product names must be unique: ${duplicateProduct}` }, { status: 400 })
     }
 
     const recipe = await prisma.recipe.create({
@@ -78,6 +84,12 @@ export async function POST(request: NextRequest) {
             name: String(u.name).trim(),
             ratio: u.ratio || 1,
             order: i,
+          })),
+        },
+        products: {
+          create: cleanProducts.map((product: string) => ({
+            name: product.slice(0, 120),
+            organizationId: session.user.organizationId,
           })),
         },
       },
@@ -120,6 +132,7 @@ export async function POST(request: NextRequest) {
       include: {
         units: { orderBy: { order: 'asc' } },
         steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
       },
     })
 

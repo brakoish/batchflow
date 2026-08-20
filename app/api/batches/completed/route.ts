@@ -13,6 +13,7 @@ export async function GET() {
       },
       include: {
         recipe: true,
+        product: true,
         steps: { orderBy: { order: 'asc' } },
       },
       orderBy: { completedDate: 'desc' },

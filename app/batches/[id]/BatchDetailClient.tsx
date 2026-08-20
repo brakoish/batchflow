@@ -56,7 +56,7 @@ type Batch = {
   strain?: string
   packageTag?: string
   notes?: string | null
-  recipe: { id: string; name: string }; steps: BatchStep[]
+  recipe: { id: string; name: string }; product?: { id: string; name: string } | null; steps: BatchStep[]
   assignments?: { worker: Worker }[]
   removals?: BatchRemoval[]
 }
@@ -1100,7 +1100,7 @@ export default function BatchDetailClient({
         <div className="mb-5">
           <h1 className="text-lg font-semibold tracking-tight text-foreground">{batch.name}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-xs text-foreground">{batch.recipe.name}</span>
+            <span className="text-xs text-foreground">{batch.product?.name || batch.recipe.name}</span>
             <span className="text-muted-foreground/30">·</span>
             {(() => {
               const priority = batch.priority || 'NORMAL'

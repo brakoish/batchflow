@@ -26,6 +26,7 @@ export async function GET(
       include: {
         units: { orderBy: { order: 'asc' } },
         steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
         _count: { select: { batches: true } },
       },
     })
@@ -47,7 +48,7 @@ export async function PUT(
   try {
     const session = await requireSupervisorOrOwner()
     const { id } = await params
-    const { name, brand, description, baseUnit, units, steps } = await request.json()
+    const { name, brand, description, baseUnit, units, steps, products } = await request.json()
 
     const ownedRecipe = await prisma.recipe.findFirst({
       where: { id, organizationId: session.user.organizationId },
@@ -66,11 +67,16 @@ export async function PUT(
     }
     const duplicateUnit = findDuplicate(cleanUnits.map((u: { name: string }) => u.name))
     const duplicateStep = findDuplicate(cleanSteps.map((s: { name: string }) => s.name))
+    const cleanProducts = (products || []).map((product: string) => String(product).trim()).filter(Boolean)
+    const duplicateProduct = findDuplicate(cleanProducts)
     if (duplicateUnit) {
       return NextResponse.json({ error: `Unit names must be unique: ${duplicateUnit}` }, { status: 400 })
     }
     if (duplicateStep) {
       return NextResponse.json({ error: `Step names must be unique: ${duplicateStep}` }, { status: 400 })
+    }
+    if (duplicateProduct) {
+      return NextResponse.json({ error: `Product names must be unique: ${duplicateProduct}` }, { status: 400 })
     }
 
     // Get existing recipe steps (we need to update in place to preserve BatchStep references)
@@ -105,6 +111,28 @@ export async function PUT(
       },
       include: { units: true },
     })
+
+    const existingProducts = await prisma.product.findMany({
+      where: { recipeId: id, organizationId: session.user.organizationId },
+      select: { id: true, name: true },
+    })
+    const wantedProducts = new Map<string, string>(cleanProducts.map((product: string) => [product.toLowerCase(), product.slice(0, 120)]))
+    for (const product of existingProducts) {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { archivedAt: wantedProducts.has(product.name.toLowerCase()) ? null : new Date() },
+      })
+      wantedProducts.delete(product.name.toLowerCase())
+    }
+    if (wantedProducts.size > 0) {
+      await prisma.product.createMany({
+        data: [...wantedProducts.values()].map((productName) => ({
+          name: productName,
+          recipeId: id,
+          organizationId: session.user.organizationId,
+        })),
+      })
+    }
 
     // Update/create/delete steps in place to preserve BatchStep foreign keys
     const newStepCount = cleanSteps.length
@@ -177,6 +205,7 @@ export async function PUT(
       include: {
         units: { orderBy: { order: 'asc' } },
         steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
         _count: { select: { batches: true } },
       },
     })

@@ -9,7 +9,7 @@ type Step = { id: string; name: string; order: number; type: string; unitLabel: 
 type Batch = {
   id: string; name: string; targetQuantity: number | null; baseUnit: string; status: string
   completedDate: string | null; startDate: string; createdAt: string
-  recipe: { name: string }; steps: (Step & { unitRatio?: number })[]
+  recipe: { name: string }; product?: { name: string } | null; steps: (Step & { unitRatio?: number })[]
 }
 
 const SKIPPED_PREFIX = '[Skipped] '
@@ -172,7 +172,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                     )}
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">{batch.name}</h3>
-                      <p className="text-xs text-foreground mt-0.5">{batch.recipe.name} · {batch.targetQuantity ? `${batch.targetQuantity} ${batch.baseUnit}` : <span className="text-blue-500">Open batch</span>}</p>
+                      <p className="text-xs text-foreground mt-0.5">{batch.product?.name || batch.recipe.name} · {batch.targetQuantity ? `${batch.targetQuantity} ${batch.baseUnit}` : <span className="text-blue-500">Open batch</span>}</p>
                     </div>
                   </div>
                   <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0 ml-2">{date}</span>

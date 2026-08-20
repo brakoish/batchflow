@@ -24,6 +24,7 @@ export default async function NewBatchPage() {
         name: true,
         description: true,
         baseUnit: true,
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' }, select: { id: true, name: true } },
         units: { orderBy: { order: 'asc' }, select: { id: true, name: true, ratio: true } },
         steps: { orderBy: { order: 'asc' }, select: { id: true, name: true, order: true, notes: true } },
       },

@@ -16,6 +16,7 @@ export default async function HistoryPage() {
     },
     include: {
       recipe: true,
+      product: true,
       steps: { orderBy: { order: 'asc' } },
     },
     orderBy: { completedDate: 'desc' },

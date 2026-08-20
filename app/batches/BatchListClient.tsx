@@ -25,7 +25,7 @@ type Assignment = { worker: { id: string; name: string } }
 type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
-  recipe: { name: string; brand?: string | null }; steps: Step[]; assignments?: Assignment[]
+  recipe: { name: string; brand?: string | null }; product?: { name: string } | null; steps: Step[]; assignments?: Assignment[]
 }
 
 export default function BatchListClient({
@@ -263,6 +263,7 @@ export default function BatchListClient({
               const matchesSearch = (
                 b.name.toLowerCase().includes(query) ||
                 b.recipe.name.toLowerCase().includes(query) ||
+                (b.product?.name.toLowerCase().includes(query) ?? false) ||
                 (b.recipe.brand && b.recipe.brand.toLowerCase().includes(query)) ||
                 (b.strain && b.strain.toLowerCase().includes(query))
               )
@@ -423,7 +424,7 @@ export default function BatchListClient({
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 truncate text-sm text-muted-foreground">{batch.recipe.name}</p>
+                        <p className="mt-1 truncate text-sm text-muted-foreground">{batch.product?.name || batch.recipe.name}</p>
                       </div>
                       {dueLabel && (
                         <span className={`shrink-0 text-xs font-semibold ${dueLabel.includes('overdue') ? 'text-red-500' : 'text-muted-foreground'}`}>
@@ -462,7 +463,7 @@ export default function BatchListClient({
                   <div className="flex items-start justify-between mb-4">
                     <div className="min-w-0 flex-1">
                       <h2 className="text-lg font-semibold text-foreground truncate">{batch.name}</h2>
-                      <p className="text-sm text-muted-foreground">{batch.recipe.name}</p>
+                      <p className="text-sm text-muted-foreground">{batch.product?.name || batch.recipe.name}</p>
                       {batch.dueDate && (() => {
                         const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
                         const now = new Date()

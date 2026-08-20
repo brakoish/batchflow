@@ -29,6 +29,7 @@ export default async function BatchesPage() {
     where,
     include: {
       recipe: true,
+      product: true,
       steps: {
         orderBy: { order: 'asc' },
         include: {

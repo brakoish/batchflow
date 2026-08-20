@@ -30,6 +30,7 @@ export default async function BatchDetailPage({
       },
       include: {
         recipe: true,
+        product: true,
         steps: {
           orderBy: { order: 'asc' },
           include: {

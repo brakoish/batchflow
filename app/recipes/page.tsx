@@ -22,6 +22,7 @@ export default async function RecipesPage() {
     include: {
       units: { orderBy: { order: 'asc' } },
       steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
+      products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
       _count: { select: { batches: true } },
     },
     orderBy: { createdAt: 'desc' },
