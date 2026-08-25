@@ -26,6 +26,14 @@ enum BatchPriority {
   URGENT
 }
 
+enum BatchMaterialEventType {
+  ISSUE
+  ADDITION
+  RETURN
+  WASTE
+  RECONCILE
+}
+
 enum StepStatus {
   LOCKED
   IN_PROGRESS
@@ -145,6 +153,7 @@ model Worker {
   logAudits      LogAudit[]
   batchMessages  BatchMessage[]
   batchRemovals  BatchRemoval[]
+  batchMaterialEvents BatchMaterialEvent[]
   pushSubscriptions PushSubscription[]
   user           User?
 
@@ -260,6 +269,12 @@ model Batch {
   assignments     BatchAssignment[]
   messages        BatchMessage[]
   removals        BatchRemoval[]
+  materialName    String?
+  materialUnit    String?
+  // Finished base units produced per one material unit (copied from the recipe conversion).
+  materialRatio   Float?
+  materialReconciledAt DateTime?
+  materialEvents  BatchMaterialEvent[]
 
   @@index([recipeId])
   @@index([productId])
@@ -408,6 +423,23 @@ model BatchRemoval {
   reason    String   @default("Distro")
   note      String?
   createdAt DateTime @default(now())
+
+  @@index([batchId])
+  @@index([workerId])
+  @@index([createdAt])
+}
+
+model BatchMaterialEvent {
+  id        String                 @id @default(cuid())
+  batchId   String
+  batch     Batch                  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  workerId  String?
+  worker    Worker?                @relation(fields: [workerId], references: [id])
+  actorName String
+  type      BatchMaterialEventType
+  quantity  Float
+  note      String?
+  createdAt DateTime               @default(now())
 
   @@index([batchId])
   @@index([workerId])

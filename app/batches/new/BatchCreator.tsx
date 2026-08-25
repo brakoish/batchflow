@@ -38,6 +38,11 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [strain, setStrain] = useState('')
   const [packageTag, setPackageTag] = useState('')
   const [notes, setNotes] = useState('')
+  const [trackMaterial, setTrackMaterial] = useState(false)
+  const [materialName, setMaterialName] = useState('')
+  const [materialUnit, setMaterialUnit] = useState('g')
+  const [materialPerBaseUnit, setMaterialPerBaseUnit] = useState('')
+  const [materialIssued, setMaterialIssued] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showMetrc, setShowMetrc] = useState(false)
@@ -49,6 +54,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const selected = recipes.find((r) => r.id === selectedId)
   const fixedTargetInvalid = batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)
   const targetUnit = selected?.units.find(unit => unit.id === targetMode)
+  const suggestedMaterial = selected?.units.find(unit => /(flower|bulk|input|\(g\))/i.test(unit.name) && unit.ratio > 0)
   const targetInputNumber = parseFloat(targetInput)
   const calculatedTarget = batchType === 'fixed' && Number.isFinite(targetInputNumber) && targetInputNumber > 0
     ? targetMode === 'base'
@@ -68,6 +74,11 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
     setTargetQuantity('')
     setProductId('')
     setName('')
+    setTrackMaterial(false)
+    setMaterialName('')
+    setMaterialUnit('g')
+    setMaterialPerBaseUnit('')
+    setMaterialIssued('')
   }, [selectedId])
 
   useEffect(() => {
@@ -94,6 +105,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
     if (selected?.products.length && !productId) { setError('Pick the finished product'); return }
     if (!name.trim()) { setError('Give this batch a name'); return }
     if (batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)) { setError('Enter a quantity'); return }
+    if (trackMaterial && (!materialName.trim() || !materialIssued || Number(materialIssued) <= 0 || !materialPerBaseUnit || Number(materialPerBaseUnit) <= 0)) { setError('Enter the input material, weight issued, and amount used per finished unit'); return }
 
     const dueDate = selectedDueDate || undefined
 
@@ -112,6 +124,10 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
           metrcBatchId: metrcBatchId || undefined, lotNumber: lotNumber || undefined,
           strain: strain || undefined, packageTag: packageTag || undefined,
           notes: notes.trim() || undefined,
+          materialName: trackMaterial ? materialName.trim() : undefined,
+          materialUnit: trackMaterial ? materialUnit : undefined,
+          materialPerBaseUnit: trackMaterial ? Number(materialPerBaseUnit) : undefined,
+          materialIssued: trackMaterial ? Number(materialIssued) : undefined,
         }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
@@ -370,6 +386,62 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
               </div>
             </div>
           )}
+
+          {/* Optional bulk material accountability */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <button
+              type="button"
+              onClick={() => {
+                haptic('light')
+                setTrackMaterial(value => {
+                  const next = !value
+                  if (next && suggestedMaterial) {
+                    setMaterialName(suggestedMaterial.name.replace(/\s*\([^)]+\)\s*$/, ''))
+                    setMaterialUnit(suggestedMaterial.name.match(/\(([^)]+)\)\s*$/)?.[1] || 'g')
+                    setMaterialPerBaseUnit(String(Number((1 / suggestedMaterial.ratio).toFixed(4))))
+                  }
+                  return next
+                })
+              }}
+              className="flex min-h-[44px] w-full items-center justify-between gap-3 text-left"
+            >
+              <span>
+                <span className="block text-sm font-semibold text-foreground">Track bulk material</span>
+                <span className="block text-xs text-muted-foreground">Optional · reconcile issued weight against packed output</span>
+              </span>
+              <span className={`h-6 w-11 rounded-full p-0.5 transition-colors ${trackMaterial ? 'bg-emerald-500' : 'bg-muted'}`}>
+                <span className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${trackMaterial ? 'translate-x-5' : ''}`} />
+              </span>
+            </button>
+            {trackMaterial && (
+              <div className="mt-4 space-y-3 border-t border-border pt-4">
+                <>
+                  <div>
+                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Input material</label>
+                    <input value={materialName} onChange={event => setMaterialName(event.target.value)} placeholder="Flower" maxLength={80} className="w-full min-h-[48px] rounded-xl border-2 border-border bg-card px-4 text-foreground focus:border-emerald-500 focus:outline-none" />
+                  </div>
+                  <div className="grid grid-cols-[1fr_92px] gap-2">
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Weight issued</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        min="0"
+                        value={materialIssued}
+                        onChange={event => setMaterialIssued(event.target.value)}
+                        placeholder="0"
+                        className="w-full min-h-[48px] rounded-xl border-2 border-border bg-card px-4 text-xl font-bold tabular-nums text-foreground focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <div><label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Unit</label><select value={materialUnit} onChange={event => setMaterialUnit(event.target.value)} className="w-full min-h-[48px] rounded-xl border-2 border-border bg-card px-2"><option value="g">g</option><option value="kg">kg</option><option value="oz">oz</option><option value="lb">lb</option></select></div>
+                  </div>
+                  <div><label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{materialUnit} used per finished {selected.baseUnit.replace(/s$/, '')}</label><input type="number" inputMode="decimal" step="any" min="0" value={materialPerBaseUnit} onChange={event => setMaterialPerBaseUnit(event.target.value)} placeholder="e.g. 14" className="w-full min-h-[48px] rounded-xl border-2 border-border bg-card px-4 text-foreground focus:border-emerald-500 focus:outline-none" /></div>
+                  <p className="text-[11px] text-muted-foreground">Issuer and time are automatic. Recipe conversions prefill this when available, but every batch can use tracking.</p>
+                </>
+              </div>
+            )}
+          </div>
 
           {/* Deadline — inline calendar */}
           <div>

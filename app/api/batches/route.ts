@@ -69,6 +69,10 @@ export async function POST(request: NextRequest) {
       notes,
       priority,
       sourceBatchId,
+      materialName,
+      materialUnit,
+      materialPerBaseUnit,
+      materialIssued,
     } = await request.json()
 
     if (!recipeId || !name) {
@@ -110,6 +114,15 @@ export async function POST(request: NextRequest) {
           },
         })
       : null
+
+    const cleanMaterialName = materialName ? String(materialName).trim().slice(0, 80) : ''
+    const cleanMaterialUnit = materialUnit ? String(materialUnit).trim().slice(0, 20) : ''
+    const perBaseUnit = materialPerBaseUnit == null || materialPerBaseUnit === '' ? null : Number(materialPerBaseUnit)
+    const issuedQuantity = materialIssued == null || materialIssued === '' ? null : Number(materialIssued)
+    const tracksMaterial = Boolean(cleanMaterialName || cleanMaterialUnit || perBaseUnit != null || issuedQuantity != null)
+    if (tracksMaterial && (!cleanMaterialName || !cleanMaterialUnit || !Number.isFinite(perBaseUnit) || perBaseUnit! <= 0 || !Number.isFinite(issuedQuantity) || issuedQuantity! <= 0)) {
+      return NextResponse.json({ error: 'Enter the material, weight issued, unit, and amount used per finished unit' }, { status: 400 })
+    }
 
     if (sourceBatchId && !sourceBatch) {
       return NextResponse.json({ error: 'Source batch not found' }, { status: 404 })
@@ -216,6 +229,12 @@ export async function POST(request: NextRequest) {
         strain: strain || undefined,
         packageTag: packageTag || undefined,
         notes: notes ? String(notes).slice(0, 2000) : undefined,
+        materialName: tracksMaterial ? cleanMaterialName : undefined,
+        materialUnit: tracksMaterial ? cleanMaterialUnit : undefined,
+        materialRatio: tracksMaterial ? 1 / perBaseUnit! : undefined,
+        materialEvents: tracksMaterial && issuedQuantity
+          ? { create: { workerId: session.user.workerId || null, actorName: session.user.name || session.user.role, type: 'ISSUE', quantity: issuedQuantity } }
+          : undefined,
         assignments: uniqueWorkerIds.length
           ? { create: uniqueWorkerIds.map((workerId) => ({ workerId })) }
           : undefined,

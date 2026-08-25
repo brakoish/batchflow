@@ -46,6 +46,10 @@ export async function GET(
           include: { worker: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },
         },
+        materialEvents: {
+          include: { worker: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     })
 
@@ -96,6 +100,9 @@ export async function PATCH(
       if (session.user.role === 'SUPERVISOR' && status !== 'COMPLETED') {
         return NextResponse.json({ error: 'Owner access required for this status change' }, { status: 403 })
       }
+      if (status === 'COMPLETED' && existingBatch.materialName && !existingBatch.materialReconciledAt) {
+        return NextResponse.json({ error: 'Reconcile the issued material before completing this batch' }, { status: 400 })
+      }
       
       await prisma.batch.update({
         where: { id },
@@ -125,6 +132,10 @@ export async function PATCH(
           removals: {
             include: { worker: { select: { id: true, name: true } } },
             orderBy: { createdAt: 'desc' },
+          },
+          materialEvents: {
+            include: { worker: { select: { id: true, name: true } } },
+            orderBy: { createdAt: 'asc' },
           },
         },
       })
@@ -248,6 +259,10 @@ export async function PATCH(
         removals: {
           include: { worker: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },
+        },
+        materialEvents: {
+          include: { worker: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'asc' },
         },
       },
     })

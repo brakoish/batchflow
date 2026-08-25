@@ -17,6 +17,7 @@ type Step = {
 }
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority: Priority
+  materialName?: string | null; materialReconciledAt?: string | null
   dueDate?: string | null; strain?: string | null; lotNumber?: string | null
   metrcBatchId?: string | null; packageTag?: string | null; notes?: string | null
   recipe: { id: string; name: string; baseUnit: string; units: { name: string; ratio: number }[] }
@@ -291,7 +292,8 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
 
           {!duplicate && <Section title="Lifecycle" summary={batch.status === 'ACTIVE' ? 'Active production batch' : batch.status}>
             <Link href={`/batches/${batch.id}/manage?duplicate=1`} className="bf-btn bf-btn-secondary w-full">Duplicate & review</Link>
-            {batch.status === 'ACTIVE' && <button type="button" onClick={() => setConfirm({ title: 'Mark batch complete?', message: 'Production logging will stop. Owners can reopen it later.', label: 'Mark Complete', action: () => lifecycle('COMPLETED') })} className="bf-btn bf-btn-success w-full">Mark Complete</button>}
+            {batch.status === 'ACTIVE' && batch.materialName && !batch.materialReconciledAt && <Link href={`/batches/${batch.id}`} className="bf-btn bf-btn-primary w-full">Reconcile material before completing</Link>}
+            {batch.status === 'ACTIVE' && (!batch.materialName || batch.materialReconciledAt) && <button type="button" onClick={() => setConfirm({ title: 'Mark batch complete?', message: 'Production logging will stop. Owners can reopen it later.', label: 'Mark Complete', action: () => lifecycle('COMPLETED') })} className="bf-btn bf-btn-success w-full">Mark Complete</button>}
             {batch.status !== 'ACTIVE' && session.role === 'OWNER' && <button type="button" onClick={() => setConfirm({ title: 'Reopen batch?', message: 'The team will be able to log production again.', label: 'Reopen', action: () => lifecycle('ACTIVE') })} className="bf-btn bf-btn-secondary w-full">Reopen Batch</button>}
             {batch.status === 'ACTIVE' && session.role === 'OWNER' && <button type="button" onClick={() => setConfirm({ title: 'Cancel batch?', message: 'This stops production but keeps the batch record.', label: 'Cancel Batch', action: () => lifecycle('CANCELLED') })} className="bf-btn bf-btn-soft-danger w-full">Cancel Batch</button>}
             {batch.status === 'CANCELLED' && session.role === 'OWNER' && <button type="button" onClick={() => setConfirm({ title: 'Delete batch permanently?', message: 'This removes the cancelled batch and its production history. This cannot be undone.', label: 'Delete Permanently', action: deleteBatch })} className="bf-btn bf-btn-soft-danger w-full">Delete Permanently</button>}

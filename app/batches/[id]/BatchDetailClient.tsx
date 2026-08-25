@@ -23,6 +23,7 @@ import { formatTimeInTz, formatDateInTz } from '@/lib/timezone'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
 import { getProducedBaseUnits, getRemovedQuantity } from '@/lib/inventory'
+import { formatMaterialQuantity, getMaterialReconciliation } from '@/lib/materialReconciliation'
 import {
   formatShortRelativeTime,
   getActiveStations,
@@ -38,6 +39,9 @@ type ProgressLog = {
 }
 type BatchRemoval = {
   id: string; quantity: number; reason: string; note: string | null; createdAt: string; worker: Worker
+}
+type BatchMaterialEvent = {
+  id: string; type: 'ISSUE' | 'ADDITION' | 'RETURN' | 'WASTE' | 'RECONCILE'; quantity: number; note: string | null; createdAt: string; worker?: Worker | null; actorName: string
 }
 type StepMaterial = { name: string; quantityPerUnit: number; unit: string }
 type BatchStep = {
@@ -59,6 +63,11 @@ type Batch = {
   recipe: { id: string; name: string }; product?: { id: string; name: string } | null; steps: BatchStep[]
   assignments?: { worker: Worker }[]
   removals?: BatchRemoval[]
+  materialName?: string | null
+  materialUnit?: string | null
+  materialRatio?: number | null
+  materialReconciledAt?: string | null
+  materialEvents?: BatchMaterialEvent[]
 }
 type BatchMessage = {
   id: string
@@ -224,6 +233,12 @@ export default function BatchDetailClient({
   const [removalReason, setRemovalReason] = useState('Distro')
   const [removalNote, setRemovalNote] = useState('')
   const [savingRemoval, setSavingRemoval] = useState(false)
+  const [materialModal, setMaterialModal] = useState<'addition' | 'reconcile' | null>(null)
+  const [materialQuantity, setMaterialQuantity] = useState('')
+  const [materialReturned, setMaterialReturned] = useState('')
+  const [materialWaste, setMaterialWaste] = useState('')
+  const [materialNote, setMaterialNote] = useState('')
+  const [savingMaterial, setSavingMaterial] = useState(false)
 
   // Duplicate modal state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
@@ -440,6 +455,25 @@ export default function BatchDetailClient({
     } finally {
       setSavingRemoval(false)
     }
+  }
+
+  const saveMaterial = async () => {
+    const isAddition = materialModal === 'addition'
+    const body = isAddition
+      ? { action: 'ADDITION', quantity: Number(materialQuantity), note: materialNote || null }
+      : { action: 'RECONCILE', returned: Number(materialReturned || 0), waste: Number(materialWaste || 0), note: materialNote || null }
+    if (isAddition && (!Number.isFinite(Number(materialQuantity)) || Number(materialQuantity) <= 0)) return setError('Enter an amount greater than 0')
+    setSavingMaterial(true); setError('')
+    try {
+      const res = await fetch(`/api/batches/${batch.id}/materials`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return setError(data.error || 'Failed to save material')
+      if (isAddition) setBatch(prev => ({ ...prev, materialEvents: [...(prev.materialEvents || []), data.event] }))
+      else setBatch(prev => ({ ...prev, materialReconciledAt: data.materialReconciledAt, materialEvents: [...(prev.materialEvents || []), ...(data.events || [])] }))
+      setMaterialModal(null); lastSaveTsRef.current = Date.now(); emitBatchChanged(batch.id, 'material')
+      showToast(isAddition ? 'Material added' : 'Material reconciled')
+    } catch { setError('Network error. Please check your connection.') }
+    finally { setSavingMaterial(false) }
   }
 
   const handleOpenAddStep = () => {
@@ -1018,6 +1052,9 @@ export default function BatchDetailClient({
   const removedQuantity = getRemovedQuantity(batch.removals)
   const availableQuantity = Math.max(0, producedBaseUnits - removedQuantity)
   const productionResult = getProductionResult(batch)
+  const materialResult = batch.materialName
+    ? getMaterialReconciliation(batch.materialEvents || [], producedBaseUnits, batch.materialRatio)
+    : null
 
   const openLogForStep = (step: BatchStep) => {
     haptic('light')
@@ -1292,6 +1329,32 @@ export default function BatchDetailClient({
               </div>
             )}
           </div>
+          )}
+
+          {materialResult && !isWorker && (
+            <div className={`mt-3 rounded-xl border p-3 ${batch.materialReconciledAt ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-amber-500/25 bg-amber-500/5'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Bulk Material</p>
+                  <p className="text-sm font-semibold text-foreground">{batch.materialName} · {batch.materialReconciledAt ? 'Reconciled' : 'Open balance'}</p>
+                </div>
+                {!batch.materialReconciledAt && batch.status === 'ACTIVE' && (
+                  <button type="button" onClick={() => { setMaterialModal('addition'); setMaterialQuantity(''); setMaterialNote(''); setError('') }} className="bf-btn bf-btn-secondary bf-btn-sm">+ Add</button>
+                )}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-[10px] uppercase text-muted-foreground">Issued</p><p className="font-bold tabular-nums">{formatMaterialQuantity(materialResult.issued + materialResult.additions)} {batch.materialUnit}</p></div>
+                <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-[10px] uppercase text-muted-foreground">Expected used</p><p className="font-bold tabular-nums">{materialResult.expectedUsed == null ? '—' : formatMaterialQuantity(materialResult.expectedUsed)} {batch.materialUnit}</p></div>
+                <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-[10px] uppercase text-muted-foreground">Returned + waste</p><p className="font-bold tabular-nums">{formatMaterialQuantity(materialResult.returned + materialResult.waste)} {batch.materialUnit}</p></div>
+                <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-[10px] uppercase text-muted-foreground">Unexplained</p><p className={`font-bold tabular-nums ${materialResult.unexplained != null && materialResult.unexplained > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{materialResult.unexplained == null ? '—' : formatMaterialQuantity(materialResult.unexplained)} {batch.materialUnit}</p></div>
+              </div>
+              {!batch.materialReconciledAt && (
+                <button type="button" onClick={() => { setMaterialModal('reconcile'); setMaterialReturned(''); setMaterialWaste(''); setMaterialNote(''); setError('') }} className="bf-btn bf-btn-primary mt-3 w-full">Reconcile material</button>
+              )}
+              {batch.materialReconciledAt && materialResult.variancePct != null && (
+                <p className={`mt-2 text-xs font-medium ${Math.abs(materialResult.variancePct) > 2 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatMaterialQuantity(materialResult.variancePct)}% unexplained variance</p>
+              )}
+            </div>
           )}
 
           {productionResult && batch.status === 'COMPLETED' && (
@@ -2254,6 +2317,30 @@ export default function BatchDetailClient({
                   Delete Entry
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {materialModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
+          <div className="safe-bottom w-full max-w-md rounded-t-2xl border border-border bg-card p-5 sm:rounded-2xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div><p className="font-semibold text-foreground">{materialModal === 'addition' ? 'Add bulk material' : 'Reconcile bulk material'}</p><p className="text-xs text-muted-foreground">{batch.materialName} · amounts in {batch.materialUnit}</p></div>
+              <button type="button" onClick={() => { setMaterialModal(null); setError('') }} className="bf-icon-btn"><XMarkIcon className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-3">
+              {materialModal === 'addition' ? (
+                <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider">Additional amount issued</label><input type="number" inputMode="decimal" step="any" min="0" value={materialQuantity} onChange={event => setMaterialQuantity(event.target.value)} className="w-full rounded-xl border border-input bg-muted/50 px-4 py-3 text-xl font-bold tabular-nums" placeholder="0" /></div>
+              ) : (
+                <>
+                  <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider">Unused material returned</label><input type="number" inputMode="decimal" step="any" min="0" value={materialReturned} onChange={event => setMaterialReturned(event.target.value)} className="w-full rounded-xl border border-input bg-muted/50 px-4 py-3 text-xl font-bold tabular-nums" placeholder="0" /></div>
+                  <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider">Known waste or spillage</label><input type="number" inputMode="decimal" step="any" min="0" value={materialWaste} onChange={event => setMaterialWaste(event.target.value)} className="w-full rounded-xl border border-input bg-muted/50 px-4 py-3 text-xl font-bold tabular-nums" placeholder="0" /></div>
+                </>
+              )}
+              <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider">Note (optional)</label><input value={materialNote} onChange={event => setMaterialNote(event.target.value)} maxLength={500} className="w-full rounded-xl border border-input bg-muted/50 px-3 py-2.5" placeholder="Package tag, spill reason, etc." /></div>
+              {error && <p className="text-xs text-red-500">{error}</p>}
+              <button type="button" onClick={saveMaterial} disabled={savingMaterial} className="bf-btn bf-btn-success w-full">{savingMaterial ? 'Saving…' : materialModal === 'addition' ? 'Record additional material' : 'Close material balance'}</button>
             </div>
           </div>
         </div>

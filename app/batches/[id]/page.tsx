@@ -49,6 +49,10 @@ export default async function BatchDetailPage({
           include: { worker: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },
         },
+        materialEvents: {
+          include: { worker: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     }),
     prisma.organization.findUnique({
