@@ -369,6 +369,8 @@ export default function BatchListClient({
               const isUrgent = priority === 'URGENT'
               const activeStations = getActiveStations(batch.steps, 2)
               const stationStates = getStationStates(batch.steps)
+              const remainingTasks = stationStates.filter(state => state.label !== 'done' && state.label !== 'skipped')
+              const visibleRemainingTasks = remainingTasks.slice(0, 2)
               const lastMovement = getLastBatchMovement(batch.steps)
               const assignedNames = batch.assignments?.map(a => a.worker.name.split(' ')[0]) || []
               const waitingStation = stationStates.find(s => s.label === 'waiting')
@@ -441,6 +443,31 @@ export default function BatchListClient({
                         <p className="mt-0.5 truncate text-base font-semibold text-foreground">{stationName}</p>
                       </div>
                       <p className="shrink-0 text-base font-bold tabular-nums text-foreground">{quantity}</p>
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-border/60 px-3 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tasks left</p>
+                      <div className="mt-2 space-y-1.5">
+                        {remainingTasks.length === 0 && (
+                          <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">All tasks done</p>
+                        )}
+                        {visibleRemainingTasks.map(({ step }) => {
+                          const remaining = step.targetQuantity === null
+                            ? null
+                            : Math.max(0, step.targetQuantity - step.completedQuantity)
+                          return (
+                            <div key={step.id} className="flex items-center justify-between gap-3 text-sm">
+                              <span className="truncate font-medium text-foreground">{displayProductionStepName(step)}</span>
+                              <span className="shrink-0 tabular-nums text-muted-foreground">
+                                {step.type === 'CHECK' ? 'Not done' : remaining !== null ? `${remaining.toLocaleString()} left` : 'Still open'}
+                              </span>
+                            </div>
+                          )
+                        })}
+                        {remainingTasks.length > visibleRemainingTasks.length && (
+                          <p className="text-xs font-medium text-muted-foreground">+{remainingTasks.length - visibleRemainingTasks.length} more tasks</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mt-3 flex min-h-[44px] items-center justify-between border-t border-border/60 pt-3">
@@ -572,6 +599,31 @@ export default function BatchListClient({
                         <p className="text-[11px] text-muted-foreground truncate">
                           {getStationWaitingReason(stationStates, waitingStation) || `Waiting: ${displayProductionStepName(waitingStation.step)}`}
                         </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mb-4 rounded-xl border border-border/60 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tasks left</p>
+                    <div className="mt-2 space-y-1.5">
+                      {remainingTasks.length === 0 && (
+                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">All tasks done</p>
+                      )}
+                      {visibleRemainingTasks.map(({ step }) => {
+                        const remaining = step.targetQuantity === null
+                          ? null
+                          : Math.max(0, step.targetQuantity - step.completedQuantity)
+                        return (
+                          <div key={step.id} className="flex items-center justify-between gap-3 text-xs">
+                            <span className="truncate font-medium text-foreground">{displayProductionStepName(step)}</span>
+                            <span className="shrink-0 tabular-nums text-muted-foreground">
+                              {step.type === 'CHECK' ? 'Not done' : remaining !== null ? `${remaining.toLocaleString()} left` : 'Still open'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                      {remainingTasks.length > visibleRemainingTasks.length && (
+                        <p className="text-[11px] font-medium text-muted-foreground">+{remainingTasks.length - visibleRemainingTasks.length} more tasks</p>
                       )}
                     </div>
                   </div>
