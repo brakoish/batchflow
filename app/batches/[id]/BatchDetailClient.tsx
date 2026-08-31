@@ -1436,6 +1436,17 @@ export default function BatchDetailClient({
           {/* Owner/Supervisor batch controls */}
           {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
             <div className="mt-3 flex items-center gap-2" aria-label="Batch actions">
+              {batch.status === 'ACTIVE' && (
+                <button
+                  type="button"
+                  onClick={() => { haptic('light'); handleStatusChange('COMPLETED') }}
+                  disabled={Boolean(batch.materialName && !batch.materialReconciledAt)}
+                  className="bf-btn bf-btn-success h-11 flex-1 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={batch.materialName && !batch.materialReconciledAt ? 'Reconcile material before finishing' : 'Finish batch'}
+                >
+                  {batch.materialName && !batch.materialReconciledAt ? 'Reconcile to Finish' : 'Finish Batch'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => { haptic('light'); router.push(`/batches/${batch.id}/manage`) }}
