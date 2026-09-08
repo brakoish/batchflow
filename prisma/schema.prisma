@@ -121,6 +121,7 @@ model Organization {
   recipes     Recipe[]
   products    Product[]
   announcement Announcement?
+  reminders    Reminder[]
 
   @@index([slug])
 }
@@ -155,9 +156,39 @@ model Worker {
   batchRemovals  BatchRemoval[]
   batchMaterialEvents BatchMaterialEvent[]
   pushSubscriptions PushSubscription[]
+  reminderAssignments WorkerReminder[]
   user           User?
 
   @@index([organizationId])
+}
+
+model Reminder {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  message         String
+  emoji           String           @default("🔔")
+  intervalMinutes Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  assignments     WorkerReminder[]
+
+  @@index([organizationId])
+}
+
+model WorkerReminder {
+  id          String   @id @default(cuid())
+  reminderId  String
+  reminder    Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  workerId    String
+  worker      Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  enabled     Boolean  @default(true)
+  lastSentAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([reminderId, workerId])
+  @@index([workerId, enabled])
 }
 
 model Recipe {

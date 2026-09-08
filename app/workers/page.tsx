@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import AppShell from '@/app/components/AppShell'
 import WorkerManager from './WorkerManager'
+import Link from 'next/link'
 
 export default async function WorkersPage() {
   const session = await getSession()
@@ -18,7 +19,10 @@ export default async function WorkersPage() {
   return (
     <AppShell session={session}>
       <main className="max-w-2xl mx-auto px-4 py-5">
-        <h1 className="text-xl font-bold text-foreground mb-5">Workers</h1>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold text-foreground">Workers</h1>
+          <Link href="/reminders" className="bf-btn bf-btn-secondary">Reminders</Link>
+        </div>
         <WorkerManager workers={JSON.parse(JSON.stringify(workers))} />
       </main>
     </AppShell>

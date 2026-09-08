@@ -13,6 +13,7 @@ import {
   BuildingOffice2Icon,
   MegaphoneIcon,
   WrenchScrewdriverIcon,
+  BellAlertIcon,
 } from '@heroicons/react/24/outline'
 import ThemeToggle from './ThemeToggle'
 import { haptic } from '@/lib/haptic'
@@ -106,6 +107,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
     ? [
         { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon },
         { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
+        { href: '/reminders', label: 'Employee reminders', Icon: BellAlertIcon },
         { href: '/org', label: 'Organization', Icon: BuildingOffice2Icon },
       ]
     : session.role === 'SUPERVISOR'
