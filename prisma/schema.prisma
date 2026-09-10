@@ -120,6 +120,7 @@ model Organization {
   batches     Batch[]
   recipes     Recipe[]
   products    Product[]
+  stockAdjustments StockAdjustment[]
   announcement Announcement?
   reminders    Reminder[]
 
@@ -205,6 +206,7 @@ model Recipe {
   batches        Batch[]
   units          RecipeUnit[]
   products       Product[]
+  stockAdjustments StockAdjustment[]
 
   @@index([organizationId])
   @@index([organizationId, archivedAt])
@@ -222,10 +224,31 @@ model Product {
   archivedAt     DateTime?
   createdAt      DateTime     @default(now())
   batches        Batch[]
+  stockAdjustments StockAdjustment[]
 
   @@unique([recipeId, name])
   @@index([organizationId, archivedAt])
   @@index([recipeId, archivedAt])
+}
+
+model StockAdjustment {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipeId         String
+  recipe           Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  productId        String?
+  product          Product?     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  previousQuantity Int
+  countedQuantity  Int
+  quantityDelta    Int
+  note             String?
+  actorName        String
+  createdAt        DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([productId, createdAt])
+  @@index([recipeId, createdAt])
 }
 
 model RecipeUnit {

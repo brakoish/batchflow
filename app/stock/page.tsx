@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { getOrganizationName } from '@/lib/organization'
 import { getProducedBaseUnits, getRemovedQuantity } from '@/lib/inventory'
+import StockCountButton from './StockCountButton'
 
 type StockBatch = {
   id: string
@@ -21,12 +22,15 @@ type StockBatch = {
 
 type ProductStock = {
   key: string
+  recipeId: string
+  productId: string | null
   product: string
   brand: string
   baseUnit: string
   produced: number
   removed: number
   onHand: number
+  adjusted: boolean
   batches: { id: string; name: string; onHand: number; status: string }[]
 }
 
@@ -36,7 +40,7 @@ export default async function StockPage() {
   const session = await getSession()
   if (!session) redirect('/')
 
-  const [organizationName, batches] = await Promise.all([
+  const [organizationName, batches, adjustments] = await Promise.all([
     getOrganizationName(session.organizationId),
     prisma.batch.findMany({
       where: { organizationId: session.organizationId },
@@ -55,6 +59,10 @@ export default async function StockPage() {
       },
       orderBy: { startDate: 'desc' },
     }),
+    prisma.stockAdjustment.findMany({
+      where: { organizationId: session.organizationId },
+      select: { recipeId: true, productId: true, quantityDelta: true },
+    }),
   ])
 
   const products = new Map<string, ProductStock>()
@@ -67,12 +75,15 @@ export default async function StockPage() {
     const productKey = batch.product?.id || `recipe:${batch.recipe.id}`
     const current = products.get(productKey) || {
       key: productKey,
+      recipeId: batch.recipe.id,
+      productId: batch.product?.id || null,
       product: batch.product?.name || batch.recipe.name,
       brand,
       baseUnit: batch.baseUnit,
       produced: 0,
       removed: 0,
       onHand: 0,
+      adjusted: false,
       batches: [],
     }
     const batchOnHand = Math.max(0, produced - removed)
@@ -81,6 +92,14 @@ export default async function StockPage() {
     current.onHand += batchOnHand
     if (batchOnHand > 0) current.batches.push({ id: batch.id, name: batch.name, onHand: batchOnHand, status: batch.status })
     products.set(productKey, current)
+  }
+
+  for (const adjustment of adjustments) {
+    const productKey = adjustment.productId || `recipe:${adjustment.recipeId}`
+    const current = products.get(productKey)
+    if (!current) continue
+    current.onHand = Math.max(0, current.onHand + adjustment.quantityDelta)
+    current.adjusted = true
   }
 
   const inStock = [...products.values()]
@@ -120,25 +139,28 @@ export default async function StockPage() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <h3 className="truncate text-base font-semibold text-foreground">{product.product}</h3>
-                          <p className="mt-1 text-xs text-muted-foreground">{product.batches.length} batch{product.batches.length === 1 ? '' : 'es'} holding stock</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{product.adjusted ? 'Physical count corrected' : `${product.batches.length} batch${product.batches.length === 1 ? '' : 'es'} holding stock`}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{product.onHand.toLocaleString()}</p>
                           <p className="text-xs text-muted-foreground">{product.baseUnit} on hand</p>
                         </div>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-3 text-center">
+                      {!product.adjusted && <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-3 text-center">
                         <div><p className="text-sm font-bold tabular-nums text-foreground">{product.produced.toLocaleString()}</p><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Produced</p></div>
                         <div><p className="text-sm font-bold tabular-nums text-foreground">{product.removed.toLocaleString()}</p><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Removed</p></div>
-                      </div>
-                      <div className="mt-3 space-y-1">
+                      </div>}
+                      {!product.adjusted && <div className="mt-3 space-y-1">
                         {product.batches.map((batch) => (
                           <Link key={batch.id} href={`/batches/${batch.id}`} className="flex min-h-[44px] items-center justify-between gap-3 rounded-lg px-2 text-sm hover:bg-muted/40 active:bg-muted/60">
                             <span className="min-w-0 truncate text-muted-foreground">{batch.name}</span>
                             <span className="flex shrink-0 items-center gap-1 font-semibold tabular-nums text-foreground">{batch.onHand.toLocaleString()} <ChevronRightIcon className="h-4 w-4 text-muted-foreground" /></span>
                           </Link>
                         ))}
-                      </div>
+                      </div>}
+                      {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
+                        <StockCountButton recipeId={product.recipeId} productId={product.productId} productName={product.product} baseUnit={product.baseUnit} currentQuantity={product.onHand} />
+                      )}
                     </div>
                   ))}
                 </div>
