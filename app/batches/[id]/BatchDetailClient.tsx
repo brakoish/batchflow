@@ -1436,6 +1436,15 @@ export default function BatchDetailClient({
           {/* Owner/Supervisor batch controls */}
           {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
             <div className="mt-3 flex items-center gap-2" aria-label="Batch actions">
+              {batch.status !== 'ACTIVE' && session.role === 'OWNER' && (
+                <button
+                  type="button"
+                  onClick={() => { haptic('light'); handleStatusChange('ACTIVE') }}
+                  className="bf-btn bf-btn-primary h-11 flex-1"
+                >
+                  Reopen Batch
+                </button>
+              )}
               {batch.status === 'ACTIVE' && (isOpenEnded || producedBaseUnits >= (batch.targetQuantity || 0)) && (
                 <button
                   type="button"
