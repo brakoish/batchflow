@@ -143,7 +143,7 @@ export async function PATCH(
     }
     
     // Handle full batch edits
-    const { name, targetQuantity, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes, priority } = body
+    const { name, productId, targetQuantity, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes, priority } = body
 
     // Validate priority if provided
     if (priority && !['LOW', 'NORMAL', 'HIGH', 'URGENT'].includes(priority)) {
@@ -160,6 +160,20 @@ export async function PATCH(
     if (strain !== undefined) updateData.strain = strain || null
     if (packageTag !== undefined) updateData.packageTag = packageTag || null
     if (notes !== undefined) updateData.notes = notes ? String(notes).slice(0, 2000) : null
+
+    if (productId !== undefined) {
+      const product = productId ? await prisma.product.findFirst({
+        where: {
+          id: productId,
+          recipeId: existingBatch.recipeId,
+          organizationId: session.user.organizationId,
+          archivedAt: null,
+        },
+        select: { id: true },
+      }) : null
+      if (!product) return NextResponse.json({ error: 'Pick a valid finished product for this recipe' }, { status: 400 })
+      updateData.productId = product.id
+    }
     
     if (workerIds !== undefined) {
       if (!Array.isArray(workerIds)) {

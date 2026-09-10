@@ -22,6 +22,7 @@ function formatAmount(value: number) {
 }
 
 export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; workers: Worker[] }) {
+  const [recipeOptions, setRecipeOptions] = useState(recipes)
   const [selectedId, setSelectedId] = useState('')
   const [name, setName] = useState('')
   const [productId, setProductId] = useState('')
@@ -46,12 +47,15 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showMetrc, setShowMetrc] = useState(false)
+  const [addingProduct, setAddingProduct] = useState(false)
+  const [newProductName, setNewProductName] = useState('')
+  const [productSaving, setProductSaving] = useState(false)
   const router = useRouter()
 
   const nameRef = useRef<HTMLInputElement>(null)
   const qtyRef = useRef<HTMLInputElement>(null)
 
-  const selected = recipes.find((r) => r.id === selectedId)
+  const selected = recipeOptions.find((r) => r.id === selectedId)
   const fixedTargetInvalid = batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)
   const targetUnit = selected?.units.find(unit => unit.id === targetMode)
   const suggestedMaterial = selected?.units.find(unit => /(flower|bulk|input|\(g\))/i.test(unit.name) && unit.ratio > 0)
@@ -79,7 +83,27 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
     setMaterialUnit('g')
     setMaterialPerBaseUnit('')
     setMaterialIssued('')
+    setAddingProduct(false)
+    setNewProductName('')
   }, [selectedId])
+
+  const addProduct = async () => {
+    if (!selected || !newProductName.trim()) return
+    setProductSaving(true); setError('')
+    try {
+      const res = await fetch(`/api/recipes/${selected.id}/products`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProductName }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.error || 'Unable to add item'); return }
+      setRecipeOptions((current) => current.map((recipe) => recipe.id === selected.id
+        ? { ...recipe, products: [...recipe.products.filter((product) => product.id !== data.product.id), data.product].sort((a, b) => a.name.localeCompare(b.name)) }
+        : recipe))
+      setProductId(data.product.id); setName(data.product.name); setNewProductName(''); setAddingProduct(false)
+      haptic('medium')
+    } catch { setError('Connection error') }
+    finally { setProductSaving(false) }
+  }
 
   useEffect(() => {
     if (batchType !== 'fixed') return
@@ -177,9 +201,19 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
       {/* ── Details (shown after recipe selection) ── */}
       {selected && (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          {selected.products.length > 0 && (
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Finished product</label>
+              <button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button>
+            </div>
+            {addingProduct && (
+              <div className="mb-3 flex gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                <input autoFocus value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder="New item name" className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base text-foreground" />
+                <button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button>
+              </div>
+            )}
+            {selected.products.length > 0 ? (
             <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">Finished product</label>
               <div className="grid gap-2 sm:grid-cols-2">
                 {selected.products.map(product => (
                   <button
@@ -195,7 +229,8 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
                 ))}
               </div>
             </div>
-          )}
+            ) : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
+          </div>
 
           {/* What workers will get */}
           <div className="rounded-xl border border-border bg-card p-4">

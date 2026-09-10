@@ -20,7 +20,8 @@ type Batch = {
   materialName?: string | null; materialReconciledAt?: string | null
   dueDate?: string | null; strain?: string | null; lotNumber?: string | null
   metrcBatchId?: string | null; packageTag?: string | null; notes?: string | null
-  recipe: { id: string; name: string; baseUnit: string; units: { name: string; ratio: number }[] }
+  product?: { id: string; name: string } | null
+  recipe: { id: string; name: string; baseUnit: string; units: { name: string; ratio: number }[]; products: { id: string; name: string }[] }
   assignments: { worker: Worker }[]; steps: Step[]
 }
 
@@ -73,6 +74,8 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
   const router = useRouter()
   const [batch, setBatch] = useState(initialBatch)
   const [name, setName] = useState(duplicate ? `${initialBatch.name} (copy)` : initialBatch.name)
+  const [products, setProducts] = useState(initialBatch.recipe.products)
+  const [productId, setProductId] = useState(initialBatch.product?.id || '')
   const [openEnded, setOpenEnded] = useState(initialBatch.targetQuantity === null)
   const [target, setTarget] = useState(initialBatch.targetQuantity?.toString() || '')
   const [dueDate, setDueDate] = useState(initialBatch.dueDate?.split('T')[0] || '')
@@ -89,17 +92,21 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
   const [editingStep, setEditingStep] = useState<string | null>(null)
   const [stepDraft, setStepDraft] = useState({ name: '', type: 'COUNT' as 'COUNT' | 'CHECK', target: '', unitLabel: initialBatch.recipe.baseUnit, unitRatio: '1' })
   const [addingStep, setAddingStep] = useState(false)
+  const [addingProduct, setAddingProduct] = useState(false)
+  const [newProductName, setNewProductName] = useState('')
+  const [productSaving, setProductSaving] = useState(false)
   const [confirm, setConfirm] = useState<{ title: string; message: string; label: string; action: () => void } | null>(null)
 
   const original = useMemo(() => JSON.stringify({
     name: duplicate ? `${initialBatch.name} (copy)` : initialBatch.name,
+    productId: initialBatch.product?.id || '',
     openEnded: initialBatch.targetQuantity === null,
     target: initialBatch.targetQuantity?.toString() || '', dueDate: initialBatch.dueDate?.split('T')[0] || '',
     priority: initialBatch.priority || 'NORMAL', strain: initialBatch.strain || '', lotNumber: initialBatch.lotNumber || '',
     metrcBatchId: initialBatch.metrcBatchId || '', packageTag: initialBatch.packageTag || '', notes: initialBatch.notes || '',
     workerIds: initialBatch.assignments.map((a) => a.worker.id).sort(),
   }), [initialBatch, duplicate])
-  const current = JSON.stringify({ name, openEnded, target, dueDate, priority, strain, lotNumber, metrcBatchId, packageTag, notes, workerIds: [...workerIds].sort() })
+  const current = JSON.stringify({ name, productId, openEnded, target, dueDate, priority, strain, lotNumber, metrcBatchId, packageTag, notes, workerIds: [...workerIds].sort() })
   const dirty = current !== original
   const unitOptions = useMemo(() => {
     const byKey = new Map<string, { label: string; ratio: number }>()
@@ -122,11 +129,12 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
 
   const save = async () => {
     if (!name.trim()) return setError('Batch name is required')
+    if (products.length > 0 && !productId) return setError('Pick the finished product')
     if (!openEnded && (!target || Number(target) <= 0 || !Number.isInteger(Number(target)))) return setError('Enter a whole-number target greater than 0')
     setSaving(true); setError('')
     try {
       const fullPayload = {
-        name: name.trim(), targetQuantity: openEnded ? null : Number(target), dueDate: dueDate || null,
+        name: name.trim(), productId: productId || undefined, targetQuantity: openEnded ? null : Number(target), dueDate: dueDate || null,
         priority, strain: strain.trim() || null, lotNumber: lotNumber.trim() || null,
         metrcBatchId: metrcBatchId.trim() || null, packageTag: packageTag.trim() || null,
         notes: notes.trim() || null, workerIds,
@@ -134,6 +142,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
       const payload: Record<string, unknown> = duplicate ? fullPayload : {}
       if (!duplicate) {
         if (name.trim() !== initialBatch.name) payload.name = name.trim()
+        if (productId !== (initialBatch.product?.id || '')) payload.productId = productId
         if ((openEnded ? null : Number(target)) !== initialBatch.targetQuantity) payload.targetQuantity = openEnded ? null : Number(target)
         if ((dueDate || null) !== (initialBatch.dueDate?.split('T')[0] || null)) payload.dueDate = dueDate || null
         if (priority !== (initialBatch.priority || 'NORMAL')) payload.priority = priority
@@ -156,6 +165,21 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
       router.refresh()
     } catch (err) { setError(err instanceof Error ? err.message : 'Network error') }
     finally { setSaving(false) }
+  }
+
+  const addProduct = async () => {
+    if (!newProductName.trim()) return
+    setProductSaving(true); setError('')
+    try {
+      const res = await fetch(`/api/recipes/${batch.recipe.id}/products`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProductName }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Unable to add item')
+      setProducts((current) => [...current.filter((product) => product.id !== data.product.id), data.product].sort((a, b) => a.name.localeCompare(b.name)))
+      setProductId(data.product.id); setNewProductName(''); setAddingProduct(false); notify('Item added to recipe')
+    } catch (err) { setError(err instanceof Error ? err.message : 'Connection error') }
+    finally { setProductSaving(false) }
   }
 
   const refreshBatch = async () => {
@@ -238,6 +262,11 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
         <div className="space-y-3">
           <Section title="Setup" summary={`${summaryTarget} · ${priority}`} defaultOpen>
             <div><label className={labelClass}>Batch name</label><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} /></div>
+            <div>
+              <div className="mb-1.5 flex items-center justify-between gap-3"><label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Finished product</label><button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button></div>
+              {addingProduct && <div className="mb-2 flex gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><input autoFocus className={inputClass} value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder="New item name" /><button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button></div>}
+              {products.length > 0 ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{products.map((product) => <button type="button" key={product.id} onClick={() => setProductId(product.id)} className={`bf-select-btn justify-start ${productId === product.id ? 'bf-select-btn-active' : ''}`}>{productId === product.id ? '✓ ' : ''}{product.name}</button>)}</div> : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
+            </div>
             <div>
               <label className={labelClass}>Target type</label>
               <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setOpenEnded(false)} className={`bf-select-btn ${!openEnded ? 'bf-select-btn-active' : ''}`}>Fixed target</button><button type="button" onClick={() => setOpenEnded(true)} className={`bf-select-btn ${openEnded ? 'bf-select-btn-active' : ''}`}>Open-ended</button></div>
