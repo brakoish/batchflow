@@ -34,6 +34,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
     return NextResponse.json({ product }, { status: 201 })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (error instanceof Error && error.message.includes('Supervisor or Owner')) {
+      return NextResponse.json({ error: 'Supervisor or owner access required' }, { status: 403 })
+    }
     console.error('Create recipe item error:', error)
     return NextResponse.json({ error: 'Unable to add item' }, { status: 500 })
   }
