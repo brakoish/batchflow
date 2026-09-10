@@ -9,7 +9,7 @@ import { emitBatchChanged } from '@/lib/batchEvents'
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
   units: { id: string; name: string; ratio: number }[]
-  products: { id: string; name: string }[]
+  products: { id: string; name: string; unitsPerCase: number | null }[]
   steps: { id: string; name: string; order: number; notes: string | null }[]
 }
 
@@ -49,6 +49,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [showMetrc, setShowMetrc] = useState(false)
   const [addingProduct, setAddingProduct] = useState(false)
   const [newProductName, setNewProductName] = useState('')
+  const [newProductUnitsPerCase, setNewProductUnitsPerCase] = useState('')
   const [productSaving, setProductSaving] = useState(false)
   const router = useRouter()
 
@@ -85,6 +86,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
     setMaterialIssued('')
     setAddingProduct(false)
     setNewProductName('')
+    setNewProductUnitsPerCase('')
   }, [selectedId])
 
   const addProduct = async () => {
@@ -92,14 +94,14 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
     setProductSaving(true); setError('')
     try {
       const res = await fetch(`/api/recipes/${selected.id}/products`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProductName }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProductName, unitsPerCase: newProductUnitsPerCase || null }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setError(data.error || 'Unable to add item'); return }
       setRecipeOptions((current) => current.map((recipe) => recipe.id === selected.id
         ? { ...recipe, products: [...recipe.products.filter((product) => product.id !== data.product.id), data.product].sort((a, b) => a.name.localeCompare(b.name)) }
         : recipe))
-      setProductId(data.product.id); setName(data.product.name); setNewProductName(''); setAddingProduct(false)
+      setProductId(data.product.id); setName(data.product.name); setNewProductName(''); setNewProductUnitsPerCase(''); setAddingProduct(false)
       haptic('medium')
     } catch { setError('Connection error') }
     finally { setProductSaving(false) }
@@ -207,9 +209,13 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
               <button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button>
             </div>
             {addingProduct && (
-              <div className="mb-3 flex gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
-                <input autoFocus value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder="New item name" className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base text-foreground" />
-                <button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button>
+              <div className="mb-3 space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                <input autoFocus value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} placeholder="New item name" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
+                <div className="flex gap-2">
+                  <input type="number" inputMode="numeric" min="1" step="1" value={newProductUnitsPerCase} onChange={(e) => setNewProductUnitsPerCase(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder={`Units per case (optional)`} aria-label={`Units per case`} className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base text-foreground" />
+                  <button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button>
+                </div>
+                <p className="text-xs text-muted-foreground">How many {selected.baseUnit.toLowerCase()} go in one case. Leave blank if this item is not packed in cases.</p>
               </div>
             )}
             {selected.products.length > 0 ? (
@@ -223,7 +229,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
                     disabled={loading}
                     className={`bf-select-btn min-h-[50px] justify-start ${productId === product.id ? 'bf-select-btn-active' : ''}`}
                   >
-                    {product.name}
+                    <span className="min-w-0 text-left"><span className="block truncate">{product.name}</span>{product.unitsPerCase && <span className="block text-[11px] font-normal opacity-70">{product.unitsPerCase} {selected.baseUnit.toLowerCase()} per case</span>}</span>
                     {productId === product.id && <CheckCircleIcon className="ml-auto h-5 w-5" />}
                   </button>
                 ))}

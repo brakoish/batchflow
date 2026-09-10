@@ -161,6 +161,7 @@ export async function PATCH(
     if (packageTag !== undefined) updateData.packageTag = packageTag || null
     if (notes !== undefined) updateData.notes = notes ? String(notes).slice(0, 2000) : null
 
+    let selectedProductCaseSize: number | null | undefined
     if (productId !== undefined) {
       const product = productId ? await prisma.product.findFirst({
         where: {
@@ -169,10 +170,11 @@ export async function PATCH(
           organizationId: session.user.organizationId,
           archivedAt: null,
         },
-        select: { id: true },
+        select: { id: true, unitsPerCase: true },
       }) : null
       if (!product) return NextResponse.json({ error: 'Pick a valid finished product for this recipe' }, { status: 400 })
       updateData.productId = product.id
+      selectedProductCaseSize = product.unitsPerCase
     }
     
     if (workerIds !== undefined) {
@@ -197,6 +199,7 @@ export async function PATCH(
       id: string
       targetQuantity: number | null
       status: (typeof existingBatch.steps)[number]['status']
+      unitRatio?: number
     }[] = []
     if (targetQuantity !== undefined) {
       if (targetQuantity !== null && (!Number.isInteger(targetQuantity) || targetQuantity <= 0)) {
@@ -223,12 +226,27 @@ export async function PATCH(
       }
     }
 
+    if (selectedProductCaseSize) {
+      const batchTarget = targetQuantity !== undefined ? targetQuantity : existingBatch.targetQuantity
+      for (const step of existingBatch.steps) {
+        if (step.type !== 'COUNT' || !/^cases?$/i.test(step.unitLabel.trim())) continue
+        if (step.completedQuantity > 0) {
+          return NextResponse.json({ error: 'Case size cannot change after cases have been logged' }, { status: 400 })
+        }
+        const nextTarget = batchTarget == null ? null : Math.max(1, Math.ceil(batchTarget / selectedProductCaseSize))
+        const nextStatus = step.name.startsWith('[Skipped] ') ? step.status : 'IN_PROGRESS'
+        const pending = stepUpdates.find(update => update.id === step.id)
+        if (pending) Object.assign(pending, { targetQuantity: nextTarget, status: nextStatus, unitRatio: selectedProductCaseSize })
+        else stepUpdates.push({ id: step.id, targetQuantity: nextTarget, status: nextStatus, unitRatio: selectedProductCaseSize })
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.batch.update({ where: { id }, data: updateData })
       for (const step of stepUpdates) {
         await tx.batchStep.update({
           where: { id: step.id },
-          data: { targetQuantity: step.targetQuantity, status: step.status },
+          data: { targetQuantity: step.targetQuantity, status: step.status, ...(step.unitRatio ? { unitRatio: step.unitRatio } : {}) },
         })
       }
       if (workerIds !== undefined) {

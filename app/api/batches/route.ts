@@ -131,13 +131,22 @@ export async function POST(request: NextRequest) {
     const selectedProductId = productId || sourceBatch?.productId || null
     const activeProducts = await prisma.product.findMany({
       where: { recipeId, organizationId: session.user.organizationId, archivedAt: null },
-      select: { id: true },
+      select: { id: true, unitsPerCase: true },
     })
     if (activeProducts.length > 0 && !activeProducts.some(product => product.id === selectedProductId)) {
       return NextResponse.json({ error: 'Select a finished product' }, { status: 400 })
     }
     if (selectedProductId && activeProducts.length === 0) {
       return NextResponse.json({ error: 'Product not found for this recipe' }, { status: 400 })
+    }
+    const selectedProduct = activeProducts.find(product => product.id === selectedProductId) || null
+    const applyItemCaseSize = <T extends { type: string; unitLabel: string; unitRatio: number; targetQuantity: number | null }>(step: T): T => {
+      if (!selectedProduct?.unitsPerCase || step.type !== 'COUNT' || !/^cases?$/i.test(step.unitLabel.trim())) return step
+      return {
+        ...step,
+        unitRatio: selectedProduct.unitsPerCase,
+        targetQuantity: nextBatchTarget == null ? null : Math.max(1, Math.ceil(nextBatchTarget / selectedProduct.unitsPerCase)),
+      }
     }
 
 
@@ -175,7 +184,7 @@ export async function POST(request: NextRequest) {
     }
 
     const batchSteps = sourceBatch
-      ? sourceBatch.steps.map((step) => ({
+      ? sourceBatch.steps.map((step) => applyItemCaseSize({
           recipeStepId: step.recipeStepId,
           name: step.name,
           order: step.order,
@@ -201,7 +210,7 @@ export async function POST(request: NextRequest) {
             stepTarget = Math.ceil(targetQuantity / unitRatio)
           }
 
-          return {
+          return applyItemCaseSize({
             recipeStepId: step.id,
             name: step.name,
             order: step.order,
@@ -210,7 +219,7 @@ export async function POST(request: NextRequest) {
             unitRatio,
             targetQuantity: stepTarget,
             status: 'IN_PROGRESS' as const,
-          }
+          })
         })
 
     const batch = await prisma.batch.create({
