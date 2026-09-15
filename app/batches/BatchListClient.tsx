@@ -41,7 +41,7 @@ export default function BatchListClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
   const [priorityFilter, setPriorityFilter] = useState(false)
-  const [workFilter, setWorkFilter] = useState<'mine' | 'all' | 'unassigned'>(session.workerId ? 'mine' : 'all')
+  const [workFilter, setWorkFilter] = useState<'mine' | 'all' | 'unassigned'>(session.role === 'OWNER' ? 'all' : session.workerId ? 'mine' : 'all')
   const isWorker = session.role === 'WORKER'
 
   const fetchData = async (showLoading = false) => {
