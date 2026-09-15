@@ -19,73 +19,12 @@ import { haptic } from '@/lib/haptic'
 type UnitDef = { name: string; count: number; basedOn?: string; direction?: 'bigger' | 'smaller' }
 type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
 type ProductDef = { name: string; brand: string }
-type RecipeStarter = {
-  label: string
-  description: string
-  name: string
-  baseUnit: string
-  units: UnitDef[]
-  steps: StepDef[]
-}
-
 type EditRecipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
   products: { id: string; name: string; brand: string | null }[]
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null }[]
 } | null
-
-const STARTERS: RecipeStarter[] = [
-  {
-    label: 'Pre-roll tins',
-    description: 'Fill cones, pack tins, label, QC, case up',
-    name: '1g Pre-Roll Tins',
-    baseUnit: 'Tins',
-    units: [
-      { name: 'Pre-rolls', count: 14, basedOn: '', direction: 'smaller' },
-      { name: 'Cases', count: 20, basedOn: '', direction: 'bigger' },
-    ],
-    steps: [
-      { name: 'Prep flower', notes: '', type: 'CHECK', unitName: '' },
-      { name: 'Fill cones', notes: '', type: 'COUNT', unitName: 'Pre-rolls' },
-      { name: 'Pack tins', notes: '', type: 'COUNT', unitName: '' },
-      { name: 'Label tins', notes: '', type: 'COUNT', unitName: '' },
-      { name: 'QC check', notes: '', type: 'CHECK', unitName: '' },
-      { name: 'Case up', notes: '', type: 'COUNT', unitName: 'Cases' },
-    ],
-  },
-  {
-    label: 'Flower bags',
-    description: 'Weigh, fill, seal, label, QC, pack',
-    name: 'Flower Bags',
-    baseUnit: 'Bags',
-    units: [
-      { name: 'Cases', count: 50, basedOn: '', direction: 'bigger' },
-    ],
-    steps: [
-      { name: 'Weigh flower', notes: '', type: 'COUNT', unitName: '' },
-      { name: 'Fill bags', notes: '', type: 'COUNT', unitName: '' },
-      { name: 'Seal bags', notes: '', type: 'COUNT', unitName: '' },
-      { name: 'Label bags', notes: '', type: 'COUNT', unitName: '' },
-      { name: 'QC check', notes: '', type: 'CHECK', unitName: '' },
-      { name: 'Pack cases', notes: '', type: 'COUNT', unitName: 'Cases' },
-    ],
-  },
-  {
-    label: 'Simple checklist',
-    description: 'A clean starter for one-off or unusual products',
-    name: '',
-    baseUnit: 'Units',
-    units: [],
-    steps: [
-      { name: 'Prep', notes: '', type: 'CHECK', unitName: '' },
-      { name: 'Produce', notes: '', type: 'COUNT', unitName: '' },
-      { name: 'Label', notes: '', type: 'COUNT', unitName: '' },
-      { name: 'QC check', notes: '', type: 'CHECK', unitName: '' },
-      { name: 'Pack', notes: '', type: 'COUNT', unitName: '' },
-    ],
-  },
-]
 
 function parseRelationCount(value: string) {
   const parsed = parseFloat(value)
@@ -135,7 +74,6 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [starterLabel, setStarterLabel] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(isEdit && !!editRecipe?.units.length)
   const [expandedStep, setExpandedStep] = useState<number | null>(0)
   const [reviewing, setReviewing] = useState(false)
@@ -160,34 +98,6 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const emptyStepCount = steps.filter(s => !s.name.trim()).length
   const countStepCount = steps.filter(s => s.name.trim() && s.type === 'COUNT').length
   const checkStepCount = steps.filter(s => s.name.trim() && s.type === 'CHECK').length
-  const canApplyStarter = !isEdit && !name.trim() && !baseUnit.trim() && units.length === 0 && steps.length === 1 && !steps[0].name.trim()
-
-  const applyStarter = (starter: RecipeStarter) => {
-    haptic('medium')
-    setName(starter.name)
-    setDescription('')
-    setProducts([])
-    setBaseUnit(starter.baseUnit)
-    setUnits(starter.units)
-    setSteps(starter.steps)
-    setStarterLabel(starter.label)
-    setError('')
-  }
-
-  const changeStarter = () => {
-    haptic('light')
-    const hasWork = name.trim() || description.trim() || baseUnit.trim() || products.some(product => product.name.trim() || product.brand.trim()) || units.length > 0 || steps.some(step => step.name.trim() || step.notes.trim())
-    if (hasWork && !window.confirm('Change starter pattern? This clears the recipe fields you have filled in so far.')) return
-    setName('')
-    setDescription('')
-    setProducts([])
-    setBaseUnit('')
-    setUnits([])
-    setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
-    setStarterLabel('')
-    setError('')
-  }
-
   // Unit helpers
   const addUnit = () => { haptic('light'); setUnits([...units, { name: '', count: 1, basedOn: '', direction: 'bigger' }]) }
   const removeUnit = (i: number) => {
@@ -349,48 +259,6 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         {isEdit ? 'Edit Recipe' : 'New Recipe'}
       </h2>
       <div className="space-y-8">
-        {canApplyStarter && (
-          <div className="rounded-xl border border-border bg-card p-5">
-            <label className="text-base text-foreground font-semibold block mb-1">Start with a pattern</label>
-            <p className="text-sm text-muted-foreground mb-4">
-              Pick something close, then rename the steps. This avoids building a recipe from a blank screen.
-            </p>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {STARTERS.map((starter) => (
-                <button
-                  key={starter.label}
-                  type="button"
-                  onClick={() => applyStarter(starter)}
-                  disabled={loading}
-                  className="min-h-[92px] rounded-lg border border-border bg-card px-3 py-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40"
-                >
-                  <p className="text-sm font-semibold text-foreground">{starter.label}</p>
-                  <p className="mt-1 text-xs leading-snug text-muted-foreground">{starter.description}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!isEdit && starterLabel && (
-          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Starter pattern</p>
-                <p className="truncate text-sm font-semibold text-foreground">{starterLabel}</p>
-              </div>
-              <button
-                type="button"
-                onClick={changeStarter}
-                disabled={loading}
-                className="bf-btn bf-btn-secondary bf-btn-sm shrink-0"
-              >
-                Change
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* ── Recipe and products ── */}
         <div className="rounded-xl border border-border bg-card p-5">
           <label className="text-base text-foreground font-semibold block mb-1">Name this production flow</label>
