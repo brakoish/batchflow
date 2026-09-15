@@ -30,9 +30,9 @@ type Batch = {
 }
 
 export default function BatchListClient({
-  initialBatches, session, organizationName,
+  initialBatches, session, organizationName, teamWorkerIds,
 }: {
-  initialBatches: Batch[]; session: Session; organizationName?: string
+  initialBatches: Batch[]; session: Session; organizationName?: string; teamWorkerIds: string[]
 }) {
   const [batches, setBatches] = useState(initialBatches)
   const [onShift, setOnShift] = useState(false)
@@ -44,7 +44,7 @@ export default function BatchListClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
   const [priorityFilter, setPriorityFilter] = useState(false)
-  const [workFilter, setWorkFilter] = useState<'mine' | 'all' | 'unassigned'>(session.role === 'WORKER' ? 'mine' : 'all')
+  const [workFilter, setWorkFilter] = useState<'mine' | 'all' | 'unassigned'>(session.workerId ? 'mine' : 'all')
   const isWorker = session.role === 'WORKER'
 
   const fetchData = async (showLoading = false) => {
@@ -212,7 +212,7 @@ export default function BatchListClient({
           )}
 
           <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
-            {((session.workerId ? ['mine','all','unassigned'] : ['all','unassigned']) as ('mine'|'all'|'unassigned')[]).map(filter => <button key={filter} onClick={() => { haptic('light'); setWorkFilter(filter) }} className={`bf-select-btn shrink-0 ${workFilter===filter?'bf-select-btn-active':''}`}>{filter === 'mine' ? 'My Work' : filter === 'all' ? 'All Work' : 'Unassigned'}</button>)}
+            {((session.workerId ? ['mine','all','unassigned'] : ['all','unassigned']) as ('mine'|'all'|'unassigned')[]).map(filter => <button key={filter} onClick={() => { haptic('light'); setWorkFilter(filter) }} className={`bf-select-btn shrink-0 ${workFilter===filter?'bf-select-btn-active':''}`}>{filter === 'mine' ? (session.role === 'SUPERVISOR' ? 'My Team' : 'My Work') : filter === 'all' ? 'All Work' : 'Unassigned'}</button>)}
           {!isWorker && <>
             <select
               value={sortBy}
@@ -259,8 +259,8 @@ export default function BatchListClient({
               )
               if (!matchesSearch) return false
 
-              const assignedToMe = b.assignments?.some(a => a.worker.id === session.workerId)
-              if (workFilter === 'mine' && !assignedToMe) return false
+              const assignedToMeOrTeam = b.assignments?.some(a => a.worker.id === session.workerId || teamWorkerIds.includes(a.worker.id))
+              if (workFilter === 'mine' && !assignedToMeOrTeam) return false
               if (workFilter === 'unassigned' && (b.assignments?.length || 0) > 0) return false
 
               if (priorityFilter) {
