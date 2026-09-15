@@ -43,7 +43,7 @@ export default function OrgInviteManager({
           Invite Link
         </h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Share this link with workers to join your organization. They'll need their PIN to sign in.
+          Share this link with employees to join your organization. They&apos;ll need their PIN to sign in.
         </p>
         <div className="flex gap-2">
           <input
@@ -66,7 +66,7 @@ export default function OrgInviteManager({
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <UserPlusIcon className="w-4 h-4" />
-            Workers ({organization.workers.length})
+            Employees ({organization.workers.length})
           </h2>
         </div>
 
@@ -82,7 +82,7 @@ export default function OrgInviteManager({
                     {worker.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {worker.role === 'OWNER' ? 'Owner' : worker.role === 'SUPERVISOR' ? 'Supervisor' : 'Worker'}
+                    {worker.role === 'OWNER' ? 'Owner' : worker.role === 'SUPERVISOR' ? 'Supervisor' : 'Employee'}
                   </p>
                 </div>
                 <span className="text-xs text-muted-foreground">
@@ -95,19 +95,19 @@ export default function OrgInviteManager({
 
         {organization.workers.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">
-            No workers yet. Share the invite link to get started!
+            No employees yet. Share the invite link to get started!
           </p>
         )}
       </div>
 
       <div className="bg-muted/50 p-4 rounded-lg border border-border">
         <h3 className="text-sm font-medium text-foreground mb-2">
-          How to add workers
+          How to add employees
         </h3>
         <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-          <li>Go to the Workers page to create new worker accounts with PINs</li>
-          <li>Share the invite link above with your workers</li>
-          <li>Workers use their PIN to join your organization</li>
+          <li>Go to Employees to create employee accounts with PINs</li>
+          <li>Share the invite link above with your employees</li>
+          <li>Employees use their PIN to join your organization</li>
         </ol>
       </div>
     </div>

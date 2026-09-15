@@ -109,7 +109,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
         { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon },
         { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
         { href: '/reminders', label: 'Employee reminders', Icon: BellAlertIcon },
-        { href: '/teams', label: 'Worker teams', Icon: UserGroupIcon },
+        { href: '/teams', label: 'Employee teams', Icon: UserGroupIcon },
         { href: '/org', label: 'Organization', Icon: BuildingOffice2Icon },
       ]
     : session.role === 'SUPERVISOR'
@@ -117,7 +117,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
           { href: '/history', label: 'Batch history', Icon: ClockIcon },
           { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
           { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
-          { href: '/teams', label: 'Worker teams', Icon: UserGroupIcon },
+          { href: '/teams', label: 'Employee teams', Icon: UserGroupIcon },
           { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },
           { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },
         ]

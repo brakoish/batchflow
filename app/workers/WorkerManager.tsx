@@ -121,8 +121,8 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const handleDeleteWorker = async (worker: Worker) => {
     setConfirmAction({
       title: `Delete ${worker.name}?`,
-      message: 'This removes the worker from the team and cannot be undone.',
-      confirmLabel: 'Delete Worker',
+      message: 'This removes the employee and cannot be undone.',
+      confirmLabel: 'Delete Employee',
       confirmStyle: 'danger',
       onConfirm: () => performDeleteWorker(worker),
     })
@@ -161,27 +161,27 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Team</h2>
-          <p className="text-sm text-muted-foreground">{workers.length} worker{workers.length === 1 ? '' : 's'}</p>
+          <h2 className="text-lg font-semibold text-foreground">Employees</h2>
+          <p className="text-sm text-muted-foreground">{workers.length} employee{workers.length === 1 ? '' : 's'}</p>
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="bf-btn bf-btn-primary"
         >
-          {showAddForm ? 'Close' : '+ Worker'}
+          {showAddForm ? 'Close' : '+ Employee'}
         </button>
       </div>
 
       {/* Add Worker */}
       {showAddForm && (
       <div className="bg-card border border-border rounded-lg p-4 space-y-4">
-        <h2 className="text-sm font-medium text-foreground">Add Worker</h2>
+        <h2 className="text-sm font-medium text-foreground">Add Employee</h2>
         
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Worker name"
+          placeholder="Employee name"
           className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           disabled={loading}
         />
@@ -259,7 +259,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           disabled={loading}
           className="bf-btn bf-btn-primary bf-btn-full"
         >
-          {loading ? 'Creating...' : 'Create Worker'}
+          {loading ? 'Creating...' : 'Create Employee'}
         </button>
         <p className="text-xs text-muted-foreground text-center">Leave PIN blank for auto-generation</p>
       </div>
@@ -269,7 +269,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       {showEditModal && editingWorker && (
         <div className="bg-card border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-foreground">Edit Worker</h3>
+            <h3 className="text-sm font-medium text-foreground">Edit Employee</h3>
             <button
               onClick={() => { setShowEditModal(false); setEditingWorker(null); setError('') }}
               className="bf-icon-btn"
@@ -282,7 +282,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             type="text"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            placeholder="Worker name"
+            placeholder="Employee name"
             className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
 

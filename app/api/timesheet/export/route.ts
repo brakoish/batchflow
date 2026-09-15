@@ -207,6 +207,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const workerId = searchParams.get('workerId')
+    const teamId = searchParams.get('teamId')
     const format = searchParams.get('format')
 
     const organization = await prisma.organization.findUnique({
@@ -219,13 +220,20 @@ export async function GET(request: NextRequest) {
       ? requestedMonth
       : defaultMonth(timezone)
     const { start, end } = monthRange(month, timezone)
+    let teamWorkerIds: string[] | null = null
+    if (teamId) {
+      const team = await prisma.workTeam.findFirst({ where: { id: teamId, organizationId: session.user.organizationId }, select: { members: { select: { workerId: true } } } })
+      if (!team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
+      teamWorkerIds = team.members.map(member => member.workerId)
+    }
+    const employeeFilter = workerId ? { workerId } : teamWorkerIds ? { workerId: { in: teamWorkerIds } } : {}
 
     const shifts = await prisma.shift.findMany({
       where: {
         worker: {
           organizationId: session.user.organizationId,
         },
-        ...(workerId ? { workerId } : {}),
+        ...employeeFilter,
         startedAt: {
           gte: start,
           lt: end,
@@ -239,7 +247,7 @@ export async function GET(request: NextRequest) {
 
     const logs = await prisma.progressLog.findMany({
       where: {
-        ...(workerId ? { workerId } : {}),
+        ...employeeFilter,
         createdAt: {
           gte: start,
           lt: end,

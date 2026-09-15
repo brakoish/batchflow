@@ -7,6 +7,7 @@ import { formatTimeInTz, formatDateInTz, toDateTimeLocalString, fromDateTimeLoca
 import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Worker = { id: string; name: string; hourlyRate: number | null }
+type WorkTeam = { id: string; name: string; members: { workerId: string }[] }
 type Shift = {
   id: string
   worker: { id: string; name: string; hourlyRate: number | null }
@@ -32,10 +33,11 @@ type ConfirmAction = {
   onConfirm: () => void
 }
 
-export default function TimesheetClient({ workers }: { workers: Worker[] }) {
+export default function TimesheetClient({ workers, teams }: { workers: Worker[]; teams: WorkTeam[] }) {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [timezone, setTimezone] = useState('America/New_York')
   const [filterWorker, setFilterWorker] = useState('')
+  const [filterTeam, setFilterTeam] = useState('')
   const [exportMonth, setExportMonth] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -108,6 +110,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
     try {
       const params = new URLSearchParams()
       if (filterWorker) params.append('workerId', filterWorker)
+      if (filterTeam) params.append('teamId', filterTeam)
       if (dateFrom) params.append('from', dateFrom)
       if (dateTo) params.append('to', dateTo)
 
@@ -133,6 +136,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
       params.append('from', currentWeekStart.toISOString())
       params.append('to', weekEnd.toISOString())
       if (filterWorker) params.append('workerId', filterWorker)
+      if (filterTeam) params.append('teamId', filterTeam)
 
       const res = await fetch(`/api/shifts/weekly?${params}`, { cache: "no-store" })
       if (res.ok) {
@@ -154,7 +158,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
     } else {
       fetchWeeklySummary()
     }
-  }, [filterWorker, dateFrom, dateTo, viewMode, currentWeekStart])
+  }, [filterWorker, filterTeam, dateFrom, dateTo, viewMode, currentWeekStart])
 
   useEffect(() => {
     fetchCorrections()
@@ -222,6 +226,7 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
   const handleExport = () => {
     const params = new URLSearchParams()
     if (filterWorker) params.append('workerId', filterWorker)
+    if (filterTeam) params.append('teamId', filterTeam)
     if (exportMonth) params.append('month', exportMonth)
     params.append('format', 'sheet')
     
@@ -386,12 +391,13 @@ export default function TimesheetClient({ workers }: { workers: Worker[] }) {
 
       {/* Filters - Stack on mobile */}
       <div className="flex flex-col sm:flex-row gap-3">
+        {teams.length > 0 && <select value={filterTeam} onChange={(e) => { setFilterTeam(e.target.value); if (e.target.value) setFilterWorker('') }} className="px-3 py-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"><option value="">All Employee Teams</option>{teams.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select>}
         <select
           value={filterWorker}
-          onChange={(e) => setFilterWorker(e.target.value)}
+          onChange={(e) => { setFilterWorker(e.target.value); if (e.target.value) setFilterTeam('') }}
           className="px-3 py-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
         >
-          <option value="">All Workers</option>
+          <option value="">All Employees</option>
           {workers.map((w) => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}

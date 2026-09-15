@@ -10,20 +10,20 @@ export default async function TimesheetPage() {
   if (!session) redirect('/')
   if (session.role !== 'OWNER') redirect('/batches')
 
-  const workers = await prisma.worker.findMany({
+  const [workers, teams] = await Promise.all([prisma.worker.findMany({
     where: { role: 'WORKER', organizationId: session.organizationId },
     select: { id: true, name: true, hourlyRate: true },
     orderBy: { name: 'asc' },
-  })
+  }), prisma.workTeam.findMany({ where: { organizationId: session.organizationId }, select: { id: true, name: true, members: { select: { workerId: true } } }, orderBy: { name: 'asc' } })])
 
   return (
     <AppShell session={session}>
       <main className="max-w-4xl mx-auto px-4 py-5">
         <div className="mb-5 flex items-center justify-between gap-3">
           <h1 className="text-lg font-semibold tracking-tight text-foreground">Timesheets</h1>
-          <Link href="/workers" className="bf-btn bf-btn-secondary">Set Wages</Link>
+          <Link href="/workers" className="bf-btn bf-btn-secondary">Set Pay Rates</Link>
         </div>
-        <TimesheetClient workers={JSON.parse(JSON.stringify(workers))} />
+        <TimesheetClient workers={JSON.parse(JSON.stringify(workers))} teams={teams} />
       </main>
     </AppShell>
   )

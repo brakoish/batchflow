@@ -12,8 +12,8 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 
 const ownerItems = [
-  { href: '/workers', title: 'Team', description: 'Workers, supervisors, PINs, roles, and wages', Icon: UserGroupIcon },
-  { href: '/teams', title: 'Worker teams', description: 'Save crews for fast batch assignment', Icon: UserGroupIcon },
+  { href: '/workers', title: 'Employees', description: 'Employees, supervisors, PINs, languages, and pay rates', Icon: UserGroupIcon },
+  { href: '/teams', title: 'Employee teams', description: 'Saved crews for assignments and accounting', Icon: UserGroupIcon },
   { href: '/timesheet', title: 'Timesheets & pay', description: 'Hours, corrections, exports, and pay estimates', Icon: ClockIcon },
   { href: '/announcements', title: 'Announcement', description: 'Set the alert shown to everyone on the floor', Icon: BellAlertIcon },
   { href: '/org/invite', title: 'Invite & access', description: 'Copy the organization link and review membership', Icon: LinkIcon },

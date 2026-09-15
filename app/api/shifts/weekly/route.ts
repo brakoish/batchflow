@@ -8,6 +8,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const workerId = searchParams.get('workerId')
+    const teamId = searchParams.get('teamId')
     const dateFrom = searchParams.get('from')
     const dateTo = searchParams.get('to')
 
@@ -32,6 +33,11 @@ export async function GET(request: Request) {
       status: 'COMPLETED', // Only count completed shifts
     }
     if (workerId) where.workerId = workerId
+    if (teamId) {
+      const team = await prisma.workTeam.findFirst({ where: { id: teamId, organizationId: session.user.organizationId }, select: { members: { select: { workerId: true } } } })
+      if (!team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
+      where.workerId = { in: team.members.map(member => member.workerId) }
+    }
 
     const shifts = await prisma.shift.findMany({
       where,

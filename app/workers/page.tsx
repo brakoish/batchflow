@@ -20,7 +20,7 @@ export default async function WorkersPage() {
     <AppShell session={session}>
       <main className="max-w-2xl mx-auto px-4 py-5">
         <div className="mb-5 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold text-foreground">Workers</h1>
+          <h1 className="text-xl font-bold text-foreground">Employees</h1>
           <Link href="/reminders" className="bf-btn bf-btn-secondary">Reminders</Link>
         </div>
         <WorkerManager workers={JSON.parse(JSON.stringify(workers))} />
