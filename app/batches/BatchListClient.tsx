@@ -356,6 +356,8 @@ export default function BatchListClient({
               const visibleRemainingTasks = remainingTasks.slice(0, 2)
               const lastMovement = getLastBatchMovement(batch.steps)
               const assignedNames = batch.assignments?.map(a => a.worker.name.split(' ')[0]) || []
+              const cardBrand = batch.product?.brand?.trim() || batch.recipe.brand?.trim() || 'Unassigned'
+              const cardProduct = batch.product?.name || batch.recipe.name
               const waitingStation = stationStates.find(s => s.label === 'waiting')
               const activeWorkers = Array.from(new Set(
                 activeStations
@@ -409,7 +411,7 @@ export default function BatchListClient({
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 truncate text-sm text-muted-foreground">{batch.product?.name || batch.recipe.name}</p>
+                        <p className="mt-1 truncate text-sm text-muted-foreground">{cardBrand} · {cardProduct}</p>
                         <p className={`mt-1 truncate text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? assignedNames.join(', ') : 'Needs team'}</p>
                       </div>
                       {dueLabel && (
@@ -474,7 +476,7 @@ export default function BatchListClient({
                   <div className="flex items-start justify-between mb-4">
                     <div className="min-w-0 flex-1">
                       <h2 className="text-lg font-semibold text-foreground truncate">{batch.name}</h2>
-                      <p className="text-sm text-muted-foreground">{batch.product?.name || batch.recipe.name}</p>
+                      <p className="text-sm text-muted-foreground">{cardBrand} · {cardProduct}</p>
                       {batch.dueDate && (() => {
                         const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
                         const now = new Date()
