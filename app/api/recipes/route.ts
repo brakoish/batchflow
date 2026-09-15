@@ -60,7 +60,8 @@ export async function POST(request: NextRequest) {
     }
     const duplicateUnit = findDuplicate(cleanUnits.map((u: { name: string }) => u.name))
     const duplicateStep = findDuplicate(cleanSteps.map((s: { name: string }) => s.name))
-    const cleanProducts = (products || []).map((product: string | { name?: string; brand?: string }) => ({
+    const cleanProducts = (products || []).map((product: string | { id?: string; name?: string; brand?: string }) => ({
+      id: typeof product === 'string' ? undefined : String(product?.id || '') || undefined,
       name: String(typeof product === 'string' ? product : product?.name || '').trim().slice(0, 120),
       brand: String(typeof product === 'string' ? brand || '' : product?.brand || '').trim().slice(0, 100),
     })).filter((product: { name: string }) => product.name)
@@ -76,6 +77,11 @@ export async function POST(request: NextRequest) {
     }
     if (cleanProducts.some((product: { brand: string }) => !product.brand)) {
       return NextResponse.json({ error: 'Add a brand for each finished product' }, { status: 400 })
+    }
+    const existingProductIds = cleanProducts.map((product: { id?: string }) => product.id).filter((id): id is string => Boolean(id))
+    if (existingProductIds.length) {
+      const ownedCount = await prisma.product.count({ where: { id: { in: existingProductIds }, organizationId: session.user.organizationId, archivedAt: null } })
+      if (ownedCount !== existingProductIds.length) return NextResponse.json({ error: 'One or more products are unavailable' }, { status: 400 })
     }
 
     const productBrands: string[] = [...new Set<string>(cleanProducts.map((product: { brand: string }) => product.brand))]
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
           })),
         },
         products: {
-          create: cleanProducts.map((product: { name: string; brand: string }) => ({
+          create: cleanProducts.filter((product: { id?: string }) => !product.id).map((product: { name: string; brand: string }) => ({
             name: product.name,
             brand: product.brand,
             organizationId: session.user.organizationId,
@@ -111,6 +117,10 @@ export async function POST(request: NextRequest) {
       },
       include: { units: true },
     })
+
+    for (const product of cleanProducts.filter((item: { id?: string }) => item.id)) {
+      await prisma.product.update({ where: { id: product.id }, data: { recipeId: recipe.id, brand: product.brand, archivedAt: null } })
+    }
 
     // Create steps with unit references and materials
     for (let i = 0; i < cleanSteps.length; i++) {

@@ -67,7 +67,8 @@ export async function PUT(
     }
     const duplicateUnit = findDuplicate(cleanUnits.map((u: { name: string }) => u.name))
     const duplicateStep = findDuplicate(cleanSteps.map((s: { name: string }) => s.name))
-    const cleanProducts = (products || []).map((product: string | { name?: string; brand?: string }) => ({
+    const cleanProducts = (products || []).map((product: string | { id?: string; name?: string; brand?: string }) => ({
+      id: typeof product === 'string' ? undefined : String(product?.id || '') || undefined,
       name: String(typeof product === 'string' ? product : product?.name || '').trim().slice(0, 120),
       brand: String(typeof product === 'string' ? brand || '' : product?.brand || '').trim().slice(0, 100),
     })).filter((product: { name: string }) => product.name)
@@ -83,6 +84,11 @@ export async function PUT(
     }
     if (cleanProducts.some((product: { brand: string }) => !product.brand)) {
       return NextResponse.json({ error: 'Add a brand for each finished product' }, { status: 400 })
+    }
+    const submittedProductIds = cleanProducts.map((product: { id?: string }) => product.id).filter((productId): productId is string => Boolean(productId))
+    if (submittedProductIds.length) {
+      const ownedCount = await prisma.product.count({ where: { id: { in: submittedProductIds }, organizationId: session.user.organizationId, archivedAt: null } })
+      if (ownedCount !== submittedProductIds.length) return NextResponse.json({ error: 'One or more products are unavailable' }, { status: 400 })
     }
 
     const productBrands: string[] = [...new Set<string>(cleanProducts.map((product: { brand: string }) => product.brand))]
@@ -131,18 +137,24 @@ export async function PUT(
       where: { recipeId: id, organizationId: session.user.organizationId },
       select: { id: true, name: true, brand: true },
     })
-    const wantedProducts = new Map<string, { name: string; brand: string }>(cleanProducts.map((product: { name: string; brand: string }) => [product.name.toLowerCase(), product]))
+    const wantedProducts = new Map<string, { id?: string; name: string; brand: string }>(cleanProducts.map((product: { id?: string; name: string; brand: string }) => [product.id || product.name.toLowerCase(), product]))
     for (const product of existingProducts) {
-      const wanted = wantedProducts.get(product.name.toLowerCase())
+      const wanted = wantedProducts.get(product.id) || wantedProducts.get(product.name.toLowerCase())
       await prisma.product.update({
         where: { id: product.id },
         data: { archivedAt: wanted ? null : new Date(), ...(wanted ? { brand: wanted.brand } : {}) },
       })
+      wantedProducts.delete(product.id)
       wantedProducts.delete(product.name.toLowerCase())
     }
-    if (wantedProducts.size > 0) {
+    const productsToMove = [...wantedProducts.values()].filter((product) => product.id)
+    for (const product of productsToMove) {
+      await prisma.product.update({ where: { id: product.id }, data: { recipeId: id, brand: product.brand, archivedAt: null } })
+    }
+    const productsToCreate = [...wantedProducts.values()].filter((product) => !product.id)
+    if (productsToCreate.length > 0) {
       await prisma.product.createMany({
-        data: [...wantedProducts.values()].map((product) => ({
+        data: productsToCreate.map((product) => ({
           name: product.name,
           brand: product.brand,
           recipeId: id,

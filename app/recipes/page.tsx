@@ -13,7 +13,7 @@ export default async function RecipesPage() {
   if (!session) redirect('/')
   if (session.role !== 'OWNER' && session.role !== 'SUPERVISOR') redirect('/batches')
 
-  const recipes = await prisma.recipe.findMany({
+  const [recipes, availableProducts] = await Promise.all([prisma.recipe.findMany({
     where: {
       organizationId: session.organizationId,
       archivedAt: null,
@@ -26,7 +26,11 @@ export default async function RecipesPage() {
       _count: { select: { batches: true } },
     },
     orderBy: { createdAt: 'desc' },
-  })
+  }), prisma.product.findMany({
+    where: { organizationId: session.organizationId, archivedAt: null },
+    select: { id: true, name: true, brand: true, recipeId: true, unitsPerCase: true },
+    orderBy: [{ brand: 'asc' }, { name: 'asc' }],
+  })])
 
   return (
     <AppShell session={session}>
@@ -39,7 +43,7 @@ export default async function RecipesPage() {
             Archived
           </Link>
         </div>
-        <RecipesClient initialRecipes={JSON.parse(JSON.stringify(recipes))} />
+        <RecipesClient initialRecipes={JSON.parse(JSON.stringify(recipes))} availableProducts={availableProducts} />
       </main>
     </AppShell>
   )

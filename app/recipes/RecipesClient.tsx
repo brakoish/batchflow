@@ -14,6 +14,7 @@ type Recipe = {
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
   _count: { batches: number }
 }
+type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null }
 type ConfirmAction = {
   title: string
   message?: string
@@ -22,7 +23,7 @@ type ConfirmAction = {
   onConfirm: () => void
 }
 
-export default function RecipesClient({ initialRecipes }: { initialRecipes: Recipe[] }) {
+export default function RecipesClient({ initialRecipes, availableProducts }: { initialRecipes: Recipe[]; availableProducts: AvailableProduct[] }) {
   const [recipes, setRecipes] = useState(initialRecipes)
   const [editId, setEditId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -74,6 +75,7 @@ export default function RecipesClient({ initialRecipes }: { initialRecipes: Reci
       <RecipeBuilder
         key={editId || 'new'}
         editRecipe={editRecipe}
+        availableProducts={availableProducts}
         onDone={() => { setEditId(null); router.refresh() }}
       />
 

@@ -8,15 +8,6 @@ function isSkippedStep(step: { name: string }) {
   return step.name.startsWith(SKIPPED_PREFIX)
 }
 
-function getStepCeilingFromPrevious(
-  previousStep: { completedQuantity: number; unitRatio: number | null },
-  step: { unitRatio: number | null }
-) {
-  return Math.floor(
-    (previousStep.completedQuantity * (previousStep.unitRatio || 1)) / (step.unitRatio || 1)
-  )
-}
-
 function isCountStepComplete(
   step: {
     completedQuantity: number
@@ -26,20 +17,11 @@ function isCountStepComplete(
     status: string
     unitRatio: number | null
   },
-  previousStep?: {
-    completedQuantity: number
-    targetQuantity: number | null
-    status: string
-    unitRatio: number | null
-  } | null
 ) {
   if (isSkippedStep(step)) return true
   if (step.type === 'CHECK') return step.status === 'COMPLETED'
   if (step.targetQuantity != null && step.completedQuantity >= step.targetQuantity) return true
-  if (!previousStep || previousStep.status !== 'COMPLETED') return false
-
-  const ceiling = getStepCeilingFromPrevious(previousStep, step)
-  return step.completedQuantity >= ceiling
+  return false
 }
 
 export async function POST(
@@ -113,33 +95,16 @@ export async function POST(
       )
     }
 
-    // Find previous step
-    const previousStep = [...step.batch.steps]
-      .reverse()
-      .find((s: { order: number; name: string; type: string }) => s.order < step.order && s.type !== 'CHECK' && !isSkippedStep(s))
-
     // Calculate ceiling (normalize across different unit ratios)
     const newTotal = step.completedQuantity + quantity
 
-    if (previousStep) {
-      // Convert previous step's completed qty to base units, then to this step's units
-      const ceiling = getStepCeilingFromPrevious(previousStep as any, step as any)
-
-      if (newTotal > ceiling) {
-        return NextResponse.json(
-          { error: `Only ${Math.max(0, ceiling - step.completedQuantity).toLocaleString()} can be logged right now` },
-          { status: 400 }
-        )
-      }
-    } else {
-      // First step: ceiling is the step's own target
-      // For open-ended batches (targetQuantity is null), skip this check
-      if (step.targetQuantity != null && newTotal > step.targetQuantity) {
-        return NextResponse.json(
-          { error: `Cannot exceed target of ${step.targetQuantity}` },
-          { status: 400 }
-        )
-      }
+    // Each station may record independently. The workflow order is guidance,
+    // while the station's own target remains the safety ceiling.
+    if (step.targetQuantity != null && newTotal > step.targetQuantity) {
+      return NextResponse.json(
+        { error: `Cannot exceed target of ${step.targetQuantity}` },
+        { status: 400 }
+      )
     }
 
     // Create progress log
@@ -180,7 +145,7 @@ export async function POST(
     }
     const shouldCompleteStep = step.targetQuantity != null && (
       newTotal >= step.targetQuantity ||
-      isCountStepComplete(nextStepState as any, previousStep as any)
+      isCountStepComplete(nextStepState as any)
     )
 
     const updatedStep = await prisma.batchStep.update({
@@ -240,11 +205,7 @@ export async function POST(
           const candidate = s.id === stepId
             ? { ...s, completedQuantity: newTotal, status: shouldCompleteStep ? 'COMPLETED' : s.status }
             : s
-          const previousCountStep = [...allSteps]
-            .reverse()
-            .find((p: { order: number; name: string; type: string }) => p.order < s.order && p.type !== 'CHECK' && !isSkippedStep(p))
-
-          return isCountStepComplete(candidate, previousCountStep as any)
+          return isCountStepComplete(candidate)
         }
       )
 

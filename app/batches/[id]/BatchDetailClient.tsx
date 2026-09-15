@@ -30,7 +30,6 @@ import {
   getLastBatchMovement,
   getStationSummary,
   getStationStates,
-  getStationWaitingReason,
 } from '@/lib/productionLine'
 
 type Worker = { id: string; name: string }
@@ -879,20 +878,7 @@ export default function BatchDetailClient({
 
   const getSafeRemaining = (step: BatchStep) => {
     const targetRemaining = step.targetQuantity == null ? null : Math.max(0, step.targetQuantity - step.completedQuantity)
-    const previousStep = [...batch.steps]
-      .reverse()
-      .find(s => s.order < step.order && s.type === 'COUNT' && !isSkippedStep(s))
-    const upstreamAvailable = previousStep
-      ? Math.max(
-          0,
-          Math.floor((previousStep.completedQuantity * (previousStep.unitRatio || 1)) / (step.unitRatio || 1)) - step.completedQuantity
-        )
-      : null
-
-    if (targetRemaining === null && upstreamAvailable === null) return null
-    if (targetRemaining === null) return upstreamAvailable
-    if (upstreamAvailable === null) return targetRemaining
-    return Math.min(targetRemaining, upstreamAvailable)
+    return targetRemaining
   }
 
   const canLogCountStep = (step: BatchStep) => {
@@ -1272,11 +1258,7 @@ export default function BatchDetailClient({
                   <p className="mt-0.5 text-[10px] text-muted-foreground truncate">
                     {station.latestLog
                       ? `${station.latestLog.worker.name} moved ${station.latestLog.quantity} · ${formatShortRelativeTime(station.latestLog.createdAt)}`
-                        : station.availableFromPrevious
-                          ? `${station.availableFromPrevious.toLocaleString()} ready from previous step`
-                        : station.index === 0
-                          ? 'Ready to start'
-                          : getStationWaitingReason(stationStates, station) || 'Waiting on previous step'}
+                        : 'Ready to record'}
                   </p>
                 </button>
               ))}
@@ -1602,13 +1584,6 @@ export default function BatchDetailClient({
                       {step.type === 'COUNT' && (
                         <p className="text-xs text-foreground tabular-nums mt-0.5">
                           {step.completedQuantity}{step.targetQuantity ? ` / ${step.targetQuantity}` : ''} {step.unitLabel}{!step.targetQuantity && step.completedQuantity > 0 ? ' produced' : ''}
-                        </p>
-                      )}
-                      {!isSkipped && !isCompleted && stationState?.availableFromPrevious !== null && stationState?.availableFromPrevious !== undefined && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {stationState.availableFromPrevious > 0
-                            ? `${stationState.availableFromPrevious.toLocaleString()} ready from previous step`
-                            : getStationWaitingReason(stationStates, stationState) || 'Waiting on previous step'}
                         </p>
                       )}
                       {!isSkipped && stationState?.latestLog && (

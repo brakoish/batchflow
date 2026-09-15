@@ -72,10 +72,8 @@ export function getStationStates(steps: ProductionLineStep[], now = Date.now()):
       label = 'done'
     } else if (hasRecentLog || step.completedQuantity > 0) {
       label = 'active'
-    } else if (!previous || availableFromPrevious > 0) {
+    } else {
       label = 'ready'
-    } else if (latestLog) {
-      label = 'stale'
     }
 
     return {
@@ -91,8 +89,7 @@ export function getStationStates(steps: ProductionLineStep[], now = Date.now()):
 export function getActiveStations(steps: ProductionLineStep[], max = 3) {
   const states = getStationStates(steps)
   const active = states.filter((state) => state.label === 'active' || state.label === 'ready')
-  if (active.length > 0) return active.slice(0, max)
-  return states.filter((state) => state.label === 'waiting').slice(0, 1)
+  return active.slice(0, max)
 }
 
 export function getStationSummary(state: Pick<StationState, 'label' | 'step'>) {

@@ -18,7 +18,8 @@ import { haptic } from '@/lib/haptic'
 //   smaller : ratio = basedOnRatio / count   (fractional — requires Float in DB)
 type UnitDef = { name: string; count: number; basedOn?: string; direction?: 'bigger' | 'smaller' }
 type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
-type ProductDef = { name: string; brand: string }
+type ProductDef = { id?: string; name: string; brand: string }
+type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null }
 type EditRecipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
@@ -35,12 +36,13 @@ function formatRelationCount(value: number) {
   return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 4 })
 }
 
-export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: EditRecipe; onDone?: () => void }) {
+export default function RecipeBuilder({ editRecipe, availableProducts, onDone }: { editRecipe?: EditRecipe; availableProducts: AvailableProduct[]; onDone?: () => void }) {
   const isEdit = !!editRecipe
   const [name, setName] = useState(editRecipe?.name || '')
   const [knownBrands, setKnownBrands] = useState<string[]>([])
   const [description, setDescription] = useState(editRecipe?.description || '')
-  const [products, setProducts] = useState<ProductDef[]>(editRecipe?.products.map(product => ({ name: product.name, brand: product.brand || editRecipe.brand || '' })) || [])
+  const [products, setProducts] = useState<ProductDef[]>(editRecipe?.products.map(product => ({ id: product.id, name: product.name, brand: product.brand || editRecipe.brand || '' })) || [])
+  const [existingProductId, setExistingProductId] = useState('')
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || '')
   // When editing an existing recipe we only have the flat base-unit ratio,
   // not the chain. Default basedOn='' (base unit) and surface the raw count;
@@ -227,7 +229,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name, description: description || undefined, baseUnit,
-          products: products.map(product => ({ name: product.name.trim(), brand: product.brand.trim() })).filter(product => product.name),
+          products: products.map(product => ({ id: product.id, name: product.name.trim(), brand: product.brand.trim() })).filter(product => product.name),
           // Submit each unit's ratio in base-units-per-1-of-this-unit.
           // getBaseRatio already honors direction ('bigger' multiplies, 'smaller' divides).
           units: units.filter(u => u.name.trim()).map(u => ({
@@ -290,6 +292,14 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             <button type="button" onClick={() => setProducts(current => [...current, { name: '', brand: '' }])} disabled={loading} className="bf-btn bf-btn-secondary mt-3 w-full border-dashed">
               <PlusIcon className="h-4 w-4" /> Add finished product
             </button>
+            <div className="mt-2 flex gap-2">
+              <select value={existingProductId} onChange={(event) => setExistingProductId(event.target.value)} className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-sm text-foreground">
+                <option value="">Use existing product…</option>
+                {availableProducts.filter((option) => !products.some((product) => product.id === option.id)).map((option) => <option key={option.id} value={option.id}>{option.brand ? `${option.brand} · ` : ''}{option.name}</option>)}
+              </select>
+              <button type="button" disabled={!existingProductId} onClick={() => { const selected = availableProducts.find((option) => option.id === existingProductId); if (selected) setProducts((current) => [...current, { id: selected.id, name: selected.name, brand: selected.brand || '' }]); setExistingProductId('') }} className="bf-btn bf-btn-secondary">Add</button>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Using an existing product moves it to this recipe. Its stock and batch history stay attached.</p>
           </div>
 
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
