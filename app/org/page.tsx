@@ -6,6 +6,7 @@ import {
   LinkIcon,
   UserGroupIcon,
   WrenchScrewdriverIcon,
+  TagIcon,
 } from '@heroicons/react/24/outline'
 import AppShell from '@/app/components/AppShell'
 import { getSession } from '@/lib/session'
@@ -14,6 +15,7 @@ import { prisma } from '@/lib/prisma'
 const ownerItems = [
   { href: '/workers', title: 'Employees', description: 'Employees, supervisors, PINs, languages, and pay rates', Icon: UserGroupIcon },
   { href: '/teams', title: 'Employee teams', description: 'Saved crews for assignments and accounting', Icon: UserGroupIcon },
+  { href: '/products', title: 'Products & brands', description: 'Organize brands and archive finished products', Icon: TagIcon },
   { href: '/timesheet', title: 'Timesheets & pay', description: 'Hours, corrections, exports, and pay estimates', Icon: ClockIcon },
   { href: '/announcements', title: 'Announcement', description: 'Set the alert shown to everyone on the floor', Icon: BellAlertIcon },
   { href: '/org/invite', title: 'Invite & access', description: 'Copy the organization link and review membership', Icon: LinkIcon },

@@ -124,8 +124,21 @@ model Organization {
   announcement Announcement?
   reminders    Reminder[]
   workTeams    WorkTeam[]
+  brands       Brand[]
 
   @@index([slug])
+}
+
+model Brand {
+  id             String       @id @default(cuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  archivedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, name])
+  @@index([organizationId, archivedAt])
 }
 
 model Announcement {

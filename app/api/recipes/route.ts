@@ -78,6 +78,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Add a brand for each finished product' }, { status: 400 })
     }
 
+    const productBrands: string[] = [...new Set<string>(cleanProducts.map((product: { brand: string }) => product.brand))]
+    await prisma.brand.createMany({
+      data: productBrands.map((brandName) => ({
+        name: brandName,
+        organizationId: session.user.organizationId,
+      })),
+      skipDuplicates: true,
+    })
+
     const recipe = await prisma.recipe.create({
       data: {
         name,

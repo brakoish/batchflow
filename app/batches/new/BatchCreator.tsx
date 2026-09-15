@@ -54,7 +54,12 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   const [newProductBrand, setNewProductBrand] = useState('')
   const [newProductUnitsPerCase, setNewProductUnitsPerCase] = useState('')
   const [productSaving, setProductSaving] = useState(false)
+  const [knownBrands, setKnownBrands] = useState<string[]>([])
   const router = useRouter()
+
+  useEffect(() => {
+    fetch('/api/brands', { cache: 'no-store' }).then((response) => response.ok ? response.json() : { brands: [] }).then((data) => setKnownBrands(Array.isArray(data.brands) ? data.brands : []))
+  }, [])
 
   const nameRef = useRef<HTMLInputElement>(null)
   const qtyRef = useRef<HTMLInputElement>(null)
@@ -105,6 +110,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
       setRecipeOptions((current) => current.map((recipe) => recipe.id === selected.id
         ? { ...recipe, products: [...recipe.products.filter((product) => product.id !== data.product.id), data.product].sort((a, b) => a.name.localeCompare(b.name)) }
         : recipe))
+      setKnownBrands((current) => [...new Set([...current, data.product.brand].filter(Boolean))].sort())
       setProductId(data.product.id); setName(data.product.name); setNewProductName(''); setNewProductBrand(''); setNewProductUnitsPerCase(''); setAddingProduct(false)
       haptic('medium')
     } catch { setError('Connection error') }
@@ -216,7 +222,8 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
             {addingProduct && (
               <div className="mb-3 space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
                 <input autoFocus value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} placeholder="New item name" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
-                <input value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value.slice(0, 100))} placeholder="Brand — e.g., Gotti" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
+                <input value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value.slice(0, 100))} list="new-batch-brand-options" placeholder="Choose or add a brand" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
+                <datalist id="new-batch-brand-options">{knownBrands.map((brand) => <option key={brand} value={brand} />)}</datalist>
                 <div className="flex gap-2">
                   <input type="number" inputMode="numeric" min="1" step="1" value={newProductUnitsPerCase} onChange={(e) => setNewProductUnitsPerCase(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder={`Units per case (optional)`} aria-label={`Units per case`} className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base text-foreground" />
                   <button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim() || !newProductBrand.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button>

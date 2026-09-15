@@ -23,6 +23,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
     if (!recipe) return NextResponse.json({ error: 'Recipe not found' }, { status: 404 })
 
+    const savedBrand = await prisma.brand.findFirst({ where: { organizationId: session.user.organizationId, name: { equals: brand, mode: 'insensitive' } } })
+    if (savedBrand) await prisma.brand.update({ where: { id: savedBrand.id }, data: { archivedAt: null } })
+    else await prisma.brand.create({ data: { name: brand, organizationId: session.user.organizationId } })
+
     const products = await prisma.product.findMany({
       where: { recipeId, organizationId: session.user.organizationId },
       select: { id: true, name: true, brand: true, unitsPerCase: true, archivedAt: true },
