@@ -11,12 +11,9 @@ import { onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
 import {
   displayProductionStepName,
-  formatShortRelativeTime,
   getActiveStations,
   getLastBatchMovement,
-  getStationSummary,
   getStationStates,
-  getStationWaitingReason,
   type ProductionLineLog,
 } from '@/lib/productionLine'
 
@@ -94,15 +91,6 @@ export default function BatchListClient({
       }
     } catch {}
     setClockingIn(false)
-  }
-
-  const stationDotClass = (label: string) => {
-    if (label === 'done') return 'bg-emerald-500'
-    if (label === 'active') return 'bg-emerald-500'
-    if (label === 'ready') return 'bg-blue-500'
-    if (label === 'stale') return 'bg-amber-500'
-    if (label === 'skipped') return 'bg-amber-300'
-    return 'bg-muted-foreground/30'
   }
 
   const isBatchReady = (batch: Batch) => getActiveStations(batch.steps, 1)[0]?.label !== 'waiting'
@@ -347,37 +335,42 @@ export default function BatchListClient({
 
             const renderBatch = (batch: Batch) => {
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
-              const pct = Math.round((completedSteps / batch.steps.length) * 100)
               const priority = batch.priority || 'NORMAL'
               const isUrgent = priority === 'URGENT'
-              const activeStations = getActiveStations(batch.steps, 2)
-              const stationStates = getStationStates(batch.steps)
-              const remainingTasks = stationStates.filter(state => state.label !== 'done' && state.label !== 'skipped')
-              const visibleRemainingTasks = remainingTasks.slice(0, 2)
-              const lastMovement = getLastBatchMovement(batch.steps)
               const assignedNames = batch.assignments?.map(a => a.worker.name.split(' ')[0]) || []
               const cardBrand = batch.product?.brand?.trim() || batch.recipe.brand?.trim() || 'Unassigned'
               const cardProduct = batch.product?.name || batch.recipe.name
-              const waitingStation = stationStates.find(s => s.label === 'waiting')
-              const activeWorkers = Array.from(new Set(
-                activeStations
-                  .map(station => station.latestLog?.worker.name.split(' ')[0])
-                  .filter((name): name is string => Boolean(name))
-              ))
-              const activeLineText = activeStations.length > 1
-                ? `${activeStations.length} stations active`
-                : activeStations[0]
-                  ? getStationSummary(activeStations[0])
-                  : 'Line complete'
+              const stepOverview = (
+                <div className="mt-4 space-y-3 rounded-xl border border-border/60 p-3">
+                  {batch.steps.map((step) => {
+                    const skipped = step.name.startsWith('[Skipped] ')
+                    const done = step.status === 'COMPLETED' && !skipped
+                    const progress = skipped || done
+                      ? 100
+                      : step.targetQuantity
+                        ? Math.min(100, Math.round((step.completedQuantity / step.targetQuantity) * 100))
+                        : step.completedQuantity > 0 ? 100 : 0
+                    const value = skipped
+                      ? 'Skipped'
+                      : step.type === 'CHECK'
+                        ? done ? 'Done' : 'Not done'
+                        : step.targetQuantity
+                          ? `${step.completedQuantity.toLocaleString()} / ${step.targetQuantity.toLocaleString()} ${step.unitLabel || ''}`
+                          : `${step.completedQuantity.toLocaleString()} ${step.unitLabel || ''} recorded`
+                    return <div key={step.id}>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className={`truncate font-semibold ${done ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{displayProductionStepName(step)}</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">{value}</span>
+                      </div>
+                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+                        <div className={`h-full rounded-full ${skipped ? 'bg-muted-foreground/40' : done ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                  })}
+                </div>
+              )
 
               if (isWorker) {
-                const station = activeStations[0]
-                const stationName = station ? displayProductionStepName(station.step) : 'Line complete'
-                const quantity = station
-                  ? station.step.targetQuantity
-                    ? `${station.step.completedQuantity}/${station.step.targetQuantity}`
-                    : `${station.step.completedQuantity} produced`
-                  : `${completedSteps}/${batch.steps.length} steps`
                 const dueLabel = batch.dueDate ? (() => {
                   const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
                   const today = new Date()
@@ -421,40 +414,7 @@ export default function BatchListClient({
                       )}
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-4 rounded-xl bg-muted/40 px-3 py-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          {station?.label === 'waiting' ? 'Waiting' : 'Ready now'}
-                        </p>
-                        <p className="mt-0.5 truncate text-base font-semibold text-foreground">{stationName}</p>
-                      </div>
-                      <p className="shrink-0 text-base font-bold tabular-nums text-foreground">{quantity}</p>
-                    </div>
-
-                    <div className="mt-3 rounded-xl border border-border/60 px-3 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tasks left</p>
-                      <div className="mt-2 space-y-1.5">
-                        {remainingTasks.length === 0 && (
-                          <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">All tasks done</p>
-                        )}
-                        {visibleRemainingTasks.map(({ step }) => {
-                          const remaining = step.targetQuantity === null
-                            ? null
-                            : Math.max(0, step.targetQuantity - step.completedQuantity)
-                          return (
-                            <div key={step.id} className="flex items-center justify-between gap-3 text-sm">
-                              <span className="truncate font-medium text-foreground">{displayProductionStepName(step)}</span>
-                              <span className="shrink-0 tabular-nums text-muted-foreground">
-                                {step.type === 'CHECK' ? 'Not done' : remaining !== null ? `${remaining.toLocaleString()} left` : 'Still open'}
-                              </span>
-                            </div>
-                          )
-                        })}
-                        {remainingTasks.length > visibleRemainingTasks.length && (
-                          <p className="text-xs font-medium text-muted-foreground">+{remainingTasks.length - visibleRemainingTasks.length} more tasks</p>
-                        )}
-                      </div>
-                    </div>
+                    {stepOverview}
 
                     <div className="mt-3 flex min-h-[44px] items-center justify-between border-t border-border/60 pt-3">
                       <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Open Batch</span>
@@ -502,44 +462,9 @@ export default function BatchListClient({
                     </span>
                   </div>
 
-                  {/* Status Badge */}
-                  <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                      {activeLineText}
-                    </span>
-                    {lastMovement && (
-                      <span className="max-w-full truncate rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                        Recorded: {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
-                      </span>
-                    )}
-                    {priority === 'URGENT' && (
-                      <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
-                        <FlagIcon className="w-3 h-3" />
-                        URGENT
-                      </span>
-                    )}
-                    {priority === 'HIGH' && (
-                      <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold">
-                        <FlagIcon className="w-3 h-3" />
-                        HIGH
-                      </span>
-                    )}
-                    {priority === 'LOW' && (
-                      <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs">
-                        <FlagIcon className="w-3 h-3" />
-                        Low
-                      </span>
-                    )}
-                    {batch.strain && (
-                      <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs">
-                        {batch.strain}
-                      </span>
-                    )}
-                    {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (
-                      <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 text-xs font-semibold">
-                        OVERDUE
-                      </span>
-                    )}
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    {priority !== 'NORMAL' && <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${priority === 'URGENT' ? 'bg-red-500/10 text-red-500' : priority === 'HIGH' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground'}`}>{priority}</span>}
+                    <span className={`text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? assignedNames.join(', ') : 'Needs team'}</span>
                   </div>
 
                   {/* Inline notes preview (mobile-friendly — no hover needed) */}
@@ -550,132 +475,10 @@ export default function BatchListClient({
                     </div>
                   )}
 
-                  <div className="mb-4 rounded-xl bg-muted/35 border border-border/60 p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Line</p>
-                      {lastMovement ? (
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {lastMovement.worker.name.split(' ')[0]} recorded +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
-                        </p>
-                      ) : (
-                        <p className="text-[10px] text-muted-foreground">No movement yet</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {stationStates.map((state) => (
-                        <div
-                          key={state.step.id}
-                          className={`h-2 flex-1 rounded-full ${stationDotClass(state.label)}`}
-                          title={`${displayProductionStepName(state.step)}: ${state.label}`}
-                        />
-                      ))}
-                    </div>
-                    <div className="space-y-1">
-                      {activeStations.map((station) => (
-                        <div key={station.step.id} className="flex items-center justify-between gap-2 text-xs">
-                          <span className="font-medium text-foreground truncate">
-                            {displayProductionStepName(station.step)}
-                          </span>
-                          <span className="text-muted-foreground tabular-nums shrink-0">
-                            {station.step.completedQuantity}{station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}
-                          </span>
-                        </div>
-                      ))}
-                      {waitingStation && (
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {getStationWaitingReason(stationStates, waitingStation) || `Waiting: ${displayProductionStepName(waitingStation.step)}`}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mb-4 rounded-xl border border-border/60 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tasks left</p>
-                    <div className="mt-2 space-y-1.5">
-                      {remainingTasks.length === 0 && (
-                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">All tasks done</p>
-                      )}
-                      {visibleRemainingTasks.map(({ step }) => {
-                        const remaining = step.targetQuantity === null
-                          ? null
-                          : Math.max(0, step.targetQuantity - step.completedQuantity)
-                        return (
-                          <div key={step.id} className="flex items-center justify-between gap-3 text-xs">
-                            <span className="truncate font-medium text-foreground">{displayProductionStepName(step)}</span>
-                            <span className="shrink-0 tabular-nums text-muted-foreground">
-                              {step.type === 'CHECK' ? 'Not done' : remaining !== null ? `${remaining.toLocaleString()} left` : 'Still open'}
-                            </span>
-                          </div>
-                        )
-                      })}
-                      {remainingTasks.length > visibleRemainingTasks.length && (
-                        <p className="text-[11px] font-medium text-muted-foreground">+{remainingTasks.length - visibleRemainingTasks.length} more tasks</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {(assignedNames.length > 0 || activeWorkers.length > 0 || batch.leadWorker) && (
-                    <div className="mb-4 grid grid-cols-2 gap-2">
-                      <div className="rounded-lg bg-muted/30 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Assigned</p>
-                        <p className={`text-xs truncate ${assignedNames.length ? 'text-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `★ ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? assignedNames.join(', ') : 'Needs team'}</p>
-                      </div>
-                      <div className="rounded-lg bg-muted/30 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Working</p>
-                        <p className="text-xs text-foreground truncate">{activeWorkers.length ? activeWorkers.join(', ') : 'No recent logs'}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Progress */}
-                  <div className="flex items-center gap-4">
-                    {/* Circular Progress */}
-                    <div className="relative w-12 h-12 shrink-0">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                        <path
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          className="text-muted"
-                        />
-                        <path
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeDasharray={`${pct}, 100`}
-                          className="text-success"
-                        />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
-                        {pct}%
-                      </span>
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground">
-                        {completedSteps}/{batch.steps.length} steps complete
-                      </p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {activeStations.map(station => displayProductionStepName(station.step)).join(', ') || 'All stations done'}
-                      </p>
-                    </div>
-
-                    {/* Target */}
-                    <div className="text-right shrink-0">
-                      <p className="text-xl font-bold text-foreground">{batch.targetQuantity ?? <span className="text-sm text-blue-500">Open</span>}</p>
-                      <p className="text-xs text-muted-foreground">units</p>
-                    </div>
-                  </div>
+                  {stepOverview}
 
                   <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-                    <p className="min-w-0 truncate text-xs text-muted-foreground">
-                      {activeStations[0]
-                        ? getStationSummary(activeStations[0])
-                        : 'Review completed workflow'}
-                    </p>
+                    <p className="min-w-0 truncate text-xs text-muted-foreground">{completedSteps}/{batch.steps.length} steps complete</p>
                     <span className="bf-btn bf-btn-primary bf-btn-sm shrink-0">
                       Open Batch
                       <ChevronRightIcon className="w-4 h-4" />
