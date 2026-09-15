@@ -12,7 +12,9 @@ type Worker = {
   role: string
   hourlyRate: number | null
   preferredLanguage: string
+  workTeamMemberships: { teamId: string }[]
 }
+type EmployeeTeam = { id: string; name: string }
 type ConfirmAction = {
   title: string
   message?: string
@@ -21,12 +23,15 @@ type ConfirmAction = {
   onConfirm: () => void
 }
 
-export default function WorkerManager({ workers }: { workers: Worker[] }) {
+export default function WorkerManager({ workers, initialTeams }: { workers: Worker[]; initialTeams: EmployeeTeam[] }) {
+  const [teams, setTeams] = useState(initialTeams)
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
   const [role, setRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
   const [hourlyRate, setHourlyRate] = useState('')
   const [preferredLanguage, setPreferredLanguage] = useState('en')
+  const [teamIds, setTeamIds] = useState<string[]>([])
+  const [newTeamName, setNewTeamName] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -37,6 +42,8 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [editRole, setEditRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
   const [editHourlyRate, setEditHourlyRate] = useState('')
   const [editPreferredLanguage, setEditPreferredLanguage] = useState('en')
+  const [editTeamIds, setEditTeamIds] = useState<string[]>([])
+  const [editNewTeamName, setEditNewTeamName] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
   const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
@@ -59,12 +66,12 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       const res = await fetch('/api/workers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, role, pin: pin || undefined, hourlyRate, preferredLanguage }),
+        body: JSON.stringify({ name, role, pin: pin || undefined, hourlyRate, preferredLanguage, teamIds }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
       setSuccess(`Created: ${data.worker.name} / PIN: ${data.worker.pin}`)
-      setName(''); setPin(''); setRole('WORKER'); setHourlyRate(''); setPreferredLanguage('en')
+      setName(''); setPin(''); setRole('WORKER'); setHourlyRate(''); setPreferredLanguage('en'); setTeamIds([]); setNewTeamName('')
       setShowAddForm(false)
       router.refresh()
       setTimeout(() => setSuccess(''), 5000)
@@ -81,7 +88,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       const res = await fetch(`/api/workers/${editingWorker.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, role: editRole, hourlyRate: editHourlyRate, preferredLanguage: editPreferredLanguage }),
+        body: JSON.stringify({ name: editName, role: editRole, hourlyRate: editHourlyRate, preferredLanguage: editPreferredLanguage, teamIds: editTeamIds }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -152,10 +159,26 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
     setEditRole(worker.role as 'WORKER' | 'SUPERVISOR' | 'OWNER')
     setEditHourlyRate(worker.hourlyRate === null ? '' : worker.hourlyRate.toFixed(2))
     setEditPreferredLanguage(worker.preferredLanguage || 'en')
+    setEditTeamIds(worker.workTeamMemberships?.map(m => m.teamId) || [])
+    setEditNewTeamName('')
     setEditPin('')
     setError('')
     setShowEditModal(true)
   }
+
+  const createTeam = async (teamName: string, select: (id: string) => void, clear: () => void) => {
+    if (!teamName.trim()) return
+    setLoading(true); setError('')
+    try {
+      const res = await fetch('/api/teams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: teamName, workerIds: [] }) })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Unable to create team'); return }
+      setTeams(current => [...current, { id: data.team.id, name: data.team.name }].sort((a,b)=>a.name.localeCompare(b.name)))
+      select(data.team.id); clear()
+    } catch { setError('Connection error') } finally { setLoading(false) }
+  }
+
+  const teamPicker = (selected: string[], setSelected: (ids: string[]) => void, pendingName: string, setPendingName: (value: string) => void) => <div><label className="text-xs text-muted-foreground block mb-1.5">Employee teams</label><div className="flex flex-wrap gap-2">{teams.map(team => { const on=selected.includes(team.id); return <button type="button" key={team.id} onClick={()=>setSelected(on?selected.filter(id=>id!==team.id):[...selected,team.id])} className={`bf-select-btn ${on?'bf-select-btn-active':''}`}>{on?'✓ ':''}{team.name}</button> })}</div><div className="mt-2 flex gap-2"><input className="min-h-[44px] flex-1 rounded-lg border border-border bg-background px-3 text-sm" value={pendingName} onChange={e=>setPendingName(e.target.value.slice(0,60))} placeholder="New team name"/><button type="button" disabled={!pendingName.trim()||loading} className="bf-btn bf-btn-secondary" onClick={()=>createTeam(pendingName, id=>setSelected([...selected,id]), ()=>setPendingName(''))}>+ New Team</button></div>{teams.length===0&&!pendingName&&<p className="mt-1 text-xs text-muted-foreground">Create a team now, or leave the employee unassigned.</p>}</div>
 
   return (
     <div className="space-y-6">
@@ -225,6 +248,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
         </div>
 
         <div><label className="text-xs text-muted-foreground block mb-1.5">Preferred language</label><select value={preferredLanguage} onChange={(e) => setPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></div>
+        {teamPicker(teamIds, setTeamIds, newTeamName, setNewTeamName)}
 
         <div className="flex gap-2">
           {(['WORKER', 'SUPERVISOR', 'OWNER'] as const).map((r) => (
@@ -321,6 +345,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           </div>
 
           <div><label className="text-xs text-muted-foreground block mb-1.5">Preferred language</label><select value={editPreferredLanguage} onChange={(e) => setEditPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></div>
+          {teamPicker(editTeamIds, setEditTeamIds, editNewTeamName, setEditNewTeamName)}
 
           <div className="pt-3 border-t border-border">
             <label className="text-xs text-muted-foreground block mb-2">Change PIN</label>
@@ -365,6 +390,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
           <div key={worker.id} className="bg-card border border-border rounded-lg p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">{worker.name}</p>
+              {worker.workTeamMemberships?.length > 0 && <p className="mt-0.5 text-xs text-muted-foreground">{worker.workTeamMemberships.map(m=>teams.find(t=>t.id===m.teamId)?.name).filter(Boolean).join(', ')}</p>}
               <div className="flex items-center gap-2 mt-1">
                 <button
                   onClick={(e) => {

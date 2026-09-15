@@ -10,7 +10,7 @@ export async function PATCH(
   try {
     const session = await requireOwner()
     const { id } = await params
-    const { name, role, pin, hourlyRate, preferredLanguage } = await request.json()
+    const { name, role, pin, hourlyRate, preferredLanguage, teamIds } = await request.json()
 
     const target = await prisma.worker.findFirst({
       where: { id, organizationId: session.user.organizationId },
@@ -49,6 +49,8 @@ export async function PATCH(
           role: true,
           hourlyRate: true,
           createdAt: true,
+          preferredLanguage: true,
+          workTeamMemberships: { select: { teamId: true } },
         },
       })
       return NextResponse.json({ worker })
@@ -70,17 +72,18 @@ export async function PATCH(
       updateData.hourlyRate = parsedHourlyRate === null ? null : Math.round(parsedHourlyRate * 100) / 100
     }
 
-    const worker = await prisma.worker.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        pin: true,
-        role: true,
-        hourlyRate: true,
-        createdAt: true, preferredLanguage: true,
-      },
+    const cleanTeamIds: string[] | undefined = teamIds === undefined ? undefined : [...new Set<string>(Array.isArray(teamIds) ? teamIds.map((teamId: unknown) => String(teamId)) : [])]
+    if (cleanTeamIds) {
+      const validTeams = await prisma.workTeam.count({ where: { id: { in: cleanTeamIds }, organizationId: session.user.organizationId } })
+      if (validTeams !== cleanTeamIds.length) return NextResponse.json({ error: 'One or more employee teams are invalid' }, { status: 400 })
+    }
+    const worker = await prisma.$transaction(async tx => {
+      await tx.worker.update({ where: { id }, data: updateData })
+      if (cleanTeamIds) {
+        await tx.workTeamMember.deleteMany({ where: { workerId: id } })
+        if (cleanTeamIds.length) await tx.workTeamMember.createMany({ data: cleanTeamIds.map(teamId => ({ teamId, workerId: id })) })
+      }
+      return tx.worker.findUniqueOrThrow({ where: { id }, select: { id: true, name: true, pin: true, role: true, hourlyRate: true, createdAt: true, preferredLanguage: true, workTeamMemberships: { select: { teamId: true } } } })
     })
 
     return NextResponse.json({ worker })

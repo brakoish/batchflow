@@ -10,11 +10,11 @@ export default async function WorkersPage() {
   if (!session) redirect('/')
   if (session.role !== 'OWNER') redirect('/batches')
 
-  const workers = await prisma.worker.findMany({
+  const [workers, teams] = await Promise.all([prisma.worker.findMany({
     where: { organizationId: session.organizationId },
-    select: { id: true, name: true, pin: true, role: true, hourlyRate: true, preferredLanguage: true, createdAt: true },
+    select: { id: true, name: true, pin: true, role: true, hourlyRate: true, preferredLanguage: true, createdAt: true, workTeamMemberships: { select: { teamId: true } } },
     orderBy: { name: 'asc' },
-  })
+  }), prisma.workTeam.findMany({ where: { organizationId: session.organizationId }, select: { id: true, name: true }, orderBy: { name: 'asc' } })])
 
   return (
     <AppShell session={session}>
@@ -23,7 +23,7 @@ export default async function WorkersPage() {
           <h1 className="text-xl font-bold text-foreground">Employees</h1>
           <Link href="/reminders" className="bf-btn bf-btn-secondary">Reminders</Link>
         </div>
-        <WorkerManager workers={JSON.parse(JSON.stringify(workers))} />
+        <WorkerManager workers={JSON.parse(JSON.stringify(workers))} initialTeams={teams} />
       </main>
     </AppShell>
   )

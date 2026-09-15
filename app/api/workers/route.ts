@@ -20,7 +20,7 @@ export async function GET() {
         pin: true,
         role: true,
         hourlyRate: true,
-        createdAt: true, preferredLanguage: true,
+        createdAt: true, preferredLanguage: true, workTeamMemberships: { select: { teamId: true } },
       },
       orderBy: {
         name: 'asc',
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireOwner()
 
-    const { name, role, pin: customPin, hourlyRate, preferredLanguage } = await request.json()
+    const { name, role, pin: customPin, hourlyRate, preferredLanguage, teamIds } = await request.json()
 
     if (!name || !role) {
       return NextResponse.json(
@@ -98,6 +98,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const cleanTeamIds: string[] = [...new Set<string>(Array.isArray(teamIds) ? teamIds.map((id: unknown) => String(id)) : [])]
+    const validTeams = await prisma.workTeam.count({ where: { id: { in: cleanTeamIds }, organizationId: session.user.organizationId } })
+    if (validTeams !== cleanTeamIds.length) return NextResponse.json({ error: 'One or more employee teams are invalid' }, { status: 400 })
+
     const worker = await prisma.worker.create({
       data: {
         name,
@@ -106,6 +110,7 @@ export async function POST(request: NextRequest) {
         hourlyRate: parsedHourlyRate === null ? null : Math.round(parsedHourlyRate * 100) / 100,
         preferredLanguage: ['en', 'zh-CN'].includes(preferredLanguage) ? preferredLanguage : 'en',
         organizationId: session.user.organizationId,
+        workTeamMemberships: { create: cleanTeamIds.map(teamId => ({ team: { connect: { id: teamId } } })) },
       },
       select: {
         id: true,
@@ -113,7 +118,7 @@ export async function POST(request: NextRequest) {
         pin: true,
         role: true,
         hourlyRate: true,
-        createdAt: true, preferredLanguage: true,
+        createdAt: true, preferredLanguage: true, workTeamMemberships: { select: { teamId: true } },
       },
     })
 
