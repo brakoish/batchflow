@@ -9,6 +9,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json()
     const name = String(body.name || '').trim().slice(0, 120)
     if (!name) return NextResponse.json({ error: 'Item name is required' }, { status: 400 })
+    const brand = String(body.brand || '').trim().slice(0, 100)
+    if (!brand) return NextResponse.json({ error: 'Brand is required' }, { status: 400 })
     const hasUnitsPerCase = body.unitsPerCase != null && body.unitsPerCase !== ''
     const unitsPerCase = hasUnitsPerCase ? Number(body.unitsPerCase) : null
     if (unitsPerCase != null && (!Number.isInteger(unitsPerCase) || unitsPerCase <= 0)) {
@@ -23,21 +25,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const products = await prisma.product.findMany({
       where: { recipeId, organizationId: session.user.organizationId },
-      select: { id: true, name: true, unitsPerCase: true, archivedAt: true },
+      select: { id: true, name: true, brand: true, unitsPerCase: true, archivedAt: true },
     })
     const existing = products.find((product) => product.name.toLowerCase() === name.toLowerCase())
     if (existing) {
       const product = existing.archivedAt
-        ? await prisma.product.update({ where: { id: existing.id }, data: { archivedAt: null, ...(hasUnitsPerCase ? { unitsPerCase } : {}) }, select: { id: true, name: true, unitsPerCase: true } })
-        : hasUnitsPerCase && unitsPerCase !== existing.unitsPerCase
-        ? await prisma.product.update({ where: { id: existing.id }, data: { unitsPerCase }, select: { id: true, name: true, unitsPerCase: true } })
-        : { id: existing.id, name: existing.name, unitsPerCase: existing.unitsPerCase }
+        ? await prisma.product.update({ where: { id: existing.id }, data: { archivedAt: null, brand, ...(hasUnitsPerCase ? { unitsPerCase } : {}) }, select: { id: true, name: true, brand: true, unitsPerCase: true } })
+        : brand !== existing.brand || (hasUnitsPerCase && unitsPerCase !== existing.unitsPerCase)
+        ? await prisma.product.update({ where: { id: existing.id }, data: { brand, ...(hasUnitsPerCase ? { unitsPerCase } : {}) }, select: { id: true, name: true, brand: true, unitsPerCase: true } })
+        : { id: existing.id, name: existing.name, brand: existing.brand, unitsPerCase: existing.unitsPerCase }
       return NextResponse.json({ product, existing: true })
     }
 
     const product = await prisma.product.create({
-      data: { name, unitsPerCase, recipeId, organizationId: session.user.organizationId },
-      select: { id: true, name: true, unitsPerCase: true },
+      data: { name, brand, unitsPerCase, recipeId, organizationId: session.user.organizationId },
+      select: { id: true, name: true, brand: true, unitsPerCase: true },
     })
     return NextResponse.json({ product }, { status: 201 })
   } catch (error) {

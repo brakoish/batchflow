@@ -67,8 +67,11 @@ export async function PUT(
     }
     const duplicateUnit = findDuplicate(cleanUnits.map((u: { name: string }) => u.name))
     const duplicateStep = findDuplicate(cleanSteps.map((s: { name: string }) => s.name))
-    const cleanProducts = (products || []).map((product: string) => String(product).trim()).filter(Boolean)
-    const duplicateProduct = findDuplicate(cleanProducts)
+    const cleanProducts = (products || []).map((product: string | { name?: string; brand?: string }) => ({
+      name: String(typeof product === 'string' ? product : product?.name || '').trim().slice(0, 120),
+      brand: String(typeof product === 'string' ? brand || '' : product?.brand || '').trim().slice(0, 100),
+    })).filter((product: { name: string }) => product.name)
+    const duplicateProduct = findDuplicate(cleanProducts.map((product: { name: string }) => product.name))
     if (duplicateUnit) {
       return NextResponse.json({ error: `Unit names must be unique: ${duplicateUnit}` }, { status: 400 })
     }
@@ -77,6 +80,9 @@ export async function PUT(
     }
     if (duplicateProduct) {
       return NextResponse.json({ error: `Product names must be unique: ${duplicateProduct}` }, { status: 400 })
+    }
+    if (cleanProducts.some((product: { brand: string }) => !product.brand)) {
+      return NextResponse.json({ error: 'Add a brand for each finished product' }, { status: 400 })
     }
 
     // Get existing recipe steps (we need to update in place to preserve BatchStep references)
@@ -98,7 +104,7 @@ export async function PUT(
       where: { id },
       data: {
         name,
-        brand: brand ? String(brand).trim().slice(0, 100) : null,
+        brand: null,
         description,
         baseUnit: baseUnit || 'units',
         units: {
@@ -114,20 +120,22 @@ export async function PUT(
 
     const existingProducts = await prisma.product.findMany({
       where: { recipeId: id, organizationId: session.user.organizationId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, brand: true },
     })
-    const wantedProducts = new Map<string, string>(cleanProducts.map((product: string) => [product.toLowerCase(), product.slice(0, 120)]))
+    const wantedProducts = new Map<string, { name: string; brand: string }>(cleanProducts.map((product: { name: string; brand: string }) => [product.name.toLowerCase(), product]))
     for (const product of existingProducts) {
+      const wanted = wantedProducts.get(product.name.toLowerCase())
       await prisma.product.update({
         where: { id: product.id },
-        data: { archivedAt: wantedProducts.has(product.name.toLowerCase()) ? null : new Date() },
+        data: { archivedAt: wanted ? null : new Date(), ...(wanted ? { brand: wanted.brand } : {}) },
       })
       wantedProducts.delete(product.name.toLowerCase())
     }
     if (wantedProducts.size > 0) {
       await prisma.product.createMany({
-        data: [...wantedProducts.values()].map((productName) => ({
-          name: productName,
+        data: [...wantedProducts.values()].map((product) => ({
+          name: product.name,
+          brand: product.brand,
           recipeId: id,
           organizationId: session.user.organizationId,
         })),

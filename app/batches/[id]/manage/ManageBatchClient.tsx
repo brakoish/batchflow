@@ -20,8 +20,8 @@ type Batch = {
   materialName?: string | null; materialReconciledAt?: string | null
   dueDate?: string | null; strain?: string | null; lotNumber?: string | null
   metrcBatchId?: string | null; packageTag?: string | null; notes?: string | null
-  product?: { id: string; name: string; unitsPerCase: number | null } | null
-  recipe: { id: string; name: string; baseUnit: string; units: { name: string; ratio: number }[]; products: { id: string; name: string; unitsPerCase: number | null }[] }
+  product?: { id: string; name: string; brand: string | null; unitsPerCase: number | null } | null
+  recipe: { id: string; name: string; baseUnit: string; units: { name: string; ratio: number }[]; products: { id: string; name: string; brand: string | null; unitsPerCase: number | null }[] }
   assignments: { worker: Worker }[]; steps: Step[]
 }
 
@@ -94,6 +94,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
   const [addingStep, setAddingStep] = useState(false)
   const [addingProduct, setAddingProduct] = useState(false)
   const [newProductName, setNewProductName] = useState('')
+  const [newProductBrand, setNewProductBrand] = useState('')
   const [newProductUnitsPerCase, setNewProductUnitsPerCase] = useState('')
   const [productSaving, setProductSaving] = useState(false)
   const [confirm, setConfirm] = useState<{ title: string; message: string; label: string; action: () => void } | null>(null)
@@ -173,12 +174,12 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
     setProductSaving(true); setError('')
     try {
       const res = await fetch(`/api/recipes/${batch.recipe.id}/products`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProductName, unitsPerCase: newProductUnitsPerCase || null }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProductName, brand: newProductBrand, unitsPerCase: newProductUnitsPerCase || null }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Unable to add item')
       setProducts((current) => [...current.filter((product) => product.id !== data.product.id), data.product].sort((a, b) => a.name.localeCompare(b.name)))
-      setProductId(data.product.id); setNewProductName(''); setNewProductUnitsPerCase(''); setAddingProduct(false); notify('Item added to recipe')
+      setProductId(data.product.id); setNewProductName(''); setNewProductBrand(''); setNewProductUnitsPerCase(''); setAddingProduct(false); notify('Item added to recipe')
     } catch (err) { setError(err instanceof Error ? err.message : 'Connection error') }
     finally { setProductSaving(false) }
   }
@@ -265,8 +266,8 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
             <div><label className={labelClass}>Batch name</label><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3"><label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Finished product</label><button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button></div>
-              {addingProduct && <div className="mb-2 space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><input autoFocus className={inputClass} value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} placeholder="New item name" /><div className="flex gap-2"><input className={inputClass} type="number" inputMode="numeric" min="1" step="1" value={newProductUnitsPerCase} onChange={(e) => setNewProductUnitsPerCase(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder="Units per case (optional)" aria-label="Units per case" /><button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button></div><p className="text-xs text-muted-foreground">How many {batch.recipe.baseUnit.toLowerCase()} go in one case.</p></div>}
-              {products.length > 0 ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{products.map((product) => <button type="button" key={product.id} onClick={() => setProductId(product.id)} className={`bf-select-btn justify-start ${productId === product.id ? 'bf-select-btn-active' : ''}`}><span className="min-w-0 text-left"><span className="block truncate">{productId === product.id ? '✓ ' : ''}{product.name}</span>{product.unitsPerCase && <span className="block text-[11px] font-normal opacity-70">{product.unitsPerCase} {batch.recipe.baseUnit.toLowerCase()} per case</span>}</span></button>)}</div> : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
+              {addingProduct && <div className="mb-2 space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><input autoFocus className={inputClass} value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} placeholder="New item name" /><input className={inputClass} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value.slice(0, 100))} placeholder="Brand — e.g., Gotti" /><div className="flex gap-2"><input className={inputClass} type="number" inputMode="numeric" min="1" step="1" value={newProductUnitsPerCase} onChange={(e) => setNewProductUnitsPerCase(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder="Units per case (optional)" aria-label="Units per case" /><button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim() || !newProductBrand.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button></div><p className="text-xs text-muted-foreground">How many {batch.recipe.baseUnit.toLowerCase()} go in one case.</p></div>}
+              {products.length > 0 ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{products.map((product) => <button type="button" key={product.id} onClick={() => setProductId(product.id)} className={`bf-select-btn justify-start ${productId === product.id ? 'bf-select-btn-active' : ''}`}><span className="min-w-0 text-left"><span className="block truncate">{productId === product.id ? '✓ ' : ''}{product.name}</span><span className="block text-[11px] font-normal opacity-70">{product.brand || 'Unassigned brand'}{product.unitsPerCase ? ` · ${product.unitsPerCase} ${batch.recipe.baseUnit.toLowerCase()} per case` : ''}</span></span></button>)}</div> : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
             </div>
             <div>
               <label className={labelClass}>Target type</label>

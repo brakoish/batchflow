@@ -25,7 +25,7 @@ type Assignment = { worker: { id: string; name: string } }
 type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
-  recipe: { name: string; brand?: string | null }; product?: { name: string } | null; steps: Step[]; assignments?: Assignment[]
+  recipe: { name: string; brand?: string | null }; product?: { name: string; brand?: string | null } | null; steps: Step[]; assignments?: Assignment[]
 }
 
 export default function BatchListClient({
@@ -264,7 +264,7 @@ export default function BatchListClient({
                 b.name.toLowerCase().includes(query) ||
                 b.recipe.name.toLowerCase().includes(query) ||
                 (b.product?.name.toLowerCase().includes(query) ?? false) ||
-                (b.recipe.brand && b.recipe.brand.toLowerCase().includes(query)) ||
+                ((b.product?.brand || b.recipe.brand) && (b.product?.brand || b.recipe.brand)!.toLowerCase().includes(query)) ||
                 (b.strain && b.strain.toLowerCase().includes(query))
               )
               if (!matchesSearch) return false
@@ -352,7 +352,7 @@ export default function BatchListClient({
             const groupByBrand = (items: Batch[]) => {
               const groups = new Map<string, Batch[]>()
               for (const batch of items) {
-                const brand = batch.recipe.brand?.trim() || 'Unassigned'
+                const brand = batch.product?.brand?.trim() || batch.recipe.brand?.trim() || 'Unassigned'
                 groups.set(brand, [...(groups.get(brand) || []), batch])
               }
               return [...groups.entries()].sort(([a], [b]) => {

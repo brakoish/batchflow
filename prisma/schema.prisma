@@ -216,6 +216,7 @@ model Recipe {
 model Product {
   id             String       @id @default(cuid())
   name           String
+  brand          String?
   unitsPerCase   Int?
   recipeId       String
   recipe         Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
@@ -228,6 +229,7 @@ model Product {
 
   @@unique([recipeId, name])
   @@index([organizationId, archivedAt])
+  @@index([organizationId, brand])
   @@index([recipeId, archivedAt])
 }
 

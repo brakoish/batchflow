@@ -5,7 +5,7 @@ import { requireSupervisorOrOwner } from '@/lib/auth'
 export async function GET() {
   try {
     const session = await requireSupervisorOrOwner()
-    const rows = await prisma.recipe.findMany({
+    const rows = await prisma.product.findMany({
       where: {
         organizationId: session.user.organizationId,
         archivedAt: null,

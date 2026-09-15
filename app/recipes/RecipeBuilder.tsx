@@ -18,6 +18,7 @@ import { haptic } from '@/lib/haptic'
 //   smaller : ratio = basedOnRatio / count   (fractional — requires Float in DB)
 type UnitDef = { name: string; count: number; basedOn?: string; direction?: 'bigger' | 'smaller' }
 type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
+type ProductDef = { name: string; brand: string }
 type RecipeStarter = {
   label: string
   description: string
@@ -30,7 +31,7 @@ type RecipeStarter = {
 type EditRecipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
-  products: { id: string; name: string }[]
+  products: { id: string; name: string; brand: string | null }[]
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null }[]
 } | null
 
@@ -98,10 +99,9 @@ function formatRelationCount(value: number) {
 export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: EditRecipe; onDone?: () => void }) {
   const isEdit = !!editRecipe
   const [name, setName] = useState(editRecipe?.name || '')
-  const [brand, setBrand] = useState(editRecipe?.brand || '')
   const [knownBrands, setKnownBrands] = useState<string[]>([])
   const [description, setDescription] = useState(editRecipe?.description || '')
-  const [products, setProducts] = useState<string[]>(editRecipe?.products.map(product => product.name) || [])
+  const [products, setProducts] = useState<ProductDef[]>(editRecipe?.products.map(product => ({ name: product.name, brand: product.brand || editRecipe.brand || '' })) || [])
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || '')
   // When editing an existing recipe we only have the flat base-unit ratio,
   // not the chain. Default basedOn='' (base unit) and surface the raw count;
@@ -165,7 +165,6 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
   const applyStarter = (starter: RecipeStarter) => {
     haptic('medium')
     setName(starter.name)
-    setBrand('')
     setDescription('')
     setProducts([])
     setBaseUnit(starter.baseUnit)
@@ -177,10 +176,9 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
 
   const changeStarter = () => {
     haptic('light')
-    const hasWork = name.trim() || brand.trim() || description.trim() || baseUnit.trim() || units.length > 0 || steps.some(step => step.name.trim() || step.notes.trim())
+    const hasWork = name.trim() || description.trim() || baseUnit.trim() || products.some(product => product.name.trim() || product.brand.trim()) || units.length > 0 || steps.some(step => step.name.trim() || step.notes.trim())
     if (hasWork && !window.confirm('Change starter pattern? This clears the recipe fields you have filled in so far.')) return
     setName('')
-    setBrand('')
     setDescription('')
     setProducts([])
     setBaseUnit('')
@@ -260,6 +258,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     if (!name.trim()) { setError('Give your recipe a name — like "1g Pre-Rolls" or "Flower Jars"'); return }
     if (!baseUnit.trim()) { setError('What are you counting? Enter a base unit like "bags", "jars", or "pre-rolls"'); return }
     if (!steps.some((s) => s.name.trim())) { setError('Add at least one step so your team knows what to do'); return }
+    if (products.some(product => product.name.trim() && !product.brand.trim())) { setError('Add a brand for each finished product'); return }
     if (duplicateUnits.length) { setError(`Unit names must be unique: ${Array.from(new Set(duplicateUnits)).join(', ')}`); return }
     if (duplicateSteps.length) { setError(`Step names must be unique: ${Array.from(new Set(duplicateSteps)).join(', ')}`); return }
     if (missingStepUnits.length) { setError(`These steps point to a missing unit: ${missingStepUnits.join(', ')}`); return }
@@ -301,6 +300,7 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
     if (!baseUnit.trim()) { setError('What are you counting? Enter a base unit like "bags", "jars", or "pre-rolls"'); return }
     const validSteps = steps.filter((s) => s.name.trim())
     if (!validSteps.length) { setError('Add at least one step so your team knows what to do'); return }
+    if (products.some(product => product.name.trim() && !product.brand.trim())) { setError('Add a brand for each finished product'); return }
     if (duplicateUnits.length) { setError(`Unit names must be unique: ${Array.from(new Set(duplicateUnits)).join(', ')}`); return }
     if (duplicateSteps.length) { setError(`Step names must be unique: ${Array.from(new Set(duplicateSteps)).join(', ')}`); return }
     if (missingStepUnits.length) { setError(`These steps point to a missing unit: ${missingStepUnits.join(', ')}`); return }
@@ -316,8 +316,8 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, brand: brand || undefined, description: description || undefined, baseUnit,
-          products: products.map(product => product.trim()).filter(Boolean),
+          name, description: description || undefined, baseUnit,
+          products: products.map(product => ({ name: product.name.trim(), brand: product.brand.trim() })).filter(product => product.name),
           // Submit each unit's ratio in base-units-per-1-of-this-unit.
           // getBaseRatio already honors direction ('bigger' multiplies, 'smaller' divides).
           units: units.filter(u => u.name.trim()).map(u => ({
@@ -330,12 +330,10 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
         }),
       })
       if (!res.ok) { setError((await res.json()).error); return }
-      const savedBrand = brand.trim()
-      if (savedBrand) {
-        setKnownBrands((current) => Array.from(new Set([...current, savedBrand])).sort((a, b) => a.localeCompare(b)))
-      }
+      const savedBrands = products.map(product => product.brand.trim()).filter(Boolean)
+      if (savedBrands.length) setKnownBrands((current) => Array.from(new Set([...current, ...savedBrands])).sort((a, b) => a.localeCompare(b)))
       if (!isEdit) {
-        setName(''); setBrand(''); setDescription(''); setBaseUnit('')
+        setName(''); setDescription(''); setBaseUnit('')
         setProducts([])
         setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
       }
@@ -403,36 +401,25 @@ export default function RecipeBuilder({ editRecipe, onDone }: { editRecipe?: Edi
             placeholder="e.g., Charas Jars, 1g Pre-Roll Tins" disabled={loading}
             className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
 
-          <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} list="batchflow-brand-options"
-            placeholder="Brand — e.g., Stone Road" disabled={loading} maxLength={100}
-            className="w-full mt-3 px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
           <datalist id="batchflow-brand-options">
             {knownBrands.map((option) => <option key={option} value={option} />)}
           </datalist>
-          <p className="mt-2 text-xs text-muted-foreground">Pick a saved brand or type a new one. New brands become reusable after saving.</p>
 
           <div className="mt-4 border-t border-border pt-4">
             <label className="text-sm font-semibold text-foreground">Finished products</label>
             <p className="mb-3 mt-1 text-xs text-muted-foreground">Optional. If you add products, you’ll choose one when starting a batch.</p>
             <div className="space-y-2">
               {products.map((product, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={product}
-                    onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))}
-                    placeholder="e.g., Sativa Charas"
-                    maxLength={120}
-                    disabled={loading}
-                    className="min-h-[46px] flex-1 rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none"
-                  />
+                <div key={index} className="rounded-xl border border-border bg-muted/20 p-2">
+                  <div className="flex gap-2"><input type="text" value={product.name} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, name: event.target.value } : value))} placeholder="Finished item name" maxLength={120} disabled={loading} className="min-h-[46px] flex-1 rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
                   <button type="button" onClick={() => setProducts(current => current.filter((_, itemIndex) => itemIndex !== index))} className="bf-icon-btn bf-icon-btn-danger" aria-label="Remove product">
                     <XMarkIcon className="h-5 w-5" />
-                  </button>
+                  </button></div>
+                  <input type="text" value={product.brand} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, brand: event.target.value } : value))} list="batchflow-brand-options" placeholder="Brand — e.g., Gotti" maxLength={100} disabled={loading} className="mt-2 min-h-[46px] w-full rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
                 </div>
               ))}
             </div>
-            <button type="button" onClick={() => setProducts(current => [...current, ''])} disabled={loading} className="bf-btn bf-btn-secondary mt-3 w-full border-dashed">
+            <button type="button" onClick={() => setProducts(current => [...current, { name: '', brand: '' }])} disabled={loading} className="bf-btn bf-btn-secondary mt-3 w-full border-dashed">
               <PlusIcon className="h-4 w-4" /> Add finished product
             </button>
           </div>

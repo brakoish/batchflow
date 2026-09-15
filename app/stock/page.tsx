@@ -15,7 +15,7 @@ type StockBatch = {
   baseUnit: string
   status: string
   recipe: { id: string; name: string; brand: string | null }
-  product: { id: string; name: string } | null
+  product: { id: string; name: string; brand: string | null } | null
   steps: { name: string; order: number; type: string; completedQuantity: number; unitRatio: number }[]
   removals: { quantity: number }[]
 }
@@ -50,7 +50,7 @@ export default async function StockPage() {
         baseUnit: true,
         status: true,
         recipe: { select: { id: true, name: true, brand: true } },
-        product: { select: { id: true, name: true } },
+        product: { select: { id: true, name: true, brand: true } },
         steps: {
           orderBy: { order: 'asc' },
           select: { name: true, order: true, type: true, completedQuantity: true, unitRatio: true },
@@ -71,7 +71,7 @@ export default async function StockPage() {
     const removed = getRemovedQuantity(batch.removals)
     if (produced === 0 && removed === 0) continue
 
-    const brand = batch.recipe.brand?.trim() || 'Unassigned'
+    const brand = batch.product?.brand?.trim() || batch.recipe.brand?.trim() || 'Unassigned'
     const productKey = batch.product?.id || `recipe:${batch.recipe.id}`
     const current = products.get(productKey) || {
       key: productKey,
@@ -172,7 +172,7 @@ export default async function StockPage() {
         {grouped.has('Unassigned') && (session.role === 'OWNER' || session.role === 'SUPERVISOR') && (
           <Link href="/recipes" className="mt-6 flex items-center gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm font-medium text-amber-700 dark:text-amber-300">
             <ArchiveBoxIcon className="h-5 w-5 shrink-0" />
-            Assign brands in Recipes to finish organizing this stock.
+            Assign brands to finished items to finish organizing this stock.
           </Link>
         )}
       </main>

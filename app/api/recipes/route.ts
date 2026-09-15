@@ -60,8 +60,11 @@ export async function POST(request: NextRequest) {
     }
     const duplicateUnit = findDuplicate(cleanUnits.map((u: { name: string }) => u.name))
     const duplicateStep = findDuplicate(cleanSteps.map((s: { name: string }) => s.name))
-    const cleanProducts = (products || []).map((product: string) => String(product).trim()).filter(Boolean)
-    const duplicateProduct = findDuplicate(cleanProducts)
+    const cleanProducts = (products || []).map((product: string | { name?: string; brand?: string }) => ({
+      name: String(typeof product === 'string' ? product : product?.name || '').trim().slice(0, 120),
+      brand: String(typeof product === 'string' ? brand || '' : product?.brand || '').trim().slice(0, 100),
+    })).filter((product: { name: string }) => product.name)
+    const duplicateProduct = findDuplicate(cleanProducts.map((product: { name: string }) => product.name))
     if (duplicateUnit) {
       return NextResponse.json({ error: `Unit names must be unique: ${duplicateUnit}` }, { status: 400 })
     }
@@ -71,11 +74,14 @@ export async function POST(request: NextRequest) {
     if (duplicateProduct) {
       return NextResponse.json({ error: `Product names must be unique: ${duplicateProduct}` }, { status: 400 })
     }
+    if (cleanProducts.some((product: { brand: string }) => !product.brand)) {
+      return NextResponse.json({ error: 'Add a brand for each finished product' }, { status: 400 })
+    }
 
     const recipe = await prisma.recipe.create({
       data: {
         name,
-        brand: brand ? String(brand).trim().slice(0, 100) : null,
+        brand: null,
         description,
         baseUnit: baseUnit || 'units',
         organizationId: session.user.organizationId,
@@ -87,8 +93,9 @@ export async function POST(request: NextRequest) {
           })),
         },
         products: {
-          create: cleanProducts.map((product: string) => ({
-            name: product.slice(0, 120),
+          create: cleanProducts.map((product: { name: string; brand: string }) => ({
+            name: product.name,
+            brand: product.brand,
             organizationId: session.user.organizationId,
           })),
         },
