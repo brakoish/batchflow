@@ -27,6 +27,14 @@ export default function MyDayClient({ session }: { session: Session }) {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [clockingIn, setClockingIn] = useState(false)
+  const [languageSaving, setLanguageSaving] = useState(false)
+
+  const changeLanguage = async (preferredLanguage: string) => {
+    setLanguageSaving(true)
+    const res = await fetch('/api/workers/me/preferences', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preferredLanguage }) })
+    if (res.ok) window.location.reload()
+    else setLanguageSaving(false)
+  }
 
   useEffect(() => {
     fetchData()
@@ -138,6 +146,7 @@ export default function MyDayClient({ session }: { session: Session }) {
           <p className="text-muted-foreground mt-1">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
+          {session.workerId && <label className="mt-4 block max-w-xs text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preferred language<select value={session.preferredLanguage} disabled={languageSaving} onChange={(e) => changeLanguage(e.target.value)} className="mt-1 min-h-[46px] w-full rounded-xl border border-input bg-card px-3 text-base font-normal normal-case text-foreground"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label>}
         </div>
 
         {loading ? (

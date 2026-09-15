@@ -20,7 +20,7 @@ export async function GET() {
         pin: true,
         role: true,
         hourlyRate: true,
-        createdAt: true,
+        createdAt: true, preferredLanguage: true,
       },
       orderBy: {
         name: 'asc',
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireOwner()
 
-    const { name, role, pin: customPin, hourlyRate } = await request.json()
+    const { name, role, pin: customPin, hourlyRate, preferredLanguage } = await request.json()
 
     if (!name || !role) {
       return NextResponse.json(
@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
         role,
         pin,
         hourlyRate: parsedHourlyRate === null ? null : Math.round(parsedHourlyRate * 100) / 100,
+        preferredLanguage: ['en', 'zh-CN'].includes(preferredLanguage) ? preferredLanguage : 'en',
         organizationId: session.user.organizationId,
       },
       select: {
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
         pin: true,
         role: true,
         hourlyRate: true,
-        createdAt: true,
+        createdAt: true, preferredLanguage: true,
       },
     })
 

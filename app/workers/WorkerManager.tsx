@@ -11,6 +11,7 @@ type Worker = {
   pin: string
   role: string
   hourlyRate: number | null
+  preferredLanguage: string
 }
 type ConfirmAction = {
   title: string
@@ -25,6 +26,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [pin, setPin] = useState('')
   const [role, setRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
   const [hourlyRate, setHourlyRate] = useState('')
+  const [preferredLanguage, setPreferredLanguage] = useState('en')
   const [showAddForm, setShowAddForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -34,6 +36,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
   const [editName, setEditName] = useState('')
   const [editRole, setEditRole] = useState<'WORKER' | 'SUPERVISOR' | 'OWNER'>('WORKER')
   const [editHourlyRate, setEditHourlyRate] = useState('')
+  const [editPreferredLanguage, setEditPreferredLanguage] = useState('en')
   const [showEditModal, setShowEditModal] = useState(false)
   const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
@@ -56,12 +59,12 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       const res = await fetch('/api/workers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, role, pin: pin || undefined, hourlyRate }),
+        body: JSON.stringify({ name, role, pin: pin || undefined, hourlyRate, preferredLanguage }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
       setSuccess(`Created: ${data.worker.name} / PIN: ${data.worker.pin}`)
-      setName(''); setPin(''); setRole('WORKER'); setHourlyRate('')
+      setName(''); setPin(''); setRole('WORKER'); setHourlyRate(''); setPreferredLanguage('en')
       setShowAddForm(false)
       router.refresh()
       setTimeout(() => setSuccess(''), 5000)
@@ -78,7 +81,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
       const res = await fetch(`/api/workers/${editingWorker.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, role: editRole, hourlyRate: editHourlyRate }),
+        body: JSON.stringify({ name: editName, role: editRole, hourlyRate: editHourlyRate, preferredLanguage: editPreferredLanguage }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -148,6 +151,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
     setEditName(worker.name)
     setEditRole(worker.role as 'WORKER' | 'SUPERVISOR' | 'OWNER')
     setEditHourlyRate(worker.hourlyRate === null ? '' : worker.hourlyRate.toFixed(2))
+    setEditPreferredLanguage(worker.preferredLanguage || 'en')
     setEditPin('')
     setError('')
     setShowEditModal(true)
@@ -219,6 +223,8 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             />
           </div>
         </div>
+
+        <div><label className="text-xs text-muted-foreground block mb-1.5">Preferred language</label><select value={preferredLanguage} onChange={(e) => setPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></div>
 
         <div className="flex gap-2">
           {(['WORKER', 'SUPERVISOR', 'OWNER'] as const).map((r) => (
@@ -314,6 +320,8 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
             </div>
           </div>
 
+          <div><label className="text-xs text-muted-foreground block mb-1.5">Preferred language</label><select value={editPreferredLanguage} onChange={(e) => setEditPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></div>
+
           <div className="pt-3 border-t border-border">
             <label className="text-xs text-muted-foreground block mb-2">Change PIN</label>
             <div className="flex gap-2">
@@ -385,6 +393,7 @@ export default function WorkerManager({ workers }: { workers: Worker[] }) {
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {worker.hourlyRate === null ? 'Wage not set' : `$${worker.hourlyRate.toFixed(2)}/hr`}
                 </span>
+                <span className="text-xs text-muted-foreground">{worker.preferredLanguage === 'zh-CN' ? '简体中文' : 'English'}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

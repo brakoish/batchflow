@@ -12,7 +12,7 @@ export default async function WorkersPage() {
 
   const workers = await prisma.worker.findMany({
     where: { organizationId: session.organizationId },
-    select: { id: true, name: true, pin: true, role: true, hourlyRate: true, createdAt: true },
+    select: { id: true, name: true, pin: true, role: true, hourlyRate: true, preferredLanguage: true, createdAt: true },
     orderBy: { name: 'asc' },
   })
 

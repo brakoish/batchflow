@@ -3,6 +3,7 @@ import BottomNav from './BottomNav'
 import AnnouncementBar from './AnnouncementBar'
 import type { Session } from '@/lib/session'
 import EmployeeReminderManager from './EmployeeReminderManager'
+import UiTranslation from './UiTranslation'
 
 export default function AppShell({
   session,
@@ -15,6 +16,7 @@ export default function AppShell({
 }) {
   return (
     <div className="min-h-dvh bg-background">
+      <UiTranslation language={session.preferredLanguage} />
       <EmployeeReminderManager />
       <div className="sticky top-0 z-40">
         <AnnouncementBar />

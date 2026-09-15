@@ -10,6 +10,7 @@ export type Session = {
   role: string
   organizationId: string
   workerId?: string
+  preferredLanguage: string
   type: 'nextauth' | 'pin'
 }
 
@@ -18,6 +19,9 @@ export async function getSession() {
   const nextAuthSession = await getServerSession(authOptions)
   
   if (nextAuthSession?.user) {
+    const workerPreference = nextAuthSession.user.workerId
+      ? await prisma.worker.findUnique({ where: { id: nextAuthSession.user.workerId }, select: { preferredLanguage: true } })
+      : null
     return {
       id: nextAuthSession.user.id,
       name: nextAuthSession.user.name,
@@ -25,6 +29,7 @@ export async function getSession() {
       role: nextAuthSession.user.role,
       organizationId: nextAuthSession.user.organizationId,
       workerId: nextAuthSession.user.workerId,
+      preferredLanguage: workerPreference?.preferredLanguage || 'en',
       type: 'nextauth' as const,
     }
   }
@@ -44,6 +49,7 @@ export async function getSession() {
       name: true,
       role: true,
       organizationId: true,
+      preferredLanguage: true,
     },
   })
   
@@ -57,6 +63,7 @@ export async function getSession() {
     role: worker.role,
     organizationId: worker.organizationId,
     workerId: worker.id,
+    preferredLanguage: worker.preferredLanguage,
     type: 'pin' as const,
   }
 }

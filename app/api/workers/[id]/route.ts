@@ -10,7 +10,7 @@ export async function PATCH(
   try {
     const session = await requireOwner()
     const { id } = await params
-    const { name, role, pin, hourlyRate } = await request.json()
+    const { name, role, pin, hourlyRate, preferredLanguage } = await request.json()
 
     const target = await prisma.worker.findFirst({
       where: { id, organizationId: session.user.organizationId },
@@ -55,9 +55,13 @@ export async function PATCH(
     }
 
     // Handle name/role update
-    const updateData: { name?: string; role?: Role; hourlyRate?: number | null } = {}
+    const updateData: { name?: string; role?: Role; hourlyRate?: number | null; preferredLanguage?: string } = {}
     if (name) updateData.name = name
     if (role && ['WORKER', 'SUPERVISOR', 'OWNER'].includes(role)) updateData.role = role as Role
+    if (preferredLanguage !== undefined) {
+      if (!['en', 'zh-CN'].includes(preferredLanguage)) return NextResponse.json({ error: 'Unsupported language' }, { status: 400 })
+      updateData.preferredLanguage = preferredLanguage
+    }
     if (hourlyRate !== undefined) {
       const parsedHourlyRate = hourlyRate === '' || hourlyRate === null ? null : Number(hourlyRate)
       if (parsedHourlyRate !== null && (!Number.isFinite(parsedHourlyRate) || parsedHourlyRate < 0 || parsedHourlyRate > 10000)) {
@@ -75,7 +79,7 @@ export async function PATCH(
         pin: true,
         role: true,
         hourlyRate: true,
-        createdAt: true,
+        createdAt: true, preferredLanguage: true,
       },
     })
 
