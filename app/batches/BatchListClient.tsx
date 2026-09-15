@@ -26,6 +26,7 @@ type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
   recipe: { name: string; brand?: string | null }; product?: { name: string; brand?: string | null } | null; steps: Step[]; assignments?: Assignment[]
+  leadWorker?: { id: string; name: string } | null
 }
 
 export default function BatchListClient({
@@ -43,7 +44,7 @@ export default function BatchListClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
   const [priorityFilter, setPriorityFilter] = useState(false)
-  const [myBatchFilter, setMyBatchFilter] = useState(session.role === 'WORKER')
+  const [workFilter, setWorkFilter] = useState<'mine' | 'all' | 'unassigned'>(session.role === 'WORKER' ? 'mine' : 'all')
   const isWorker = session.role === 'WORKER'
 
   const fetchData = async (showLoading = false) => {
@@ -210,8 +211,9 @@ export default function BatchListClient({
           </div>
           )}
 
-          {!isWorker && (
           <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+            {((session.workerId ? ['mine','all','unassigned'] : ['all','unassigned']) as ('mine'|'all'|'unassigned')[]).map(filter => <button key={filter} onClick={() => { haptic('light'); setWorkFilter(filter) }} className={`bf-select-btn shrink-0 ${workFilter===filter?'bf-select-btn-active':''}`}>{filter === 'mine' ? 'My Work' : filter === 'all' ? 'All Work' : 'Unassigned'}</button>)}
+          {!isWorker && <>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
@@ -223,18 +225,6 @@ export default function BatchListClient({
               <option value="dueDate">Sort: Due date</option>
               <option value="progress">Sort: Progress</option>
             </select>
-            {session.role === 'WORKER' && (
-              <button
-                onClick={() => { haptic('light'); setMyBatchFilter(!myBatchFilter) }}
-                className={`bf-select-btn shrink-0 ${
-                  myBatchFilter
-                    ? 'bf-select-btn-active'
-                    : ''
-                }`}
-              >
-                Mine
-              </button>
-            )}
             <button
               onClick={() => { haptic('light'); setPriorityFilter(!priorityFilter) }}
               className={`bf-select-btn shrink-0 ${
@@ -246,8 +236,8 @@ export default function BatchListClient({
               <FlagIcon className="w-4 h-4" />
               High+
             </button>
+          </>}
           </div>
-          )}
         </div>
 
         {/* Batch Cards */}
@@ -269,11 +259,9 @@ export default function BatchListClient({
               )
               if (!matchesSearch) return false
 
-              if (myBatchFilter && isWorker) {
-                const openToEveryone = !b.assignments || b.assignments.length === 0
-                const assignedToMe = b.assignments?.some(a => a.worker.id === session.workerId)
-                if (!openToEveryone && !assignedToMe) return false
-              }
+              const assignedToMe = b.assignments?.some(a => a.worker.id === session.workerId)
+              if (workFilter === 'mine' && !assignedToMe) return false
+              if (workFilter === 'unassigned' && (b.assignments?.length || 0) > 0) return false
 
               if (priorityFilter) {
                 const priority = b.priority || 'NORMAL'
@@ -342,13 +330,8 @@ export default function BatchListClient({
               )
             }
 
-            const isMineOrOpen = (b: Batch) => !b.assignments || b.assignments.length === 0 || b.assignments.some(a => a.worker.id === session.workerId)
-            const myBatches = isWorker
-              ? filteredBatches.filter(isMineOrOpen)
-              : filteredBatches
-            const otherBatches = isWorker && !myBatchFilter
-              ? filteredBatches.filter(b => !isMineOrOpen(b))
-              : []
+            const myBatches = filteredBatches
+            const otherBatches: Batch[] = []
             const groupByBrand = (items: Batch[]) => {
               const groups = new Map<string, Batch[]>()
               for (const batch of items) {
@@ -427,6 +410,7 @@ export default function BatchListClient({
                           )}
                         </div>
                         <p className="mt-1 truncate text-sm text-muted-foreground">{batch.product?.name || batch.recipe.name}</p>
+                        <p className={`mt-1 truncate text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? assignedNames.join(', ') : 'Needs team'}</p>
                       </div>
                       {dueLabel && (
                         <span className={`shrink-0 text-xs font-semibold ${dueLabel.includes('overdue') ? 'text-red-500' : 'text-muted-foreground'}`}>
@@ -628,11 +612,11 @@ export default function BatchListClient({
                     </div>
                   </div>
 
-                  {(assignedNames.length > 0 || activeWorkers.length > 0) && (
+                  {(assignedNames.length > 0 || activeWorkers.length > 0 || batch.leadWorker) && (
                     <div className="mb-4 grid grid-cols-2 gap-2">
                       <div className="rounded-lg bg-muted/30 px-3 py-2">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Assigned</p>
-                        <p className="text-xs text-foreground truncate">{assignedNames.length ? assignedNames.join(', ') : 'Open'}</p>
+                        <p className={`text-xs truncate ${assignedNames.length ? 'text-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `★ ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? assignedNames.join(', ') : 'Needs team'}</p>
                       </div>
                       <div className="rounded-lg bg-muted/30 px-3 py-2">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Working</p>

@@ -10,20 +10,7 @@ export default async function BatchesPage() {
 
   const organizationName = await getOrganizationName(session.organizationId)
 
-  const where =
-    session.role === 'WORKER' && session.workerId
-      ? {
-          status: 'ACTIVE' as const,
-          organizationId: session.organizationId,
-          OR: [
-            { assignments: { none: {} } },
-            { assignments: { some: { workerId: session.workerId } } },
-          ],
-        }
-      : {
-          status: 'ACTIVE' as const,
-          organizationId: session.organizationId,
-        }
+  const where = { status: 'ACTIVE' as const, organizationId: session.organizationId }
 
   const batches = await prisma.batch.findMany({
     where,
@@ -41,6 +28,7 @@ export default async function BatchesPage() {
         },
       },
       assignments: { include: { worker: { select: { id: true, name: true } } } },
+      leadWorker: { select: { id: true, name: true } },
     },
     orderBy: { startDate: 'desc' },
   })

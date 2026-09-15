@@ -123,6 +123,7 @@ model Organization {
   stockAdjustments StockAdjustment[]
   announcement Announcement?
   reminders    Reminder[]
+  workTeams    WorkTeam[]
 
   @@index([slug])
 }
@@ -159,6 +160,8 @@ model Worker {
   batchMaterialEvents BatchMaterialEvent[]
   pushSubscriptions PushSubscription[]
   reminderAssignments WorkerReminder[]
+  workTeamMemberships WorkTeamMember[]
+  leadBatches   Batch[]       @relation("BatchLead")
   user           User?
 
   @@index([organizationId])
@@ -325,6 +328,8 @@ model Batch {
   packageTag      String?
   steps           BatchStep[]
   assignments     BatchAssignment[]
+  leadWorkerId    String?
+  leadWorker      Worker?       @relation("BatchLead", fields: [leadWorkerId], references: [id], onDelete: SetNull)
   messages        BatchMessage[]
   removals        BatchRemoval[]
   materialName    String?
@@ -339,6 +344,32 @@ model Batch {
   @@index([status])
   @@index([priority])
   @@index([organizationId])
+  @@index([leadWorkerId])
+}
+
+model WorkTeam {
+  id             String           @id @default(cuid())
+  name           String
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  members        WorkTeamMember[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model WorkTeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      WorkTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  workerId  String
+  worker    Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, workerId])
+  @@index([workerId])
 }
 
 model BatchAssignment {

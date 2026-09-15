@@ -6,22 +6,9 @@ export async function GET() {
   try {
     const session = await requireSession()
 
-    // Build where clause based on role
-    let where: any = {
-      status: 'ACTIVE',
+    const where = {
+      status: 'ACTIVE' as const,
       organizationId: session.user.organizationId,
-    }
-
-    if (session.user.role === 'WORKER' && session.user.workerId) {
-      // Workers see: batches with no assignments OR batches they're assigned to
-      where = {
-        status: 'ACTIVE',
-        organizationId: session.user.organizationId,
-        OR: [
-          { assignments: { none: {} } },
-          { assignments: { some: { workerId: session.user.workerId } } },
-        ],
-      }
     }
 
     const batches = await prisma.batch.findMany({
@@ -40,6 +27,7 @@ export async function GET() {
           },
         },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
+        leadWorker: { select: { id: true, name: true } },
       },
       orderBy: { startDate: 'desc' },
     })
@@ -62,6 +50,7 @@ export async function POST(request: NextRequest) {
       startDate,
       dueDate,
       workerIds,
+      leadWorkerId,
       metrcBatchId,
       lotNumber,
       strain,
@@ -166,6 +155,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'One or more workers are invalid' }, { status: 400 })
       }
     }
+    if (leadWorkerId && !uniqueWorkerIds.includes(String(leadWorkerId))) {
+      return NextResponse.json({ error: 'Team lead must be assigned to this batch' }, { status: 400 })
+    }
 
     const nextBatchTarget = targetQuantity ?? null
     const buildClonedStepTarget = (step: NonNullable<typeof sourceBatch>['steps'][number]) => {
@@ -231,6 +223,7 @@ export async function POST(request: NextRequest) {
         baseUnit: recipe.baseUnit,
         priority: priority || 'NORMAL',
         organizationId: session.user.organizationId,
+        leadWorkerId: leadWorkerId ? String(leadWorkerId) : null,
         startDate: startDate ? new Date(startDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : undefined,
         metrcBatchId: metrcBatchId || undefined,
@@ -254,6 +247,7 @@ export async function POST(request: NextRequest) {
       include: {
         recipe: true,
         product: true,
+        leadWorker: { select: { id: true, name: true } },
         steps: { orderBy: { order: 'asc' } },
       },
     })

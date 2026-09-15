@@ -16,7 +16,7 @@ export default async function ManageBatchPage({
 
   const { id } = await params
   const query = await searchParams
-  const [batch, workers] = await Promise.all([
+  const [batch, workers, teams] = await Promise.all([
     prisma.batch.findFirst({
       where: { id, organizationId: session.organizationId },
       include: {
@@ -31,12 +31,18 @@ export default async function ManageBatchPage({
         },
         product: { select: { id: true, name: true, brand: true, unitsPerCase: true } },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
+        leadWorker: { select: { id: true, name: true } },
         steps: { orderBy: { order: 'asc' } },
       },
     }),
     prisma.worker.findMany({
       where: { organizationId: session.organizationId, role: { in: ['WORKER', 'SUPERVISOR'] } },
       select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.workTeam.findMany({
+      where: { organizationId: session.organizationId },
+      select: { id: true, name: true, members: { select: { workerId: true } } },
       orderBy: { name: 'asc' },
     }),
   ])
@@ -47,6 +53,7 @@ export default async function ManageBatchPage({
     <ManageBatchClient
       initialBatch={JSON.parse(JSON.stringify(batch))}
       workers={workers}
+      teams={teams}
       session={session}
       duplicate={query.duplicate === '1'}
     />

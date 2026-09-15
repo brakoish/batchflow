@@ -21,12 +21,6 @@ export default async function BatchDetailPage({
       where: {
         id,
         organizationId: session.organizationId,
-        ...(session.role === 'WORKER' && session.workerId ? {
-          OR: [
-            { assignments: { none: {} } },
-            { assignments: { some: { workerId: session.workerId } } },
-          ],
-        } : {}),
       },
       include: {
         recipe: true,
@@ -45,6 +39,7 @@ export default async function BatchDetailPage({
           },
         },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
+        leadWorker: { select: { id: true, name: true } },
         removals: {
           include: { worker: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },

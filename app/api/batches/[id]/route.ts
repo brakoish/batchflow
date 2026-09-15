@@ -15,6 +15,7 @@ export async function GET(
       include: {
         recipe: { include: { units: { orderBy: { name: 'asc' } } } },
         product: true,
+        leadWorker: { select: { id: true, name: true } },
         steps: {
           orderBy: {
             order: 'asc',
@@ -81,7 +82,7 @@ export async function PATCH(
 
     const existingBatch = await prisma.batch.findFirst({
       where: { id, organizationId: session.user.organizationId },
-      include: { steps: { orderBy: { order: 'asc' } } },
+      include: { steps: { orderBy: { order: 'asc' } }, assignments: { select: { workerId: true } } },
     })
 
     if (!existingBatch) {
@@ -129,6 +130,7 @@ export async function PATCH(
             },
           },
           assignments: { include: { worker: { select: { id: true, name: true } } } },
+          leadWorker: { select: { id: true, name: true } },
           removals: {
             include: { worker: { select: { id: true, name: true } } },
             orderBy: { createdAt: 'desc' },
@@ -143,7 +145,7 @@ export async function PATCH(
     }
     
     // Handle full batch edits
-    const { name, productId, targetQuantity, dueDate, workerIds, metrcBatchId, lotNumber, strain, packageTag, notes, priority } = body
+    const { name, productId, targetQuantity, dueDate, workerIds, leadWorkerId, metrcBatchId, lotNumber, strain, packageTag, notes, priority } = body
 
     // Validate priority if provided
     if (priority && !['LOW', 'NORMAL', 'HIGH', 'URGENT'].includes(priority)) {
@@ -192,6 +194,17 @@ export async function PATCH(
       if (validWorkers !== uniqueWorkerIds.length) {
         return NextResponse.json({ error: 'One or more workers are invalid' }, { status: 400 })
       }
+    }
+    if (leadWorkerId !== undefined) {
+      if (leadWorkerId) {
+        const assignedIds = workerIds !== undefined ? [...new Set(workerIds as string[])] : existingBatch.assignments.map((a) => a.workerId)
+        if (!assignedIds.includes(String(leadWorkerId))) return NextResponse.json({ error: 'Team lead must be assigned to this batch' }, { status: 400 })
+        const validLead = await prisma.worker.findFirst({ where: { id: String(leadWorkerId), organizationId: session.user.organizationId, role: { in: ['WORKER', 'SUPERVISOR'] } }, select: { id: true } })
+        if (!validLead) return NextResponse.json({ error: 'Invalid team lead' }, { status: 400 })
+      }
+      updateData.leadWorkerId = leadWorkerId || null
+    } else if (workerIds !== undefined && existingBatch.leadWorkerId && !(workerIds as string[]).includes(existingBatch.leadWorkerId)) {
+      updateData.leadWorkerId = null
     }
 
     // Recalculate from this batch's step snapshots, never the live recipe.
@@ -288,6 +301,7 @@ export async function PATCH(
           },
         },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
+        leadWorker: { select: { id: true, name: true } },
         removals: {
           include: { worker: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },

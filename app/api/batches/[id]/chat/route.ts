@@ -14,12 +14,6 @@ export async function GET(
       where: {
         id,
         organizationId: session.user.organizationId,
-        ...(session.user.role === 'WORKER' ? {
-          OR: [
-            { assignments: { none: {} } },
-            { assignments: { some: { workerId: session.user.workerId } } },
-          ],
-        } : {}),
       },
       select: { id: true },
     })
@@ -64,12 +58,6 @@ export async function POST(
       where: {
         id,
         organizationId: session.user.organizationId,
-        ...(session.user.role === 'WORKER' ? {
-          OR: [
-            { assignments: { none: {} } },
-            { assignments: { some: { workerId: session.user.workerId } } },
-          ],
-        } : {}),
       },
       include: {
         assignments: {

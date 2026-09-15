@@ -11,6 +11,7 @@ import type { Session } from '@/lib/session'
 
 type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Worker = { id: string; name: string }
+type WorkTeam = { id: string; name: string; members: { workerId: string }[] }
 type Step = {
   id: string; name: string; order: number; type: 'COUNT' | 'CHECK'; unitLabel: string
   unitRatio: number; targetQuantity: number | null; completedQuantity: number; status: string
@@ -23,6 +24,7 @@ type Batch = {
   product?: { id: string; name: string; brand: string | null; unitsPerCase: number | null } | null
   recipe: { id: string; name: string; baseUnit: string; units: { name: string; ratio: number }[]; products: { id: string; name: string; brand: string | null; unitsPerCase: number | null }[] }
   assignments: { worker: Worker }[]; steps: Step[]
+  leadWorker?: Worker | null
 }
 
 const SKIPPED_PREFIX = '[Skipped] '
@@ -68,8 +70,8 @@ function StepTypePicker({ value, onChange }: { value: 'COUNT' | 'CHECK'; onChang
   )
 }
 
-export default function ManageBatchClient({ initialBatch, workers, session, duplicate }: {
-  initialBatch: Batch; workers: Worker[]; session: Session; duplicate: boolean
+export default function ManageBatchClient({ initialBatch, workers, teams, session, duplicate }: {
+  initialBatch: Batch; workers: Worker[]; teams: WorkTeam[]; session: Session; duplicate: boolean
 }) {
   const router = useRouter()
   const [batch, setBatch] = useState(initialBatch)
@@ -86,6 +88,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
   const [packageTag, setPackageTag] = useState(initialBatch.packageTag || '')
   const [notes, setNotes] = useState(initialBatch.notes || '')
   const [workerIds, setWorkerIds] = useState(initialBatch.assignments.map((a) => a.worker.id))
+  const [leadWorkerId, setLeadWorkerId] = useState(initialBatch.leadWorker?.id || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
@@ -107,8 +110,9 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
     priority: initialBatch.priority || 'NORMAL', strain: initialBatch.strain || '', lotNumber: initialBatch.lotNumber || '',
     metrcBatchId: initialBatch.metrcBatchId || '', packageTag: initialBatch.packageTag || '', notes: initialBatch.notes || '',
     workerIds: initialBatch.assignments.map((a) => a.worker.id).sort(),
+    leadWorkerId: initialBatch.leadWorker?.id || '',
   }), [initialBatch, duplicate])
-  const current = JSON.stringify({ name, productId, openEnded, target, dueDate, priority, strain, lotNumber, metrcBatchId, packageTag, notes, workerIds: [...workerIds].sort() })
+  const current = JSON.stringify({ name, productId, openEnded, target, dueDate, priority, strain, lotNumber, metrcBatchId, packageTag, notes, workerIds: [...workerIds].sort(), leadWorkerId })
   const dirty = current !== original
   const unitOptions = useMemo(() => {
     const byKey = new Map<string, { label: string; ratio: number }>()
@@ -139,7 +143,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
         name: name.trim(), productId: productId || undefined, targetQuantity: openEnded ? null : Number(target), dueDate: dueDate || null,
         priority, strain: strain.trim() || null, lotNumber: lotNumber.trim() || null,
         metrcBatchId: metrcBatchId.trim() || null, packageTag: packageTag.trim() || null,
-        notes: notes.trim() || null, workerIds,
+        notes: notes.trim() || null, workerIds, leadWorkerId: leadWorkerId || null,
       }
       const payload: Record<string, unknown> = duplicate ? fullPayload : {}
       if (!duplicate) {
@@ -155,6 +159,7 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
         if ((notes.trim() || null) !== (initialBatch.notes || null)) payload.notes = notes.trim() || null
         const initialWorkerIds = initialBatch.assignments.map((a) => a.worker.id).sort().join(',')
         if ([...workerIds].sort().join(',') !== initialWorkerIds) payload.workerIds = workerIds
+        if (leadWorkerId !== (initialBatch.leadWorker?.id || '')) payload.leadWorkerId = leadWorkerId || null
       }
       const res = await fetch(duplicate ? '/api/batches' : `/api/batches/${batch.id}`, {
         method: duplicate ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -278,9 +283,11 @@ export default function ManageBatchClient({ initialBatch, workers, session, dupl
             <div><label className={labelClass}>Priority</label><div className="grid grid-cols-4 gap-2">{(['LOW','NORMAL','HIGH','URGENT'] as Priority[]).map((p) => <button key={p} type="button" onClick={() => setPriority(p)} className={`bf-select-btn px-1 text-xs ${priority === p ? 'bf-select-btn-active' : ''}`}>{p[0] + p.slice(1).toLowerCase()}</button>)}</div></div>
           </Section>
 
-          <Section title="Team" summary={workerIds.length ? `${workerIds.length} assigned` : 'Open to the whole team'}>
-            <p className="text-sm text-muted-foreground">No selection means any worker can access this batch.</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{workers.map((worker) => { const selected = workerIds.includes(worker.id); return <button type="button" key={worker.id} onClick={() => setWorkerIds(selected ? workerIds.filter((id) => id !== worker.id) : [...workerIds, worker.id])} className={`bf-select-btn justify-start ${selected ? 'bf-select-btn-active' : ''}`}>{selected ? '✓ ' : ''}{worker.name}</button> })}</div>
+          <Section title="Team" summary={workerIds.length ? `${workerIds.length} assigned${leadWorkerId ? ' · lead selected' : ''}` : 'Needs team'}>
+            <p className="text-sm text-muted-foreground">Assignments show responsibility. Everyone can still see active work.</p>
+            {teams.length > 0 && <div><label className={labelClass}>Saved teams</label><div className="flex gap-2 overflow-x-auto pb-1">{teams.map(team=><button type="button" key={team.id} onClick={()=>{const ids=team.members.map(m=>m.workerId);setWorkerIds(ids);if(leadWorkerId&&!ids.includes(leadWorkerId))setLeadWorkerId('')}} className="bf-select-btn shrink-0">{team.name}</button>)}</div></div>}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{workers.map((worker) => { const selected = workerIds.includes(worker.id); return <button type="button" key={worker.id} onClick={() => { const next=selected ? workerIds.filter((id) => id !== worker.id) : [...workerIds, worker.id]; setWorkerIds(next); if (selected && leadWorkerId===worker.id) setLeadWorkerId('') }} className={`bf-select-btn justify-start ${selected ? 'bf-select-btn-active' : ''}`}>{selected ? '✓ ' : ''}{worker.name}</button> })}</div>
+            {workerIds.length > 0 && <div><label className={labelClass}>Team lead</label><select className={inputClass} value={leadWorkerId} onChange={e=>setLeadWorkerId(e.target.value)}><option value="">No lead</option>{workers.filter(w=>workerIds.includes(w.id)).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></div>}
           </Section>
 
           <Section title="Tracking & Notes" summary={strain || lotNumber || metrcBatchId || packageTag || notes ? 'Tracking information added' : 'No tracking information'}>

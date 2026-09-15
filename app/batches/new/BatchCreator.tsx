@@ -14,6 +14,7 @@ type Recipe = {
 }
 
 type Worker = { id: string; name: string }
+type WorkTeam = { id: string; name: string; members: { workerId: string }[] }
 
 type TargetMode = 'base' | string
 
@@ -21,7 +22,7 @@ function formatAmount(value: number) {
   return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 4 })
 }
 
-export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; workers: Worker[] }) {
+export default function BatchCreator({ recipes, workers, teams }: { recipes: Recipe[]; workers: Worker[]; teams: WorkTeam[] }) {
   const [recipeOptions, setRecipeOptions] = useState(recipes)
   const [selectedId, setSelectedId] = useState('')
   const [name, setName] = useState('')
@@ -34,6 +35,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
   const [selectedDueDate, setSelectedDueDate] = useState<string | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([])
+  const [leadWorkerId, setLeadWorkerId] = useState('')
   const [metrcBatchId, setMetrcBatchId] = useState('')
   const [lotNumber, setLotNumber] = useState('')
   const [strain, setStrain] = useState('')
@@ -149,6 +151,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
           priority,
           dueDate,
           workerIds: selectedWorkers.length > 0 ? selectedWorkers : undefined,
+          leadWorkerId: leadWorkerId || undefined,
           metrcBatchId: metrcBatchId || undefined, lotNumber: lotNumber || undefined,
           strain: strain || undefined, packageTag: packageTag || undefined,
           notes: notes.trim() || undefined,
@@ -645,6 +648,7 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
                   {selectedWorkers.length === workers.length ? 'Clear' : 'All'}
                 </button>
               </div>
+              {teams.length > 0 && <div className="mb-3 flex gap-2 overflow-x-auto pb-1">{teams.map(team => <button type="button" key={team.id} onClick={() => { const ids=team.members.map(m=>m.workerId); setSelectedWorkers(ids); if (leadWorkerId && !ids.includes(leadWorkerId)) setLeadWorkerId(''); haptic('light') }} className="bf-select-btn shrink-0">{team.name}</button>)}</div>}
               <div className="flex flex-wrap gap-2">
                 {workers.map((w) => {
                   const on = selectedWorkers.includes(w.id)
@@ -664,8 +668,9 @@ export default function BatchCreator({ recipes, workers }: { recipes: Recipe[]; 
                   )
                 })}
               </div>
+              {selectedWorkers.length > 0 && <div className="mt-3"><label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Team lead</label><select value={leadWorkerId} onChange={e=>setLeadWorkerId(e.target.value)} className="w-full min-h-[48px] rounded-xl border border-border bg-card px-3 text-foreground"><option value="">No lead</option>{workers.filter(w=>selectedWorkers.includes(w.id)).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></div>}
               {selectedWorkers.length === 0 && (
-                <p className="text-[11px] text-muted-foreground/60 mt-2">No one selected = everyone can work on it</p>
+                <p className="text-[11px] text-muted-foreground/60 mt-2">No one selected = unassigned</p>
               )}
             </div>
           )}

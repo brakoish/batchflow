@@ -249,6 +249,7 @@ export default function BatchDetailClient({
   const [duplicateStrain, setDuplicateStrain] = useState('')
   const [duplicating, setDuplicating] = useState(false)
   const isWorker = session.role === 'WORKER'
+  const canWorkOnBatch = !isWorker || !batch.assignments?.length || batch.assignments.some(a => a.worker.id === session.workerId)
 
   // Auto-refresh — events do the heavy lifting for same-tab mutations,
   // polling is a 15s safety net for cross-tab/other-user changes.
@@ -895,12 +896,12 @@ export default function BatchDetailClient({
   }
 
   const canLogCountStep = (step: BatchStep) => {
-    if (batch.status !== 'ACTIVE' || isSkippedStep(step) || step.type !== 'COUNT') return false
+    if (!canWorkOnBatch || batch.status !== 'ACTIVE' || isSkippedStep(step) || step.type !== 'COUNT') return false
     return getSafeRemaining(step) !== 0
   }
 
   const canCompleteCheckStep = (step: BatchStep) => (
-    batch.status === 'ACTIVE' && !isSkippedStep(step) && step.type === 'CHECK' && step.status !== 'COMPLETED'
+    canWorkOnBatch && batch.status === 'ACTIVE' && !isSkippedStep(step) && step.type === 'CHECK' && step.status !== 'COMPLETED'
   )
 
   const submitLog = async (stepBeingLogged: BatchStep, qty: number, noteBeingLogged?: string) => {
