@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { emitBatchChanged } from '@/lib/batchEvents'
+import ProductPicker from '@/app/components/ProductPicker'
 
 type Recipe = {
   id: string; name: string; description: string | null; baseUnit: string
@@ -231,24 +232,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                 <p className="text-xs text-muted-foreground">How many {selected.baseUnit.toLowerCase()} go in one case. Leave blank if this item is not packed in cases.</p>
               </div>
             )}
-            {selected.products.length > 0 ? (
-            <div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {selected.products.map(product => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    onClick={() => { haptic('light'); setProductId(product.id); setName(product.name) }}
-                    disabled={loading}
-                    className={`bf-select-btn min-h-[50px] justify-start ${productId === product.id ? 'bf-select-btn-active' : ''}`}
-                  >
-                    <span className="min-w-0 text-left"><span className="block truncate">{product.name}</span><span className="block text-[11px] font-normal opacity-70">{product.brand || 'Unassigned brand'}{product.unitsPerCase ? ` · ${product.unitsPerCase} ${selected.baseUnit.toLowerCase()} per case` : ''}</span></span>
-                    {productId === product.id && <CheckCircleIcon className="ml-auto h-5 w-5" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-            ) : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
+            {selected.products.length > 0 ? <ProductPicker products={selected.products} value={productId} baseUnit={selected.baseUnit} disabled={loading} onChange={(product) => { haptic('light'); setProductId(product.id); setName(product.name) }} /> : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
           </div>
 
           {/* What workers will get */}

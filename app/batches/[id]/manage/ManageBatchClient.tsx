@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon } from '@heroicons/react/24/solid'
 import AppShell from '@/app/components/AppShell'
 import ConfirmModal from '@/app/components/ConfirmModal'
+import ProductPicker from '@/app/components/ProductPicker'
 import { emitBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
 
@@ -276,9 +277,9 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
           <Section title="Setup" summary={`${summaryTarget} · ${priority}`} defaultOpen>
             <div><label className={labelClass}>Batch name</label><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div>
-              <div className="mb-1.5 flex items-center justify-between gap-3"><label htmlFor="manage-finished-product" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Finished product</label><button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button></div>
+              <div className="mb-1.5 flex items-center justify-between gap-3"><label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Finished product</label><button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button></div>
               {addingProduct && <div className="mb-2 space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><input autoFocus className={inputClass} value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} placeholder="New item name" /><input className={inputClass} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value.slice(0, 100))} list="manage-batch-brand-options" placeholder="Choose or add a brand" /><datalist id="manage-batch-brand-options">{knownBrands.map((brand) => <option key={brand} value={brand} />)}</datalist><div className="flex gap-2"><input className={inputClass} type="number" inputMode="numeric" min="1" step="1" value={newProductUnitsPerCase} onChange={(e) => setNewProductUnitsPerCase(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder="Units per case (optional)" aria-label="Units per case" /><button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim() || !newProductBrand.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button></div><p className="text-xs text-muted-foreground">How many {batch.recipe.baseUnit.toLowerCase()} go in one case.</p></div>}
-              {products.length > 0 ? <select id="manage-finished-product" className={inputClass} value={productId} onChange={(e) => setProductId(e.target.value)}><option value="" disabled>Select a finished product</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.brand || 'Unassigned brand'}{product.unitsPerCase ? ` · ${product.unitsPerCase} ${batch.recipe.baseUnit.toLowerCase()} per case` : ''}</option>)}</select> : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
+              {products.length > 0 ? <ProductPicker products={products} value={productId} baseUnit={batch.recipe.baseUnit} onChange={(product) => setProductId(product.id)} /> : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
             </div>
             <div>
               <label className={labelClass}>Target type</label>
