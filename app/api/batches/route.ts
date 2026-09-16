@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
+import { convertMaterialQuantity, MATERIAL_WEIGHT_UNITS } from '@/lib/materialUnits'
 
 export async function GET() {
   try {
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
       materialName,
       materialUnit,
       materialPerBaseUnit,
+      materialPerBaseUnitUnit,
       materialIssued,
     } = await request.json()
 
@@ -106,11 +108,23 @@ export async function POST(request: NextRequest) {
 
     const cleanMaterialName = materialName ? String(materialName).trim().slice(0, 80) : ''
     const cleanMaterialUnit = materialUnit ? String(materialUnit).trim().slice(0, 20) : ''
+    const cleanPerBaseUnitUnit = materialPerBaseUnitUnit
+      ? String(materialPerBaseUnitUnit).trim().slice(0, 20)
+      : cleanMaterialUnit
     const perBaseUnit = materialPerBaseUnit == null || materialPerBaseUnit === '' ? null : Number(materialPerBaseUnit)
     const issuedQuantity = materialIssued == null || materialIssued === '' ? null : Number(materialIssued)
     const tracksMaterial = Boolean(cleanMaterialName || cleanMaterialUnit || perBaseUnit != null || issuedQuantity != null)
     if (tracksMaterial && (!cleanMaterialName || !cleanMaterialUnit || !Number.isFinite(perBaseUnit) || perBaseUnit! <= 0 || !Number.isFinite(issuedQuantity) || issuedQuantity! <= 0)) {
       return NextResponse.json({ error: 'Enter the material, weight issued, unit, and amount used per finished unit' }, { status: 400 })
+    }
+    if (tracksMaterial && (!MATERIAL_WEIGHT_UNITS.includes(cleanMaterialUnit) || !MATERIAL_WEIGHT_UNITS.includes(cleanPerBaseUnitUnit))) {
+      return NextResponse.json({ error: 'Material weight unit must be g, kg, oz, or lb' }, { status: 400 })
+    }
+    const perBaseUnitInLedgerUnit = tracksMaterial
+      ? convertMaterialQuantity(perBaseUnit!, cleanPerBaseUnitUnit, cleanMaterialUnit)
+      : null
+    if (tracksMaterial && (!perBaseUnitInLedgerUnit || perBaseUnitInLedgerUnit <= 0)) {
+      return NextResponse.json({ error: 'Unable to convert the material weight units' }, { status: 400 })
     }
 
     if (sourceBatchId && !sourceBatch) {
@@ -233,7 +247,7 @@ export async function POST(request: NextRequest) {
         notes: notes ? String(notes).slice(0, 2000) : undefined,
         materialName: tracksMaterial ? cleanMaterialName : undefined,
         materialUnit: tracksMaterial ? cleanMaterialUnit : undefined,
-        materialRatio: tracksMaterial ? 1 / perBaseUnit! : undefined,
+        materialRatio: tracksMaterial ? 1 / perBaseUnitInLedgerUnit! : undefined,
         materialEvents: tracksMaterial && issuedQuantity
           ? { create: { workerId: session.user.workerId || null, actorName: session.user.name || session.user.role, type: 'ISSUE', quantity: issuedQuantity } }
           : undefined,

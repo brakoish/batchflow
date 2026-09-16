@@ -46,6 +46,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   const [materialName, setMaterialName] = useState('')
   const [materialUnit, setMaterialUnit] = useState('g')
   const [materialPerBaseUnit, setMaterialPerBaseUnit] = useState('')
+  const [materialPerBaseUnitUnit, setMaterialPerBaseUnitUnit] = useState('g')
   const [materialIssued, setMaterialIssued] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -92,6 +93,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
     setMaterialName('')
     setMaterialUnit('g')
     setMaterialPerBaseUnit('')
+    setMaterialPerBaseUnitUnit('g')
     setMaterialIssued('')
     setAddingProduct(false)
     setNewProductName('')
@@ -165,6 +167,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           materialName: trackMaterial ? materialName.trim() : undefined,
           materialUnit: trackMaterial ? materialUnit : undefined,
           materialPerBaseUnit: trackMaterial ? Number(materialPerBaseUnit) : undefined,
+          materialPerBaseUnitUnit: trackMaterial ? materialPerBaseUnitUnit : undefined,
           materialIssued: trackMaterial ? Number(materialIssued) : undefined,
         }),
       })
@@ -435,7 +438,9 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                   const next = !value
                   if (next && suggestedMaterial) {
                     setMaterialName(suggestedMaterial.name.replace(/\s*\([^)]+\)\s*$/, ''))
-                    setMaterialUnit(suggestedMaterial.name.match(/\(([^)]+)\)\s*$/)?.[1] || 'g')
+                    const suggestedUnit = suggestedMaterial.name.match(/\(([^)]+)\)\s*$/)?.[1] || 'g'
+                    setMaterialUnit(suggestedUnit)
+                    setMaterialPerBaseUnitUnit(suggestedUnit)
                     setMaterialPerBaseUnit(String(Number((1 / suggestedMaterial.ratio).toFixed(4))))
                   }
                   return next
@@ -474,7 +479,13 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                     </div>
                     <div><label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Unit</label><select value={materialUnit} onChange={event => setMaterialUnit(event.target.value)} className="w-full min-h-[48px] rounded-xl border-2 border-border bg-card px-2"><option value="g">g</option><option value="kg">kg</option><option value="oz">oz</option><option value="lb">lb</option></select></div>
                   </div>
-                  <div><label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{materialUnit} used per finished unit</label><input type="number" inputMode="decimal" step="any" min="0" value={materialPerBaseUnit} onChange={event => setMaterialPerBaseUnit(event.target.value)} placeholder="e.g. 14" className="w-full min-h-[48px] rounded-xl border-2 border-border bg-card px-4 text-foreground focus:border-emerald-500 focus:outline-none" /></div>
+                  <div>
+                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Used per finished unit</label>
+                    <div className="grid grid-cols-[1fr_92px] gap-2">
+                      <input type="number" inputMode="decimal" step="any" min="0" value={materialPerBaseUnit} onChange={event => setMaterialPerBaseUnit(event.target.value)} placeholder="e.g. 3.5" className="w-full min-h-[48px] rounded-xl border-2 border-border bg-card px-4 text-foreground focus:border-emerald-500 focus:outline-none" />
+                      <select aria-label="Weight unit used per finished unit" value={materialPerBaseUnitUnit} onChange={event => setMaterialPerBaseUnitUnit(event.target.value)} className="w-full min-h-[48px] rounded-xl border-2 border-border bg-card px-2"><option value="g">g</option><option value="kg">kg</option><option value="oz">oz</option><option value="lb">lb</option></select>
+                    </div>
+                  </div>
                   <p className="text-[11px] text-muted-foreground">Issuer and time are automatic. Recipe conversions prefill this when available, but every batch can use tracking.</p>
                 </>
               </div>
