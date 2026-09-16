@@ -1612,9 +1612,9 @@ export default function BatchDetailClient({
                     <button
                       onClick={() => { haptic('light'); handleCheckComplete(step); }}
                       disabled={loading}
-                      className="bf-btn bf-btn-primary shrink-0"
+                      className="bf-btn bf-btn-success min-w-[92px] shrink-0"
                     >
-                      <CheckIcon className="w-4 h-4" />Done
+                      <CheckIcon className="w-4 h-4" />Confirm
                     </button>
                   )}
                 </div>
@@ -1876,10 +1876,10 @@ export default function BatchDetailClient({
                 <button
                   onClick={() => { haptic('light'); handleCheckComplete(primaryStation) }}
                   disabled={loading}
-                  className="bf-btn bf-btn-primary bf-btn-lg px-5 text-sm"
+                  className="bf-btn bf-btn-success bf-btn-lg min-w-[108px] px-5 text-sm"
                 >
                   <CheckIcon className="w-4 h-4" />
-                  Done
+                  Confirm
                 </button>
               )}
             </div>
