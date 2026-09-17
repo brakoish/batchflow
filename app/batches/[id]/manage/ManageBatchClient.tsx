@@ -274,7 +274,7 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
         {!duplicate && batch.status !== 'ACTIVE' && <div className="mb-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-sm text-muted-foreground">This {batch.status.toLowerCase()} batch is closed. Owners and supervisors can correct its setup or duplicate it; its recorded production workflow stays locked.</div>}
 
         <div className="space-y-3">
-          <Section title="Setup" summary={`${summaryTarget} · ${priority}`} defaultOpen>
+          <Section title="Basics & Team" summary={`${summaryTarget} · ${workerIds.length} assigned`} defaultOpen>
             <div><label className={labelClass}>Batch name</label><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3"><label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Finished product</label><button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button></div>
@@ -288,10 +288,10 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
             {!openEnded && <div><label className={labelClass}>Target quantity</label><input className={inputClass} type="number" inputMode="numeric" min="1" value={target} onChange={(e) => setTarget(e.target.value)} /></div>}
             <div><label className={labelClass}>Due date</label><input className={inputClass} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
             <div><label className={labelClass}>Priority</label><div className="grid grid-cols-4 gap-2">{(['LOW','NORMAL','HIGH','URGENT'] as Priority[]).map((p) => <button key={p} type="button" onClick={() => setPriority(p)} className={`bf-select-btn px-1 text-xs ${priority === p ? 'bf-select-btn-active' : ''}`}>{p[0] + p.slice(1).toLowerCase()}</button>)}</div></div>
-          </Section>
-
-          <Section title="Team" summary={workerIds.length ? `${workerIds.length} assigned${leadWorkerId ? ' · lead selected' : ''}` : 'Needs team'}>
-            <p className="text-sm text-muted-foreground">Assignments show responsibility. Everyone can still see active work.</p>
+            <div className="border-t border-border pt-4">
+              <p className="text-sm font-semibold text-foreground">Team</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">Assign responsibility; everyone can still see active work.</p>
+            </div>
             {teams.length > 0 && <div><label className={labelClass}>Saved teams</label><div className="flex gap-2 overflow-x-auto pb-1">{teams.map(team=><button type="button" key={team.id} onClick={()=>{const ids=team.members.map(m=>m.workerId);setWorkerIds(ids);if(leadWorkerId&&!ids.includes(leadWorkerId))setLeadWorkerId('')}} className="bf-select-btn shrink-0">{team.name}</button>)}</div></div>}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{workers.map((worker) => { const selected = workerIds.includes(worker.id); return <button type="button" key={worker.id} onClick={() => { const next=selected ? workerIds.filter((id) => id !== worker.id) : [...workerIds, worker.id]; setWorkerIds(next); if (selected && leadWorkerId===worker.id) setLeadWorkerId('') }} className={`bf-select-btn justify-start ${selected ? 'bf-select-btn-active' : ''}`}>{selected ? '✓ ' : ''}{worker.name}</button> })}</div>
             {workerIds.length > 0 && <div><label className={labelClass}>Team lead</label><select className={inputClass} value={leadWorkerId} onChange={e=>setLeadWorkerId(e.target.value)}><option value="">No lead</option>{workers.filter(w=>workerIds.includes(w.id)).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></div>}

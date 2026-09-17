@@ -9,7 +9,7 @@ import {
   BeakerIcon,
   ChartBarIcon,
   QueueListIcon,
-  BuildingOffice2Icon,
+  Cog6ToothIcon,
   EllipsisHorizontalCircleIcon,
 } from '@heroicons/react/24/outline'
 import {
@@ -18,7 +18,7 @@ import {
   BeakerIcon as BeakerIconSolid,
   ChartBarIcon as ChartBarIconSolid,
   QueueListIcon as QueueListIconSolid,
-  BuildingOffice2Icon as BuildingOffice2IconSolid,
+  Cog6ToothIcon as Cog6ToothIconSolid,
   EllipsisHorizontalCircleIcon as EllipsisHorizontalCircleIconSolid,
 } from '@heroicons/react/24/solid'
 import MoreMenu from './MoreMenu'
@@ -54,10 +54,10 @@ export default function BottomNav({ session }: Props) {
   // Role-based primary destinations. Secondary destinations (Recipes for
   // supervisors, Org settings, etc.) live in the More sheet.
   const ownerItems = [
-    { href: '/batches', label: 'Home', Icon: HomeIcon, IconActive: HomeIconSolid },
-    { href: '/recipes', label: 'Recipes', Icon: BeakerIcon, IconActive: BeakerIconSolid },
-    { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
-    { href: '/org', label: 'Org', Icon: BuildingOffice2Icon, IconActive: BuildingOffice2IconSolid },
+    { href: '/batches', label: 'Work', Icon: HomeIcon, IconActive: HomeIconSolid },
+    { href: '/recipes', label: 'Catalog', Icon: BeakerIcon, IconActive: BeakerIconSolid },
+    { href: '/analytics', label: 'Reports', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
+    { href: '/org', label: 'Manage', Icon: Cog6ToothIcon, IconActive: Cog6ToothIconSolid },
   ]
 
   const supervisorItems = [

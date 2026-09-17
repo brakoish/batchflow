@@ -10,10 +10,8 @@ import {
   PlayIcon,
   ClockIcon,
   ChartBarIcon,
-  BuildingOffice2Icon,
   MegaphoneIcon,
   WrenchScrewdriverIcon,
-  BellAlertIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import ThemeToggle from './ThemeToggle'
@@ -105,13 +103,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
   // only surfaces "secondary" destinations.
   type Item = { href: string; label: string; Icon: any }
   const items: Item[] = isOwner
-    ? [
-        { href: '/analytics', label: 'Analytics', Icon: ChartBarIcon },
-        { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
-        { href: '/reminders', label: 'Employee reminders', Icon: BellAlertIcon },
-        { href: '/teams', label: 'Employee teams', Icon: UserGroupIcon },
-        { href: '/org', label: 'Organization', Icon: BuildingOffice2Icon },
-      ]
+    ? []
     : session.role === 'SUPERVISOR'
       ? [
           { href: '/history', label: 'Batch history', Icon: ClockIcon },
@@ -207,8 +199,9 @@ export default function MoreMenu({ session, open, onClose }: Props) {
           </div>
         )}
 
-        {/* Link list */}
-        <div className="p-3 space-y-1">
+        {/* Link list. Owners use the four-item primary navigation; this sheet
+            stays focused on account controls instead of repeating destinations. */}
+        {items.length > 0 && <div className="p-3 space-y-1">
           {items.map((item) => {
             const active = isActive(item.href)
             return (
@@ -227,7 +220,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
               </Link>
             )
           })}
-        </div>
+        </div>}
 
         {/* Theme + Logout row */}
         <div className="px-4 pb-4 pt-1 border-t border-border flex items-center justify-between gap-3">
