@@ -59,11 +59,10 @@ export default function Header({ session, organizationName }: HeaderProps) {
   }
 
   const ownerNavItems = [
-    { href: '/batches', label: 'Home' },
-    { href: '/stock', label: 'Stock' },
-    { href: '/recipes', label: 'Recipes' },
-    { href: '/analytics', label: 'Analytics' },
-    { href: '/org', label: 'Organization' },
+    { href: '/batches', label: 'Work' },
+    { href: '/recipes', label: 'Catalog' },
+    { href: '/analytics', label: 'Reports' },
+    { href: '/org', label: 'Manage' },
   ]
 
   const supervisorNavItems = [
@@ -81,7 +80,16 @@ export default function Header({ session, organizationName }: HeaderProps) {
 
   const navItems = isOwner ? ownerNavItems : isSupervisor ? supervisorNavItems : workerNavItems
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const ownerRouteGroups: Record<string, string[]> = {
+    '/batches': ['/batches', '/stock', '/history'],
+    '/recipes': ['/recipes', '/products'],
+    '/analytics': ['/analytics'],
+    '/org': ['/org', '/workers', '/teams', '/timesheet', '/reminders', '/announcements', '/tools'],
+  }
+  const isActive = (href: string) => {
+    const routes = isOwner ? ownerRouteGroups[href] || [href] : [href]
+    return routes.some((route) => pathname === route || pathname.startsWith(route + '/'))
+  }
 
   return (
     <header className="bg-background border-b border-border">

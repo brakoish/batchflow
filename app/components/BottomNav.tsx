@@ -75,7 +75,16 @@ export default function BottomNav({ session }: Props) {
 
   const items = role === 'OWNER' ? ownerItems : role === 'SUPERVISOR' ? supervisorItems : workerItems
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/') || (href === '/batches' && pathname === '/stock')
+  const ownerRouteGroups: Record<string, string[]> = {
+    '/batches': ['/batches', '/stock', '/history'],
+    '/recipes': ['/recipes', '/products'],
+    '/analytics': ['/analytics'],
+    '/org': ['/org', '/workers', '/teams', '/timesheet', '/reminders', '/announcements', '/tools'],
+  }
+  const isActive = (href: string) => {
+    const routes = isOwner ? ownerRouteGroups[href] || [href] : [href]
+    return routes.some((route) => pathname === route || pathname.startsWith(route + '/')) || (href === '/batches' && pathname === '/stock')
+  }
 
   return (
     <>
