@@ -221,7 +221,7 @@ export async function PATCH(
       updateData.targetQuantity = targetQuantity ?? null
       for (const step of existingBatch.steps) {
         let nextTarget: number | null
-        if (step.type === 'CHECK') nextTarget = 1
+        if (step.type === 'CHECK' || step.type === 'ENTRY') nextTarget = 1
         else if (targetQuantity === null) nextTarget = null
         else if (existingBatch.targetQuantity && step.targetQuantity != null) {
           nextTarget = Math.max(1, Math.ceil((step.targetQuantity * targetQuantity) / existingBatch.targetQuantity))
@@ -230,7 +230,7 @@ export async function PATCH(
         }
         const nextStatus = step.name.startsWith('[Skipped] ')
           ? step.status
-          : step.type === 'CHECK'
+          : step.type === 'CHECK' || step.type === 'ENTRY'
           ? step.status
           : nextTarget != null && step.completedQuantity >= nextTarget
           ? 'COMPLETED'

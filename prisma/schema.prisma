@@ -43,6 +43,7 @@ enum StepStatus {
 enum StepType {
   CHECK
   COUNT
+  ENTRY
 }
 
 // NextAuth.js Models
@@ -292,6 +293,7 @@ model RecipeStep {
   order       Int
   notes       String?
   type        StepType      @default(COUNT)
+  entryUnit   String?
   unitId      String?
   unit        RecipeUnit?   @relation(fields: [unitId], references: [id])
   batchSteps  BatchStep[]
@@ -473,7 +475,7 @@ model ProgressLog {
   batchStep   BatchStep   @relation(fields: [batchStepId], references: [id], onDelete: Cascade)
   workerId    String
   worker      Worker      @relation(fields: [workerId], references: [id])
-  quantity    Int
+  quantity    Float
   note        String?
   createdAt   DateTime    @default(now())
   editedAt    DateTime?
@@ -491,8 +493,8 @@ model LogAudit {
   workerId      String
   worker        Worker    @relation(fields: [workerId], references: [id])
   action        String
-  oldQuantity   Int?
-  newQuantity   Int?
+  oldQuantity   Float?
+  newQuantity   Float?
   oldNote       String?
   newNote       String?
   createdAt     DateTime  @default(now())

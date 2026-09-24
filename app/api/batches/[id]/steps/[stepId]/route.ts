@@ -128,7 +128,7 @@ export async function PATCH(
       }
 
       if (body.type !== undefined) {
-        if (body.type !== 'COUNT' && body.type !== 'CHECK') {
+        if (body.type !== 'COUNT' && body.type !== 'CHECK' && body.type !== 'ENTRY') {
           return NextResponse.json({ error: 'Invalid step type' }, { status: 400 })
         }
         updateData.type = body.type
@@ -148,7 +148,7 @@ export async function PATCH(
 
       if (body.targetQuantity !== undefined) {
         const nextType = updateData.type || step.type
-        const targetQuantity = nextType === 'CHECK'
+        const targetQuantity = nextType === 'CHECK' || nextType === 'ENTRY'
           ? 1
           : body.targetQuantity == null || body.targetQuantity === ''
           ? null

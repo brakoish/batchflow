@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircleIcon, HashtagIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, HashtagIcon, PencilSquareIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 
 // Relations between units. Three fields:
@@ -17,14 +17,14 @@ import { haptic } from '@/lib/haptic'
 //   bigger  : ratio = count × basedOnRatio
 //   smaller : ratio = basedOnRatio / count   (fractional — requires Float in DB)
 type UnitDef = { name: string; count: number; basedOn?: string; direction?: 'bigger' | 'smaller' }
-type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT'; unitName: string }
+type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT' | 'ENTRY'; unitName: string; entryUnit: string }
 type ProductDef = { id?: string; name: string; brand: string }
 type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null }
 type EditRecipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
   products: { id: string; name: string; brand: string | null }[]
-  steps: { name: string; notes: string | null; type: string; unit: { name: string } | null }[]
+  steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null }[]
 } | null
 
 function parseRelationCount(value: string) {
@@ -69,10 +69,11 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
       ? editRecipe.steps.map(s => ({
           name: s.name,
           notes: s.notes || '',
-          type: s.type as 'CHECK' | 'COUNT',
+          type: s.type as 'CHECK' | 'COUNT' | 'ENTRY',
           unitName: s.unit?.name || '',
+          entryUnit: s.entryUnit || 'g',
         }))
-      : [{ name: '', notes: '', type: 'COUNT', unitName: '' }]
+      : [{ name: '', notes: '', type: 'COUNT', unitName: '', entryUnit: 'g' }]
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -100,6 +101,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
   const emptyStepCount = steps.filter(s => !s.name.trim()).length
   const countStepCount = steps.filter(s => s.name.trim() && s.type === 'COUNT').length
   const checkStepCount = steps.filter(s => s.name.trim() && s.type === 'CHECK').length
+  const entryStepCount = steps.filter(s => s.name.trim() && s.type === 'ENTRY').length
   // Unit helpers
   const addUnit = () => { haptic('light'); setUnits([...units, { name: '', count: 1, basedOn: '', direction: 'bigger' }]) }
   const removeUnit = (i: number) => {
@@ -147,7 +149,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
   // Step helpers
   const addStep = () => {
     haptic('light')
-    setSteps([...steps, { name: '', notes: '', type: 'COUNT', unitName: '' }])
+    setSteps([...steps, { name: '', notes: '', type: 'COUNT', unitName: '', entryUnit: 'g' }])
     setExpandedStep(steps.length)
   }
   const removeStep = (i: number) => {
@@ -237,7 +239,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
             ratio: getBaseRatio(u.name),
           })),
           steps: validSteps.map(s => ({
-            name: s.name, notes: s.notes || undefined, type: s.type, unitName: s.unitName || undefined,
+            name: s.name, notes: s.notes || undefined, type: s.type, unitName: s.unitName || undefined, entryUnit: s.type === 'ENTRY' ? s.entryUnit || 'g' : undefined,
           })),
         }),
       })
@@ -247,7 +249,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
       if (!isEdit) {
         setName(''); setDescription(''); setBaseUnit('')
         setProducts([])
-        setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '' }])
+        setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '', entryUnit: 'g' }])
       }
       router.refresh()
       onDone?.()
@@ -502,7 +504,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                   <button type="button" onClick={() => setExpandedStep(expandedStep === i ? null : i)} className="min-w-0 flex-1 text-left">
                     <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Step {i + 1}</span>
                     <span className="block truncate text-sm font-semibold text-foreground">{step.name.trim() || 'Name this step'}</span>
-                    <span className="block text-[11px] text-muted-foreground">{step.type === 'CHECK' ? 'Checkpoint · mark done' : `Count · ${step.unitName || baseUnit || 'finished units'}`}</span>
+                    <span className="block text-[11px] text-muted-foreground">{step.type === 'CHECK' ? 'Checkpoint · mark done' : step.type === 'ENTRY' ? `Entry · record ${step.entryUnit || 'g'}` : `Count · ${step.unitName || baseUnit || 'finished units'}`}</span>
                   </button>
                   <div className="flex items-center gap-0.5">
                     <button onClick={() => moveStep(i, 'up')} disabled={i === 0}
@@ -535,7 +537,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                 {/* Type toggle */}
                 <div className="mb-3">
                   <label className="text-xs text-muted-foreground font-medium block mb-2">What do workers do at this step?</label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <button onClick={() => { haptic('light'); updateStep(i, 'type', 'CHECK') }} disabled={loading}
                       className={`bf-select-btn flex-1 justify-start px-4 py-3 ${
                         step.type === 'CHECK' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500' : ''
@@ -544,6 +546,16 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                       <div className="text-left">
                         <div>Checkpoint</div>
                         <div className="text-[11px] opacity-70 font-normal">Mark done — no counting</div>
+                      </div>
+                    </button>
+                    <button onClick={() => { haptic('light'); updateStep(i, 'type', 'ENTRY') }} disabled={loading}
+                      className={`bf-select-btn justify-start px-4 py-3 ${
+                        step.type === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''
+                      }`}>
+                      <PencilSquareIcon className="w-6 h-6 shrink-0" />
+                      <div className="text-left">
+                        <div>Entry</div>
+                        <div className="text-[11px] opacity-70 font-normal">Record one measured value</div>
                       </div>
                     </button>
                     <button onClick={() => { haptic('light'); updateStep(i, 'type', 'COUNT') }} disabled={loading}
@@ -558,6 +570,15 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                     </button>
                   </div>
                 </div>
+
+                {step.type === 'ENTRY' && (
+                  <div className="mb-3">
+                    <label className="text-xs text-muted-foreground font-medium block mb-1.5">Measurement unit</label>
+                    <input value={step.entryUnit} onChange={(e) => updateStep(i, 'entryUnit', e.target.value.slice(0, 30))} list="entry-weight-units" placeholder="g, kg, oz, lb" className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm focus:outline-none focus:border-amber-500 transition-all" />
+                    <datalist id="entry-weight-units"><option value="g"/><option value="kg"/><option value="oz"/><option value="lb"/></datalist>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Workers enter the measured amount once; BatchFlow records who entered it and when.</p>
+                  </div>
+                )}
 
                 {/* Unit selector for COUNT steps */}
                 {step.type === 'COUNT' && units.filter(u => u.name.trim()).length > 0 && (
@@ -632,6 +653,10 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
               <p className="text-xl font-bold tabular-nums text-foreground">{checkStepCount}</p>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Checks</p>
             </div>
+            <div className="rounded-xl bg-muted/45 px-3 py-3">
+              <p className="text-xl font-bold tabular-nums text-foreground">{entryStepCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Entries</p>
+            </div>
           </div>
           <div className="mt-4 space-y-2">
             {!name.trim() && <p className="text-xs text-amber-600 dark:text-amber-400">Add a product name.</p>}
@@ -660,6 +685,13 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                     <CheckCircleIcon className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
                     <span className="text-sm text-foreground font-medium">{s.name}</span>
                     <span className="ml-auto text-xs text-blue-600 dark:text-blue-400 font-medium bg-blue-500/10 px-2 py-1 rounded-lg">Checkpoint</span>
+                  </div>
+                )
+                if (s.type === 'ENTRY') return (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                    <PencilSquareIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span className="text-sm text-foreground font-medium">{s.name}</span>
+                    <span className="ml-auto text-xs text-amber-700 dark:text-amber-300 font-medium bg-amber-500/10 px-2 py-1 rounded-lg">Enter {s.entryUnit || 'g'}</span>
                   </div>
                 )
                 const ratio = s.unitName ? getBaseRatio(s.unitName) : 1
@@ -699,7 +731,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                     <span className="block truncate text-sm font-medium text-foreground">{step.name}</span>
                     {step.notes && <span className="block truncate text-[11px] text-muted-foreground">{step.notes}</span>}
                   </span>
-                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{step.type === 'CHECK' ? 'Done tap' : step.unitName || baseUnit}</span>
+                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{step.type === 'CHECK' ? 'Done tap' : step.type === 'ENTRY' ? `Enter ${step.entryUnit || 'g'}` : step.unitName || baseUnit}</span>
                 </div>
               ))}
             </div>

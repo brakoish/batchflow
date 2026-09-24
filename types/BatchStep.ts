@@ -13,6 +13,7 @@ export enum StepStatus {
 export enum StepType {
   CHECK = 'CHECK',
   COUNT = 'COUNT',
+  ENTRY = 'ENTRY',
 }
 
 /**
@@ -34,7 +35,7 @@ export interface BatchStep {
   /** Execution order within the batch */
   order: number;
 
-  /** Type of step (CHECK or COUNT) */
+  /** Type of step (CHECK, COUNT, or ENTRY) */
   type: StepType;
 
   /** Label for the unit of measurement */

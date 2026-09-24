@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
+import { getRecordedStepTotal, parseStepQuantity } from '@/lib/stepRecording'
 
 const SKIPPED_PREFIX = '[Skipped] '
 
@@ -19,7 +20,7 @@ function isCountStepComplete(
   },
 ) {
   if (isSkippedStep(step)) return true
-  if (step.type === 'CHECK') return step.status === 'COMPLETED'
+  if (step.type === 'CHECK' || step.type === 'ENTRY') return step.status === 'COMPLETED'
   if (step.targetQuantity != null && step.completedQuantity >= step.targetQuantity) return true
   return false
 }
@@ -31,38 +32,33 @@ export async function POST(
   try {
     const session = await requireSession()
     const { id: batchId, stepId } = await params
-    const { quantity, note } = await request.json()
+    const body = await request.json()
+    const requestedQuantity = body.quantity
+    const note = body.note
 
-    if (!quantity || quantity <= 0) {
-      return NextResponse.json(
-        { error: 'Quantity must be greater than 0' },
-        { status: 400 }
-      )
-    }
-
-    // Get the step with batch and all steps
     const step = await prisma.batchStep.findUnique({
       where: { id: stepId },
       include: {
         batch: {
           include: {
-            assignments: {
-              select: { workerId: true },
-            },
-            steps: {
-              orderBy: {
-                order: 'asc',
-              },
-            },
+            assignments: { select: { workerId: true } },
+            steps: { orderBy: { order: 'asc' } },
           },
         },
       },
     })
-
     if (!step) {
       return NextResponse.json(
         { error: 'Step not found' },
         { status: 404 }
+      )
+    }
+
+    const quantity = parseStepQuantity(requestedQuantity, step.type)
+    if (quantity === null) {
+      return NextResponse.json(
+        { error: step.type === 'ENTRY' ? 'Entry must be greater than 0' : 'Quantity must be a whole number greater than 0' },
+        { status: 400 }
       )
     }
 
@@ -95,12 +91,19 @@ export async function POST(
       )
     }
 
+    if (step.type === 'ENTRY' && step.status === 'COMPLETED') {
+      return NextResponse.json(
+        { error: 'This entry has already been recorded' },
+        { status: 400 }
+      )
+    }
+
     // Calculate ceiling (normalize across different unit ratios)
-    const newTotal = step.completedQuantity + quantity
+    const newTotal = getRecordedStepTotal(step.type, step.completedQuantity + quantity)
 
     // Each station may record independently. The workflow order is guidance,
     // while the station's own target remains the safety ceiling.
-    if (step.targetQuantity != null && newTotal > step.targetQuantity) {
+    if (step.type !== 'ENTRY' && step.targetQuantity != null && newTotal > step.targetQuantity) {
       return NextResponse.json(
         { error: `Cannot exceed target of ${step.targetQuantity}` },
         { status: 400 }
@@ -143,7 +146,7 @@ export async function POST(
       ...step,
       completedQuantity: newTotal,
     }
-    const shouldCompleteStep = step.targetQuantity != null && (
+    const shouldCompleteStep = step.type === 'ENTRY' || step.targetQuantity != null && (
       newTotal >= step.targetQuantity ||
       isCountStepComplete(nextStepState as any)
     )

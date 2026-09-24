@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircleIcon, HashtagIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, HashtagIcon, PencilIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/solid'
 import RecipeBuilder from './RecipeBuilder'
 import EmptyState from '@/app/components/EmptyState'
 import ConfirmModal from '@/app/components/ConfirmModal'
@@ -11,7 +11,7 @@ type Recipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
   products: { id: string; name: string; brand: string | null }[]
-  steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
+  steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
   _count: { batches: number }
 }
 type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null }
@@ -168,9 +168,9 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                         <span className="text-muted-foreground/50 tabular-nums w-4">{i + 1}.</span>
                         <span className="text-foreground/80">{step.name}</span>
                         <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full border ${
-                          step.type === 'CHECK' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          step.type === 'CHECK' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : step.type === 'ENTRY' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                         }`}>
-                          {step.type === 'CHECK' ? <><CheckCircleIcon className="w-2.5 h-2.5" />Check</> : <><HashtagIcon className="w-2.5 h-2.5" />{step.unit?.name || recipe.baseUnit}</>}
+                          {step.type === 'CHECK' ? <><CheckCircleIcon className="w-2.5 h-2.5" />Check</> : step.type === 'ENTRY' ? <><PencilSquareIcon className="w-2.5 h-2.5" />Enter {step.entryUnit || 'g'}</> : <><HashtagIcon className="w-2.5 h-2.5" />{step.unit?.name || recipe.baseUnit}</>}
                         </span>
                       </div>
                     ))}

@@ -51,7 +51,7 @@ export function getStationStates(steps: ProductionLineStep[], now = Date.now()):
     const previous = steps
       .slice(0, index)
       .reverse()
-      .find(candidate => !isProductionStepSkipped(candidate) && candidate.type !== 'CHECK') || null
+      .find(candidate => !isProductionStepSkipped(candidate) && candidate.type === 'COUNT') || null
     const latestLog = latestStepLog(step)
     const logAge = latestLog ? now - new Date(latestLog.createdAt).getTime() : null
     const hasRecentLog = logAge !== null && logAge <= RECENT_ACTIVITY_MS
@@ -107,7 +107,7 @@ export function getStationWaitingReason(states: StationState[], state: StationSt
   const previous = states
     .slice(0, state.index)
     .reverse()
-    .find(candidate => !isProductionStepSkipped(candidate.step) && candidate.step.type !== 'CHECK')
+    .find(candidate => !isProductionStepSkipped(candidate.step) && candidate.step.type === 'COUNT')
 
   if (!previous) return 'Ready to start'
 

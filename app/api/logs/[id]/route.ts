@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
+import { getRecordedStepTotal, parseStepQuantity } from '@/lib/stepRecording'
 
 const SKIPPED_PREFIX = '[Skipped] '
 
@@ -33,7 +34,7 @@ function isCountStepComplete(
   } | null
 ) {
   if (isSkippedStep(step)) return true
-  if (step.type === 'CHECK') return step.status === 'COMPLETED'
+  if (step.type === 'CHECK' || step.type === 'ENTRY') return step.status === 'COMPLETED'
   if (step.targetQuantity != null && step.completedQuantity >= step.targetQuantity) return true
   if (!previousStep || previousStep.status !== 'COMPLETED') return false
 
@@ -69,9 +70,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Log not found' }, { status: 404 })
     }
 
-    const nextQuantity = quantity === undefined ? log.quantity : Number(quantity)
-    if (!Number.isInteger(nextQuantity) || nextQuantity <= 0) {
-      return NextResponse.json({ error: 'Quantity must be a whole number greater than 0' }, { status: 400 })
+    const nextQuantity = quantity === undefined ? log.quantity : parseStepQuantity(quantity, log.batchStep.type)
+    if (nextQuantity === null) {
+      return NextResponse.json({ error: log.batchStep.type === 'ENTRY' ? 'Entry must be greater than 0' : 'Quantity must be a whole number greater than 0' }, { status: 400 })
     }
 
     // Only the worker who made it or an owner can edit
@@ -122,11 +123,12 @@ export async function PATCH(
       _sum: { quantity: true },
     })
 
-    const newTotal = totalResult._sum.quantity || 0
+    const recordedTotal = totalResult._sum.quantity || 0
     const step = log.batchStep
+    const newTotal = getRecordedStepTotal(step.type, recordedTotal)
     const previousStep = [...step.batch.steps]
       .reverse()
-      .find((s) => s.order < step.order && s.type !== 'CHECK' && !isSkippedStep(s))
+      .find((s) => s.order < step.order && s.type === 'COUNT' && !isSkippedStep(s))
     const nextStepState = { ...step, completedQuantity: newTotal }
     const shouldCompleteStep = isCountStepComplete(nextStepState, previousStep)
 
@@ -153,7 +155,7 @@ export async function PATCH(
           : s
         const previousCountStep = [...batch.steps]
           .reverse()
-          .find((p) => p.order < s.order && p.type !== 'CHECK' && !isSkippedStep(p))
+          .find((p) => p.order < s.order && p.type === 'COUNT' && !isSkippedStep(p))
         return isCountStepComplete(candidate, previousCountStep)
       })
       if (!allDone) {
@@ -224,11 +226,12 @@ export async function DELETE(
       _sum: { quantity: true },
     })
 
-    const newTotal = remaining._sum.quantity || 0
+    const recordedTotal = remaining._sum.quantity || 0
     const step = log.batchStep
+    const newTotal = getRecordedStepTotal(step.type, recordedTotal)
     const previousStep = [...step.batch.steps]
       .reverse()
-      .find((s) => s.order < step.order && s.type !== 'CHECK' && !isSkippedStep(s))
+      .find((s) => s.order < step.order && s.type === 'COUNT' && !isSkippedStep(s))
     const nextStepState = { ...step, completedQuantity: newTotal }
     const shouldCompleteStep = isCountStepComplete(nextStepState, previousStep)
 
@@ -255,7 +258,7 @@ export async function DELETE(
           : s
         const previousCountStep = [...batch.steps]
           .reverse()
-          .find((p) => p.order < s.order && p.type !== 'CHECK' && !isSkippedStep(p))
+          .find((p) => p.order < s.order && p.type === 'COUNT' && !isSkippedStep(p))
         return isCountStepComplete(candidate, previousCountStep)
       })
       if (!allDone) {

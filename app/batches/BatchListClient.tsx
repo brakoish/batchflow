@@ -354,6 +354,8 @@ export default function BatchListClient({
                       ? 'Skipped'
                       : step.type === 'CHECK'
                         ? done ? 'Done' : 'Not done'
+                        : step.type === 'ENTRY'
+                          ? done ? `Recorded · ${step.unitLabel || ''}` : `Needs ${step.unitLabel || 'entry'}`
                         : step.targetQuantity
                           ? `${step.completedQuantity.toLocaleString()} / ${step.targetQuantity.toLocaleString()} ${step.unitLabel || ''}`
                           : `${step.completedQuantity.toLocaleString()} ${step.unitLabel || ''} recorded`

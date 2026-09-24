@@ -28,10 +28,10 @@ export async function POST(
     const body = await request.json()
 
     const name = String(body.name || '').trim()
-    const type = body.type === 'CHECK' ? 'CHECK' : 'COUNT'
+    const type = body.type === 'CHECK' ? 'CHECK' : body.type === 'ENTRY' ? 'ENTRY' : 'COUNT'
     const unitLabel = String(body.unitLabel || 'units').trim() || 'units'
     const unitRatio = Number(body.unitRatio ?? 1)
-    const targetQuantity = type === 'CHECK'
+    const targetQuantity = type === 'CHECK' || type === 'ENTRY'
       ? 1
       : body.targetQuantity == null || body.targetQuantity === ''
       ? null
@@ -80,6 +80,7 @@ export async function POST(
         name: name.slice(0, 80),
         order: 0,
         type,
+        entryUnit: type === 'ENTRY' ? unitLabel.slice(0, 30) : null,
       },
     })
 

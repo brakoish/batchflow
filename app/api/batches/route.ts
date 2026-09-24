@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     const nextBatchTarget = targetQuantity ?? null
     const buildClonedStepTarget = (step: NonNullable<typeof sourceBatch>['steps'][number]) => {
-      if (step.type === 'CHECK') return 1
+      if (step.type === 'CHECK' || step.type === 'ENTRY') return 1
       if (nextBatchTarget == null) return null
 
       if (sourceBatch?.targetQuantity && step.targetQuantity != null) {
@@ -202,13 +202,13 @@ export async function POST(request: NextRequest) {
           status: step.name.startsWith('[Skipped] ') ? 'COMPLETED' as const : 'IN_PROGRESS' as const,
         }))
       : recipe.steps.map((step) => {
-          const unitRatio = step.unit?.ratio || 1
-          const unitLabel = step.unit?.name || recipe.baseUnit
+          const unitRatio = step.type === 'ENTRY' ? 1 : step.unit?.ratio || 1
+          const unitLabel = step.type === 'ENTRY' ? step.entryUnit || 'g' : step.unit?.name || recipe.baseUnit
 
           // For open-ended batches (no targetQuantity), set step targets to null
           // Except for CHECK steps which always have target of 1
           let stepTarget: number | null
-          if (step.type === 'CHECK') {
+          if (step.type === 'CHECK' || step.type === 'ENTRY') {
             stepTarget = 1
           } else if (targetQuantity == null) {
             stepTarget = null

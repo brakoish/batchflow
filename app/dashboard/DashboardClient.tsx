@@ -19,7 +19,7 @@ import {
   getStationWaitingReason,
   type ProductionLineLog,
 } from '@/lib/productionLine'
-type Step = { id: string; name: string; order: number; status: string; type?: string; completedQuantity: number; targetQuantity: number | null; progressLogs?: ProductionLineLog[] }
+type Step = { id: string; name: string; order: number; status: string; type?: string; unitLabel?: string; completedQuantity: number; targetQuantity: number | null; progressLogs?: ProductionLineLog[] }
 type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
@@ -703,6 +703,7 @@ export default function DashboardClient({
                         const stepPct = step.targetQuantity ? (step.completedQuantity / step.targetQuantity) * 100 : 0
                         const isCompleted = step.status === 'COMPLETED'
                         const isCheck = step.type === 'CHECK'
+                        const isEntry = step.type === 'ENTRY'
 
                         return (
                           <div key={step.id} className="flex items-center gap-3">
@@ -719,9 +720,9 @@ export default function DashboardClient({
                               {step.name}
                             </span>
                             <div className="flex-1">
-                              {isCheck ? (
+                              {isCheck || isEntry ? (
                                 <span className={`text-xs ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                                  {isCompleted ? 'Done' : 'Pending'}
+                                  {isEntry ? (isCompleted ? 'Recorded' : `Enter ${step.unitLabel}`) : isCompleted ? 'Done' : 'Pending'}
                                 </span>
                               ) : (
                                 <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -734,7 +735,7 @@ export default function DashboardClient({
                                 </div>
                               )}
                             </div>
-                            {!isCheck && (
+                            {!isCheck && !isEntry && (
                               <span className={`text-xs tabular-nums shrink-0 ${
                                 isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
                               }`}>

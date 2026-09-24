@@ -44,7 +44,7 @@ type BatchMaterialEvent = {
 }
 type StepMaterial = { name: string; quantityPerUnit: number; unit: string }
 type BatchStep = {
-  id: string; recipeStepId: string; name: string; order: number; type: 'CHECK' | 'COUNT'
+  id: string; recipeStepId: string; name: string; order: number; type: 'CHECK' | 'COUNT' | 'ENTRY'
   unitLabel: string; unitRatio: number
   targetQuantity: number | null; completedQuantity: number; status: string
   recipeStep?: { notes: string | null; materials?: StepMaterial[] }
@@ -216,13 +216,13 @@ export default function BatchDetailClient({
   const [editingSteps, setEditingSteps] = useState(false)
   const [showAddStepModal, setShowAddStepModal] = useState(false)
   const [newStepName, setNewStepName] = useState('')
-  const [newStepType, setNewStepType] = useState<'COUNT' | 'CHECK'>('COUNT')
+  const [newStepType, setNewStepType] = useState<BatchStep['type']>('COUNT')
   const [newStepTarget, setNewStepTarget] = useState('')
   const [newStepUnit, setNewStepUnit] = useState(batch.baseUnit || 'units')
   const [savingStep, setSavingStep] = useState(false)
   const [editingStep, setEditingStep] = useState<BatchStep | null>(null)
   const [editStepName, setEditStepName] = useState('')
-  const [editStepType, setEditStepType] = useState<'COUNT' | 'CHECK'>('COUNT')
+  const [editStepType, setEditStepType] = useState<BatchStep['type']>('COUNT')
   const [editStepTarget, setEditStepTarget] = useState('')
   const [editStepUnit, setEditStepUnit] = useState('')
 
@@ -511,7 +511,7 @@ export default function BatchDetailClient({
         body: JSON.stringify({
           name: newStepName,
           type: newStepType,
-          targetQuantity: newStepType === 'CHECK' ? 1 : newStepTarget || null,
+          targetQuantity: newStepType === 'CHECK' || newStepType === 'ENTRY' ? 1 : newStepTarget || null,
           unitLabel: newStepUnit || batch.baseUnit || 'units',
         }),
       })
@@ -567,7 +567,7 @@ export default function BatchDetailClient({
         body: JSON.stringify({
           name: editStepName,
           type: editStepType,
-          targetQuantity: editStepType === 'CHECK' ? 1 : editStepTarget || null,
+          targetQuantity: editStepType === 'CHECK' || editStepType === 'ENTRY' ? 1 : editStepTarget || null,
           unitLabel: editStepUnit || batch.baseUnit || 'units',
         }),
       })
@@ -688,7 +688,7 @@ export default function BatchDetailClient({
   }
 
   const handleSaveEdit = async () => {
-    if (!editingLog || !editQuantity || parseInt(editQuantity) <= 0) {
+    if (!editingLog || !editQuantity || Number(editQuantity) <= 0) {
       setError('Enter a valid quantity')
       return
     }
@@ -699,7 +699,7 @@ export default function BatchDetailClient({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          quantity: parseInt(editQuantity),
+          quantity: Number(editQuantity),
           note: editNote || null,
         }),
       })
@@ -767,7 +767,8 @@ export default function BatchDetailClient({
           if (s.id === stepId) {
             return {
               ...s,
-              completedQuantity: Math.max(0, s.completedQuantity - qty),
+              completedQuantity: s.type === 'ENTRY' ? 0 : Math.max(0, s.completedQuantity - qty),
+              status: s.type === 'ENTRY' ? 'IN_PROGRESS' : s.status,
               progressLogs: s.progressLogs.filter(l => l.id !== logId),
             }
           }
@@ -877,6 +878,7 @@ export default function BatchDetailClient({
   }
 
   const getSafeRemaining = (step: BatchStep) => {
+    if (step.type === 'ENTRY') return null
     const targetRemaining = step.targetQuantity == null ? null : Math.max(0, step.targetQuantity - step.completedQuantity)
     return targetRemaining
   }
@@ -888,6 +890,10 @@ export default function BatchDetailClient({
 
   const canCompleteCheckStep = (step: BatchStep) => (
     canWorkOnBatch && batch.status === 'ACTIVE' && !isSkippedStep(step) && step.type === 'CHECK' && step.status !== 'COMPLETED'
+  )
+
+  const canRecordEntryStep = (step: BatchStep) => (
+    canWorkOnBatch && batch.status === 'ACTIVE' && !isSkippedStep(step) && step.type === 'ENTRY' && step.status !== 'COMPLETED'
   )
 
   const submitLog = async (stepBeingLogged: BatchStep, qty: number, noteBeingLogged?: string) => {
@@ -904,15 +910,15 @@ export default function BatchDetailClient({
       ...prev,
       steps: prev.steps.map((s) => {
         if (s.id === stepBeingLogged.id) {
-          const newQty = s.completedQuantity + qty
-          return { ...s, completedQuantity: newQty, status: s.targetQuantity != null && newQty >= s.targetQuantity ? 'COMPLETED' : s.status }
+          const newQty = s.type === 'ENTRY' ? 1 : s.completedQuantity + qty
+          return { ...s, completedQuantity: newQty, status: s.type === 'ENTRY' || s.targetQuantity != null && newQty >= s.targetQuantity ? 'COMPLETED' : s.status }
         }
         if (s.order === stepBeingLogged.order + 1 && s.status === 'LOCKED') return { ...s, status: 'IN_PROGRESS' }
         return s
       }),
     }))
     setSelectedStep(null); setQuantity(''); setNote(''); setShowNoteInput(false); setError('')
-    showToast(`Logged ${qty} units`)
+    showToast(stepBeingLogged.type === 'ENTRY' ? `Recorded ${qty} ${stepBeingLogged.unitLabel}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`)
 
     try {
       const res = await fetch(`/api/batches/${batch.id}/steps/${stepBeingLogged.id}/log`, {
@@ -958,10 +964,10 @@ export default function BatchDetailClient({
   }
 
   const handleSubmit = async () => {
-    if (!selectedStep || !quantity || parseInt(quantity) <= 0) {
+    if (!selectedStep || !quantity || Number(quantity) <= 0) {
       setError('Enter a valid quantity'); return
     }
-    const qty = parseInt(quantity)
+    const qty = selectedStep.type === 'ENTRY' ? Number(quantity) : parseInt(quantity)
     const safeRemaining = getSafeRemaining(selectedStep)
     if (safeRemaining !== null && qty > safeRemaining) {
       setError(`Only ${safeRemaining.toLocaleString()} ${selectedStep.unitLabel} can be logged right now`)
@@ -1033,7 +1039,7 @@ export default function BatchDetailClient({
   const activeStations = batch.status === 'ACTIVE' ? getActiveStations(batch.steps, 4) : []
   const primaryStation = activeStations
     .map(station => batch.steps.find(step => step.id === station.step.id) || null)
-    .find((step): step is BatchStep => Boolean(step && (canLogCountStep(step) || canCompleteCheckStep(step)))) || null
+    .find((step): step is BatchStep => Boolean(step && (canLogCountStep(step) || canCompleteCheckStep(step) || canRecordEntryStep(step)))) || null
   const lastMovement = getLastBatchMovement(batch.steps)
   const producedBaseUnits = getProducedBaseUnits(batch.steps)
   const removedQuantity = getRemovedQuantity(batch.removals)
@@ -1239,18 +1245,20 @@ export default function BatchDetailClient({
                 <button
                   key={station.step.id}
                   type="button"
-                  onClick={() => canLogCountStep(station.step as BatchStep) ? openLogForStep(station.step as BatchStep) : undefined}
-                  disabled={station.step.type === 'COUNT' && !canLogCountStep(station.step as BatchStep)}
+                  onClick={() => canLogCountStep(station.step as BatchStep) || canRecordEntryStep(station.step as BatchStep) ? openLogForStep(station.step as BatchStep) : undefined}
+                  disabled={(station.step.type === 'COUNT' && !canLogCountStep(station.step as BatchStep)) || (station.step.type === 'ENTRY' && !canRecordEntryStep(station.step as BatchStep))}
                   className="min-h-[56px] rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
                     <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-semibold tabular-nums ${
-                      station.step.type === 'COUNT'
+                      station.step.type === 'COUNT' || station.step.type === 'ENTRY'
                         ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                         : 'bg-muted text-muted-foreground'
                     }`}>
-                      {station.step.type === 'COUNT'
+                      {station.step.type === 'ENTRY'
+                        ? canRecordEntryStep(station.step as BatchStep) ? 'Enter' : 'Done'
+                        : station.step.type === 'COUNT'
                         ? canLogCountStep(station.step as BatchStep) ? 'Log' : 'Wait'
                         : `${station.step.completedQuantity}${station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}`}
                     </span>
@@ -1502,6 +1510,8 @@ export default function BatchDetailClient({
                         <p className="truncate text-[11px] text-muted-foreground">
                           {step.type === 'CHECK'
                             ? 'Worker taps Done'
+                            : step.type === 'ENTRY'
+                            ? `Worker enters one measured value in ${step.unitLabel}`
                             : step.targetQuantity
                             ? `Worker logs ${step.completedQuantity.toLocaleString()} / ${step.targetQuantity.toLocaleString()} ${step.unitLabel}`
                             : `Worker logs ${step.unitLabel} as they go`}
@@ -1586,6 +1596,9 @@ export default function BatchDetailClient({
                           {step.completedQuantity}{step.targetQuantity ? ` / ${step.targetQuantity}` : ''} {step.unitLabel}{!step.targetQuantity && step.completedQuantity > 0 ? ' produced' : ''}
                         </p>
                       )}
+                      {step.type === 'ENTRY' && step.progressLogs[0] && (
+                        <p className="text-xs text-foreground tabular-nums mt-0.5">Recorded {step.progressLogs[0].quantity.toLocaleString()} {step.unitLabel}</p>
+                      )}
                       {!isSkipped && stationState?.latestLog && (
                         <p className="text-[10px] text-muted-foreground/70 mt-0.5">
                           Last: {stationState.latestLog.worker.name} +{stationState.latestLog.quantity} · {formatShortRelativeTime(stationState.latestLog.createdAt)}
@@ -1615,6 +1628,11 @@ export default function BatchDetailClient({
                       className="bf-btn bf-btn-success min-w-[92px] shrink-0"
                     >
                       <CheckIcon className="w-4 h-4" />Confirm
+                    </button>
+                  )}
+                  {!isCompleted && !isSkipped && step.type === 'ENTRY' && canRecordEntryStep(step) && (
+                    <button onClick={() => openLogForStep(step)} className="bf-btn bf-btn-success min-w-[92px] shrink-0">
+                      <PencilSquareIcon className="w-4 h-4" />Enter
                     </button>
                   )}
                 </div>
@@ -1858,19 +1876,19 @@ export default function BatchDetailClient({
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Active Station</p>
                 <p className="text-sm font-semibold text-foreground truncate">{displayStepName(primaryStation)}</p>
-                {primaryStation.type === 'COUNT' && (
+                {(primaryStation.type === 'COUNT' || primaryStation.type === 'ENTRY') && (
                   <p className="text-xs text-muted-foreground tabular-nums">
-                    {primaryStation.completedQuantity}{primaryStation.targetQuantity ? ` / ${primaryStation.targetQuantity}` : ''} {primaryStation.unitLabel}
+                    {primaryStation.type === 'ENTRY' ? `Record ${primaryStation.unitLabel}` : <>{primaryStation.completedQuantity}{primaryStation.targetQuantity ? ` / ${primaryStation.targetQuantity}` : ''} {primaryStation.unitLabel}</>}
                   </p>
                 )}
               </div>
-              {primaryStation.type === 'COUNT' ? (
+              {primaryStation.type === 'COUNT' || primaryStation.type === 'ENTRY' ? (
                 <button
                   onClick={() => openLogForStep(primaryStation)}
                   className="bf-btn bf-btn-success bf-btn-lg px-5 text-sm"
                 >
-                  <PlusIcon className="w-4 h-4" />
-                  Log
+                  {primaryStation.type === 'ENTRY' ? <PencilSquareIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
+                  {primaryStation.type === 'ENTRY' ? 'Enter' : 'Log'}
                 </button>
               ) : (
                 <button
@@ -1928,7 +1946,7 @@ export default function BatchDetailClient({
                 className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
               />
 
-              <div className="grid grid-cols-2 gap-2 mt-4">
+              <div className="grid grid-cols-1 gap-2 mt-4 sm:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setNewStepType('COUNT')}
@@ -1950,6 +1968,9 @@ export default function BatchDetailClient({
                   }`}
                 >
                   Done / not done
+                </button>
+                <button type="button" onClick={() => setNewStepType('ENTRY')} className={`bf-select-btn ${newStepType === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}>
+                  Entry
                 </button>
               </div>
 
@@ -1980,6 +2001,7 @@ export default function BatchDetailClient({
                   </div>
                 </div>
               )}
+              {newStepType === 'ENTRY' && <div className="mt-4"><label className="block text-xs font-medium text-muted-foreground mb-1.5">Measurement unit</label><input type="text" value={newStepUnit} onChange={(e) => setNewStepUnit(e.target.value.slice(0, 30))} list="batch-entry-units" placeholder="g, kg, oz, lb" className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"/><datalist id="batch-entry-units"><option value="g"/><option value="kg"/><option value="oz"/><option value="lb"/></datalist></div>}
 
               {error && <p className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
 
@@ -2025,7 +2047,7 @@ export default function BatchDetailClient({
                 className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
               />
 
-              <div className="grid grid-cols-2 gap-2 mt-4">
+              <div className="grid grid-cols-1 gap-2 mt-4 sm:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setEditStepType('COUNT')}
@@ -2047,6 +2069,9 @@ export default function BatchDetailClient({
                   }`}
                 >
                   Done / not done
+                </button>
+                <button type="button" onClick={() => setEditStepType('ENTRY')} className={`bf-select-btn ${editStepType === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}>
+                  Entry
                 </button>
               </div>
 
@@ -2076,6 +2101,7 @@ export default function BatchDetailClient({
                   </div>
                 </div>
               )}
+              {editStepType === 'ENTRY' && <div className="mt-4"><label className="block text-xs font-medium text-muted-foreground mb-1.5">Measurement unit</label><input type="text" value={editStepUnit} onChange={(e) => setEditStepUnit(e.target.value.slice(0, 30))} list="edit-entry-units" placeholder="g, kg, oz, lb" className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"/><datalist id="edit-entry-units"><option value="g"/><option value="kg"/><option value="oz"/><option value="lb"/></datalist></div>}
 
               {editingStep.progressLogs.length > 0 && (
                 <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2">
@@ -2120,7 +2146,7 @@ export default function BatchDetailClient({
                 <div>
                   <p className="text-sm font-semibold text-foreground">{displayStepName(selectedStep)}</p>
                   <p className="text-xs text-foreground tabular-nums mt-0.5">
-                    {selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}
+                    {selectedStep.type === 'ENTRY' ? `Record starting material in ${selectedStep.unitLabel}` : <>{selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}</>}
                   </p>
                 </div>
                 <button
@@ -2142,8 +2168,8 @@ export default function BatchDetailClient({
                 const safeRemaining = getSafeRemaining(selectedStep)
                 const previousLog = selectedStep.progressLogs.find(log => log.worker.id === session.workerId) || selectedStep.progressLogs[0]
                 const lastAmount = lastLogAmounts[selectedStep.id] || previousLog?.quantity || null
-                const keypad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back']
-                const customQuantity = quantity ? parseInt(quantity) : 0
+                const keypad = selectedStep.type === 'ENTRY' ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] : ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back']
+                const customQuantity = quantity ? Number(quantity) : 0
                 const customTooHigh = safeRemaining !== null && customQuantity > safeRemaining
 
                 return (
@@ -2157,12 +2183,12 @@ export default function BatchDetailClient({
                       </div>
                     )}
 
-                    <PresetLogButtons
+                    {selectedStep.type === 'COUNT' && <PresetLogButtons
                       remaining={safeRemaining}
                       lastAmount={lastAmount}
                       disabled={loading || safeRemaining === 0}
                       onPick={handleQuickAmount}
-                    />
+                    />}
 
                     <div className="mt-4">
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Enter amount</p>
@@ -2195,7 +2221,8 @@ export default function BatchDetailClient({
                               haptic('light')
                               if (key === 'clear') setQuantity('')
                               else if (key === 'back') setQuantity(prev => prev.slice(0, -1))
-                              else setQuantity(prev => `${prev}${key}`.replace(/^0+(\d)/, '$1').slice(0, 6))
+                              else if (key === '.') setQuantity(prev => prev.includes('.') ? prev : `${prev || '0'}.`)
+                              else setQuantity(prev => `${prev}${key}`.replace(/^0+(\d)/, '$1').slice(0, 8))
                             }}
                             className="bf-btn bf-btn-secondary min-h-[56px] text-xl font-bold"
                           >
@@ -2233,15 +2260,15 @@ export default function BatchDetailClient({
               {/* Submit */}
               <button
                 onClick={handleSubmit}
-                disabled={loading || !quantity || parseInt(quantity) <= 0 || (selectedStep && getSafeRemaining(selectedStep) !== null && parseInt(quantity) > getSafeRemaining(selectedStep)!)}
+                disabled={loading || !quantity || Number(quantity) <= 0 || (selectedStep && getSafeRemaining(selectedStep) !== null && Number(quantity) > getSafeRemaining(selectedStep)!)}
                 className="bf-btn bf-btn-success bf-btn-lg bf-btn-full mt-4"
               >
                 {loading
                   ? 'Saving...'
-                  : quantity && parseInt(quantity) > 0
-                    ? (getSafeRemaining(selectedStep) !== null && parseInt(quantity) > getSafeRemaining(selectedStep)!
+                  : quantity && Number(quantity) > 0
+                    ? (getSafeRemaining(selectedStep) !== null && Number(quantity) > getSafeRemaining(selectedStep)!
                       ? `Max ${getSafeRemaining(selectedStep)!.toLocaleString()} ${selectedStep.unitLabel}`
-                      : `Log ${parseInt(quantity).toLocaleString()} ${selectedStep.unitLabel}`)
+                      : `${selectedStep.type === 'ENTRY' ? 'Record' : 'Log'} ${Number(quantity).toLocaleString()} ${selectedStep.unitLabel}`)
                     : 'Enter amount'}
               </button>
             </div>
@@ -2276,8 +2303,8 @@ export default function BatchDetailClient({
                   <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1">Quantity</label>
                   <input
                     type="number"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                    inputMode="decimal"
+                    step="any"
                     value={editQuantity}
                     onChange={(e) => setEditQuantity(e.target.value)}
                     className="w-full px-4 py-3.5 rounded-xl bg-muted/50 border border-input text-foreground text-xl font-semibold tabular-nums placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
@@ -2299,7 +2326,7 @@ export default function BatchDetailClient({
 
                 <button
                   onClick={handleSaveEdit}
-                  disabled={loading || !editQuantity || parseInt(editQuantity) <= 0}
+                  disabled={loading || !editQuantity || Number(editQuantity) <= 0}
                   className="bf-btn bf-btn-success bf-btn-full"
                 >
                   {loading ? 'Saving...' : 'Save Changes'}

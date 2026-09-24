@@ -6,6 +6,7 @@ import type { StepMaterial } from './StepMaterial';
 export enum StepType {
   CHECK = 'CHECK',
   COUNT = 'COUNT',
+  ENTRY = 'ENTRY',
 }
 
 /**
@@ -27,7 +28,7 @@ export interface RecipeStep {
   /** Optional notes/instructions for the step */
   notes?: string;
 
-  /** Type of step (CHECK or COUNT) */
+  /** Type of step (CHECK, COUNT, or ENTRY) */
   type: StepType;
 
   /** ID of the associated recipe unit (optional) */
