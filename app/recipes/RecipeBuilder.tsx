@@ -538,35 +538,38 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                 <div className="mb-3">
                   <label className="text-xs text-muted-foreground font-medium block mb-2">What do workers do at this step?</label>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <button onClick={() => { haptic('light'); updateStep(i, 'type', 'CHECK') }} disabled={loading}
+                    <button type="button" aria-pressed={step.type === 'CHECK'} onClick={() => { haptic('light'); updateStep(i, 'type', 'CHECK') }} disabled={loading}
                       className={`bf-select-btn flex-1 justify-start px-4 py-3 ${
-                        step.type === 'CHECK' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500' : ''
+                        step.type === 'CHECK' ? 'border-2 border-blue-500 bg-blue-500/15 text-blue-700 ring-2 ring-blue-500/35 dark:text-blue-300' : ''
                       }`}>
                       <CheckCircleIcon className="w-6 h-6 shrink-0" />
                       <div className="text-left">
                         <div>Checkpoint</div>
                         <div className="text-[11px] opacity-70 font-normal">Mark done — no counting</div>
                       </div>
+                      {step.type === 'CHECK' && <span className="ml-auto text-lg font-bold" aria-hidden="true">✓</span>}
                     </button>
-                    <button onClick={() => { haptic('light'); updateStep(i, 'type', 'ENTRY') }} disabled={loading}
+                    <button type="button" aria-pressed={step.type === 'ENTRY'} onClick={() => { haptic('light'); updateStep(i, 'type', 'ENTRY') }} disabled={loading}
                       className={`bf-select-btn justify-start px-4 py-3 ${
-                        step.type === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''
+                        step.type === 'ENTRY' ? 'border-2 border-amber-500 bg-amber-500/15 text-amber-800 ring-2 ring-amber-500/35 dark:text-amber-200' : ''
                       }`}>
                       <PencilSquareIcon className="w-6 h-6 shrink-0" />
                       <div className="text-left">
                         <div>Entry</div>
                         <div className="text-[11px] opacity-70 font-normal">Record one measured value</div>
                       </div>
+                      {step.type === 'ENTRY' && <span className="ml-auto text-lg font-bold" aria-hidden="true">✓</span>}
                     </button>
-                    <button onClick={() => { haptic('light'); updateStep(i, 'type', 'COUNT') }} disabled={loading}
+                    <button type="button" aria-pressed={step.type === 'COUNT'} onClick={() => { haptic('light'); updateStep(i, 'type', 'COUNT') }} disabled={loading}
                       className={`bf-select-btn flex-1 justify-start px-4 py-3 ${
-                        step.type === 'COUNT' ? 'bf-select-btn-active' : ''
+                        step.type === 'COUNT' ? 'bf-select-btn-active border-2 ring-2 ring-emerald-500/35' : ''
                       }`}>
                       <HashtagIcon className="w-6 h-6 shrink-0" />
                       <div className="text-left">
                         <div>Count</div>
                         <div className="text-[11px] opacity-70 font-normal">Workers log quantities</div>
                       </div>
+                      {step.type === 'COUNT' && <span className="ml-auto text-lg font-bold" aria-hidden="true">✓</span>}
                     </button>
                   </div>
                 </div>
