@@ -39,10 +39,17 @@ export default function BatchListClient({
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(!initialBatches.length)
   const [searchQuery, setSearchQuery] = useState('')
+  const [brandFilter, setBrandFilter] = useState('all')
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
   const [priorityFilter, setPriorityFilter] = useState(false)
   const [workFilter, setWorkFilter] = useState<'mine' | 'all' | 'unassigned'>(session.role === 'OWNER' ? 'all' : session.workerId ? 'mine' : 'all')
   const isWorker = session.role === 'WORKER'
+  const getBatchBrand = (batch: Batch) => batch.product?.brand?.trim() || batch.recipe.brand?.trim() || 'Unassigned'
+  const brands = [...new Set(batches.map(getBatchBrand))].sort((a, b) => {
+    if (a === 'Unassigned') return 1
+    if (b === 'Unassigned') return -1
+    return a.localeCompare(b)
+  })
 
   const fetchData = async (showLoading = false) => {
     if (showLoading) setRefreshing(true)
@@ -200,6 +207,15 @@ export default function BatchListClient({
           )}
 
           <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+            <select
+              value={brandFilter}
+              onChange={(e) => { haptic('light'); setBrandFilter(e.target.value) }}
+              aria-label="Filter batches by brand"
+              className="shrink-0 min-h-[44px] max-w-[180px] px-3 rounded-lg bg-card border border-border text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            >
+              <option value="all">All brands</option>
+              {brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+            </select>
             {((session.workerId ? ['mine','all','unassigned'] : ['all','unassigned']) as ('mine'|'all'|'unassigned')[]).map(filter => <button key={filter} onClick={() => { haptic('light'); setWorkFilter(filter) }} className={`bf-select-btn shrink-0 ${workFilter===filter?'bf-select-btn-active':''}`}>{filter === 'mine' ? (session.role === 'SUPERVISOR' ? 'My Team' : 'My Work') : filter === 'all' ? 'All Work' : 'Unassigned'}</button>)}
           {!isWorker && <>
             <select
@@ -246,6 +262,8 @@ export default function BatchListClient({
                 (b.strain && b.strain.toLowerCase().includes(query))
               )
               if (!matchesSearch) return false
+
+              if (brandFilter !== 'all' && getBatchBrand(b) !== brandFilter) return false
 
               const assignedToMeOrTeam = b.assignments?.some(a => a.worker.id === session.workerId || teamWorkerIds.includes(a.worker.id))
               if (workFilter === 'mine' && !assignedToMeOrTeam) return false
@@ -311,8 +329,8 @@ export default function BatchListClient({
             }
 
             if (filteredBatches.length === 0) {
-              return searchQuery ? (
-                <EmptyState icon="inbox" title="No batches match" description="Try a different search term." />
+              return searchQuery || brandFilter !== 'all' ? (
+                <EmptyState icon="inbox" title="No batches match" description="Try a different search or brand filter." />
               ) : (
                 <EmptyState icon="inbox" title="No batches" description="Check back later for new work." />
               )
@@ -323,7 +341,7 @@ export default function BatchListClient({
             const groupByBrand = (items: Batch[]) => {
               const groups = new Map<string, Batch[]>()
               for (const batch of items) {
-                const brand = batch.product?.brand?.trim() || batch.recipe.brand?.trim() || 'Unassigned'
+                const brand = getBatchBrand(batch)
                 groups.set(brand, [...(groups.get(brand) || []), batch])
               }
               return [...groups.entries()].sort(([a], [b]) => {
@@ -338,7 +356,7 @@ export default function BatchListClient({
               const priority = batch.priority || 'NORMAL'
               const isUrgent = priority === 'URGENT'
               const assignedNames = batch.assignments?.map(a => a.worker.name.split(' ')[0]) || []
-              const cardBrand = batch.product?.brand?.trim() || batch.recipe.brand?.trim() || 'Unassigned'
+              const cardBrand = getBatchBrand(batch)
               const cardProduct = batch.product?.name || batch.recipe.name
               const stepOverview = (
                 <div className="mt-4 space-y-3 rounded-xl border border-border/60 p-3">
