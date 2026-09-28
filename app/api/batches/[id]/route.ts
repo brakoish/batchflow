@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isRecordedStepComplete } from '@/lib/stepRecording'
 import { requireSession, requireOwner, requireSupervisorOrOwner } from '@/lib/auth'
 
 export async function GET(
@@ -230,8 +231,10 @@ export async function PATCH(
         }
         const nextStatus = step.name.startsWith('[Skipped] ')
           ? step.status
-          : step.type === 'CHECK' || step.type === 'ENTRY'
+          : step.type === 'CHECK'
           ? step.status
+          : step.type === 'ENTRY'
+          ? isRecordedStepComplete(step) ? 'COMPLETED' : 'IN_PROGRESS'
           : nextTarget != null && step.completedQuantity >= nextTarget
           ? 'COMPLETED'
           : 'IN_PROGRESS'

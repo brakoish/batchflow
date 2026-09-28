@@ -8,3 +8,13 @@ export function parseStepQuantity(value: unknown, stepType: string) {
 export function getRecordedStepTotal(stepType: string, loggedQuantity: number) {
   return stepType === 'ENTRY' ? (loggedQuantity > 0 ? 1 : 0) : loggedQuantity
 }
+
+export function isRecordedStepComplete(step: {
+  type: string
+  completedQuantity: number
+  status: string
+}) {
+  if (step.type === 'ENTRY') return step.completedQuantity > 0
+  if (step.type === 'CHECK') return step.status === 'COMPLETED'
+  return false
+}

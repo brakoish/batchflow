@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
-import { getRecordedStepTotal, parseStepQuantity } from '@/lib/stepRecording'
+import { getRecordedStepTotal, isRecordedStepComplete, parseStepQuantity } from '@/lib/stepRecording'
 
 const SKIPPED_PREFIX = '[Skipped] '
 
@@ -34,7 +34,7 @@ function isCountStepComplete(
   } | null
 ) {
   if (isSkippedStep(step)) return true
-  if (step.type === 'CHECK' || step.type === 'ENTRY') return step.status === 'COMPLETED'
+  if (step.type === 'CHECK' || step.type === 'ENTRY') return isRecordedStepComplete(step)
   if (step.targetQuantity != null && step.completedQuantity >= step.targetQuantity) return true
   if (!previousStep || previousStep.status !== 'COMPLETED') return false
 
