@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircleIcon, HashtagIcon, PencilIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, DocumentDuplicateIcon, HashtagIcon, PencilIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/solid'
 import RecipeBuilder from './RecipeBuilder'
 import EmptyState from '@/app/components/EmptyState'
 import ConfirmModal from '@/app/components/ConfirmModal'
@@ -10,7 +10,7 @@ import ConfirmModal from '@/app/components/ConfirmModal'
 type Recipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
-  products: { id: string; name: string; brand: string | null }[]
+  products: { id: string; name: string; brand: string | null; unitsPerCase: number | null }[]
   steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
   _count: { batches: number }
 }
@@ -27,12 +27,36 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
   const [recipes, setRecipes] = useState(initialRecipes)
   const [editId, setEditId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [duplicating, setDuplicating] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const router = useRouter()
 
   const editRecipe = editId ? recipes.find(r => r.id === editId) || null : null
+
+  const handleDuplicate = async (recipe: Recipe) => {
+    setDuplicating(recipe.id)
+    setError('')
+    setSuccess('')
+    try {
+      const response = await fetch(`/api/recipes/${recipe.id}/duplicate`, { method: 'POST' })
+      const result = await response.json()
+      if (!response.ok || !result.recipe) {
+        setError(result.error || 'Failed to duplicate recipe')
+        return
+      }
+      setRecipes((current) => [result.recipe, ...current])
+      setEditId(result.recipe.id)
+      setSuccess(`${recipe.name} duplicated. Rename or adjust the copy above.`)
+      window.setTimeout(() => setSuccess(''), 4000)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch {
+      setError('Connection error')
+    } finally {
+      setDuplicating(null)
+    }
+  }
 
   const handleDelete = async (id: string) => {
     const recipe = recipes.find(r => r.id === id)
@@ -143,6 +167,17 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                       )}
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0 ml-2">
+                      <button
+                        onClick={() => handleDuplicate(recipe)}
+                        disabled={duplicating === recipe.id}
+                        className="bf-icon-btn"
+                        aria-label={`Duplicate ${recipe.name}`}
+                        title="Duplicate recipe"
+                      >
+                        {duplicating === recipe.id
+                          ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                          : <DocumentDuplicateIcon className="h-4 w-4" />}
+                      </button>
                       <button
                         onClick={() => {
                           setEditId(isEditing ? null : recipe.id)
