@@ -55,7 +55,7 @@ export default function BottomNav({ session }: Props) {
   // supervisors, Org settings, etc.) live in the More sheet.
   const ownerItems = [
     { href: '/batches', label: 'Work', Icon: HomeIcon, IconActive: HomeIconSolid },
-    { href: '/recipes', label: 'Catalog', Icon: BeakerIcon, IconActive: BeakerIconSolid },
+    { href: '/recipes', label: 'Recipes', Icon: BeakerIcon, IconActive: BeakerIconSolid },
     { href: '/analytics', label: 'Reports', Icon: ChartBarIcon, IconActive: ChartBarIconSolid },
     { href: '/org', label: 'Manage', Icon: Cog6ToothIcon, IconActive: Cog6ToothIconSolid },
   ]

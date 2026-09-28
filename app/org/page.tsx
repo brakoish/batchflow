@@ -22,7 +22,7 @@ const sections = [
     ],
   },
   {
-    title: 'Catalog',
+    title: 'Products',
     items: [
       { href: '/products', title: 'Products & brands', description: 'Organize brands and archive finished products', Icon: TagIcon },
     ],
