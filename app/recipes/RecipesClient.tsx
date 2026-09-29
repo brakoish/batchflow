@@ -48,7 +48,7 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
       }
       setRecipes((current) => [result.recipe, ...current])
       setEditId(result.recipe.id)
-      setSuccess(`${recipe.name} duplicated. Rename or adjust the copy above.`)
+      setSuccess(`${recipe.name} workflow duplicated. Products stay with the original recipe.`)
       window.setTimeout(() => setSuccess(''), 4000)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch {

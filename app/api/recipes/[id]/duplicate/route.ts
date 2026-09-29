@@ -26,7 +26,6 @@ export async function POST(
           orderBy: { order: 'asc' },
           include: { materials: true },
         },
-        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
       },
     })
 
@@ -55,14 +54,6 @@ export async function POST(
           description: source.description,
           baseUnit: source.baseUnit,
           organizationId,
-          products: {
-            create: source.products.map((product) => ({
-              name: product.name,
-              brand: product.brand,
-              unitsPerCase: product.unitsPerCase,
-              organizationId,
-            })),
-          },
           units: {
             create: source.units.map((unit) => ({
               name: unit.name,
