@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArchiveBoxIcon, ArrowUturnLeftIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { ArchiveBoxIcon, ArrowUturnLeftIcon, CheckIcon, PencilIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
 type Product = { id: string; name: string; brand: string | null; archivedAt: string | null; recipe: { name: string } }
 type Brand = { id: string; name: string }
@@ -12,6 +12,8 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
   const [brandName, setBrandName] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [busy, setBusy] = useState('')
+  const [editingId, setEditingId] = useState('')
+  const [editingName, setEditingName] = useState('')
   const [error, setError] = useState('')
 
   const addBrand = async () => {
@@ -37,6 +39,29 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
     setBusy('')
   }
 
+  const startRename = (product: Product) => {
+    setEditingId(product.id)
+    setEditingName(product.name)
+    setError('')
+  }
+
+  const renameProduct = async (product: Product) => {
+    const name = editingName.trim()
+    if (!name || name === product.name) {
+      setEditingId('')
+      return
+    }
+    setBusy(product.id); setError('')
+    const response = await fetch(`/api/products/${product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+    const data = await response.json().catch(() => ({}))
+    if (response.ok) {
+      setProducts((current) => current.map((item) => item.id === product.id ? { ...item, name: data.product.name } : item))
+      setEditingId('')
+      setEditingName('')
+    } else setError(data.error || 'Unable to rename product')
+    setBusy('')
+  }
+
   const visible = products.filter((product) => showArchived ? Boolean(product.archivedAt) : !product.archivedAt)
   return <div className="space-y-5">
     <div><h1 className="text-xl font-bold text-foreground">Products & brands</h1><p className="mt-1 text-sm text-muted-foreground">Saved brands are available anywhere you add a finished product.</p></div>
@@ -48,7 +73,7 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
     </section>
     <section>
       <div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold text-foreground">Finished products</h2><p className="text-xs text-muted-foreground">Archiving hides a product from future batches. History and stock records stay intact.</p></div><button onClick={() => setShowArchived((value) => !value)} className="bf-btn bf-btn-secondary bf-btn-sm">{showArchived ? 'Active' : 'Archived'}</button></div>
-      <div className="mt-3 space-y-2">{visible.map((product) => <div key={product.id} className="flex min-h-[68px] items-center gap-3 rounded-xl border border-border bg-card p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{product.name}</p><p className="truncate text-xs text-muted-foreground">{product.brand || 'Unassigned'} · {product.recipe.name}</p></div><button onClick={() => toggleArchive(product)} disabled={busy === product.id} className="bf-icon-btn" aria-label={product.archivedAt ? `Restore ${product.name}` : `Archive ${product.name}`}>{product.archivedAt ? <ArrowUturnLeftIcon className="h-5 w-5" /> : <ArchiveBoxIcon className="h-5 w-5" />}</button></div>)}{visible.length === 0 && <p className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No {showArchived ? 'archived' : 'active'} products.</p>}</div>
+      <div className="mt-3 space-y-2">{visible.map((product) => <div key={product.id} className="flex min-h-[68px] items-center gap-2 rounded-xl border border-border bg-card p-3">{editingId === product.id ? <><div className="min-w-0 flex-1"><input autoFocus value={editingName} onChange={(event) => setEditingName(event.target.value.slice(0, 120))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); renameProduct(product) } else if (event.key === 'Escape') { setEditingId('') } }} aria-label="Product name" className="min-h-[44px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50" /><p className="mt-1 truncate text-xs text-muted-foreground">{product.brand || 'Unassigned'} · {product.recipe.name}</p></div><button onClick={() => renameProduct(product)} disabled={busy === product.id || !editingName.trim()} className="bf-icon-btn text-emerald-600 dark:text-emerald-400" aria-label={`Save ${product.name} name`}><CheckIcon className="h-5 w-5" /></button><button onClick={() => setEditingId('')} disabled={busy === product.id} className="bf-icon-btn" aria-label="Cancel rename"><XMarkIcon className="h-5 w-5" /></button></> : <><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{product.name}</p><p className="truncate text-xs text-muted-foreground">{product.brand || 'Unassigned'} · {product.recipe.name}</p></div><button onClick={() => startRename(product)} disabled={busy === product.id} className="bf-icon-btn" aria-label={`Rename ${product.name}`}><PencilIcon className="h-5 w-5" /></button><button onClick={() => toggleArchive(product)} disabled={busy === product.id} className="bf-icon-btn" aria-label={product.archivedAt ? `Restore ${product.name}` : `Archive ${product.name}`}>{product.archivedAt ? <ArrowUturnLeftIcon className="h-5 w-5" /> : <ArchiveBoxIcon className="h-5 w-5" />}</button></>}</div>)}{visible.length === 0 && <p className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No {showArchived ? 'archived' : 'active'} products.</p>}</div>
     </section>
   </div>
 }
