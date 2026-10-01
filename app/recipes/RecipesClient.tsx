@@ -11,7 +11,7 @@ type Recipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
   products: { id: string; name: string; brand: string | null; unitsPerCase: number | null }[]
-  steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
+  steps: { id: string; name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
   _count: { batches: number }
 }
 type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null }

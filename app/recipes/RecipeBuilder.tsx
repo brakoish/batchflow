@@ -17,14 +17,14 @@ import { haptic } from '@/lib/haptic'
 //   bigger  : ratio = count × basedOnRatio
 //   smaller : ratio = basedOnRatio / count   (fractional — requires Float in DB)
 type UnitDef = { name: string; count: number; basedOn?: string; direction?: 'bigger' | 'smaller' }
-type StepDef = { name: string; notes: string; type: 'CHECK' | 'COUNT' | 'ENTRY'; unitName: string; entryUnit: string }
+type StepDef = { id?: string; name: string; notes: string; type: 'CHECK' | 'COUNT' | 'ENTRY'; unitName: string; entryUnit: string }
 type ProductDef = { id?: string; name: string; brand: string }
 type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null }
 type EditRecipe = {
   id: string; name: string; brand: string | null; description: string | null; baseUnit: string
   units: { name: string; ratio: number }[]
   products: { id: string; name: string; brand: string | null }[]
-  steps: { name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null }[]
+  steps: { id: string; name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null }[]
 } | null
 
 function parseRelationCount(value: string) {
@@ -67,6 +67,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
   const [steps, setSteps] = useState<StepDef[]>(
     editRecipe?.steps.length
       ? editRecipe.steps.map(s => ({
+          id: s.id,
           name: s.name,
           notes: s.notes || '',
           type: s.type as 'CHECK' | 'COUNT' | 'ENTRY',
@@ -239,7 +240,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
             ratio: getBaseRatio(u.name),
           })),
           steps: validSteps.map(s => ({
-            name: s.name, notes: s.notes || undefined, type: s.type, unitName: s.unitName || undefined, entryUnit: s.type === 'ENTRY' ? s.entryUnit || 'g' : undefined,
+            id: s.id, name: s.name, notes: s.notes || undefined, type: s.type, unitName: s.unitName || undefined, entryUnit: s.type === 'ENTRY' ? s.entryUnit || 'g' : undefined,
           })),
         }),
       })

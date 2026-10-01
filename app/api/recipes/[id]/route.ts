@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
 
+const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
+
 function findDuplicate(values: string[]) {
   const seen = new Set<string>()
   for (const value of values) {
@@ -61,7 +63,15 @@ export async function PUT(
     }
 
     const cleanUnits = (units || []).filter((u: { name: string }) => String(u.name || '').trim())
-    const cleanSteps = (steps || []).filter((s: { name: string }) => String(s.name || '').trim())
+    const cleanSteps = (steps || []).filter((s: { name: string }) => String(s.name || '').trim()) as Array<{
+      id?: string
+      name: string
+      notes?: string
+      type?: string
+      unitName?: string
+      entryUnit?: string
+      materials?: Array<{ name: string; quantityPerUnit: number; unit: string }>
+    }>
     if (cleanSteps.length === 0) {
       return NextResponse.json({ error: 'Add at least one named step' }, { status: 400 })
     }
@@ -100,11 +110,73 @@ export async function PUT(
       skipDuplicates: true,
     })
 
-    // Get existing recipe steps (we need to update in place to preserve BatchStep references)
+    // Get existing recipe steps. Submitted stable IDs let us distinguish a
+    // deleted middle step from a reorder or rename.
     const existingSteps = await prisma.recipeStep.findMany({
       where: { recipeId: id },
       orderBy: { order: 'asc' },
     })
+
+    const existingById = new Map(existingSteps.map((step) => [step.id, step]))
+    const usedStepIds = new Set<string>()
+    const resolvedSteps = cleanSteps.map((step, index) => {
+      let existingId = step.id && existingById.has(step.id) ? step.id : undefined
+
+      // Backward compatibility for an older cached client that does not send
+      // step IDs: match the unchanged name/type first, then fall back to the
+      // same position for a rename.
+      if (!existingId) {
+        const normalizedName = String(step.name).trim().toLowerCase()
+        const normalizedType = step.type === 'CHECK' ? 'CHECK' : step.type === 'ENTRY' ? 'ENTRY' : 'COUNT'
+        existingId = existingSteps.find((candidate) => (
+          !usedStepIds.has(candidate.id)
+          && candidate.name.trim().toLowerCase() === normalizedName
+          && candidate.type === normalizedType
+        ))?.id
+      }
+      if (!existingId && existingSteps[index] && !usedStepIds.has(existingSteps[index].id)) {
+        existingId = existingSteps[index].id
+      }
+      if (existingId) usedStepIds.add(existingId)
+      return { ...step, existingId }
+    })
+
+    // Recipe steps referenced by batches are historical identity records and
+    // cannot be deleted. Move omitted referenced steps to the hidden internal
+    // recipe so they disappear from this reusable recipe while every existing
+    // BatchStep keeps its foreign key and history intact.
+    const omittedSteps = existingSteps.filter((step) => !usedStepIds.has(step.id))
+    if (omittedSteps.length > 0) {
+      const referencedCounts = await prisma.batchStep.groupBy({
+        by: ['recipeStepId'],
+        where: { recipeStepId: { in: omittedSteps.map((step) => step.id) } },
+        _count: { _all: true },
+      })
+      const referencedIds = new Set(referencedCounts.map((row) => row.recipeStepId))
+      const referencedSteps = omittedSteps.filter((step) => referencedIds.has(step.id))
+      const unreferencedSteps = omittedSteps.filter((step) => !referencedIds.has(step.id))
+
+      if (referencedSteps.length > 0) {
+        const overrideRecipe = await prisma.recipe.upsert({
+          where: { id: `batch-overrides-${session.user.organizationId}` },
+          update: {},
+          create: {
+            id: `batch-overrides-${session.user.organizationId}`,
+            name: BATCH_OVERRIDE_RECIPE_NAME,
+            description: 'Internal recipe for batch-specific and retired steps',
+            baseUnit: 'units',
+            organizationId: session.user.organizationId,
+          },
+        })
+        await prisma.recipeStep.updateMany({
+          where: { id: { in: referencedSteps.map((step) => step.id) } },
+          data: { recipeId: overrideRecipe.id, unitId: null, order: 0 },
+        })
+      }
+      if (unreferencedSteps.length > 0) {
+        await prisma.recipeStep.deleteMany({ where: { id: { in: unreferencedSteps.map((step) => step.id) } } })
+      }
+    }
 
     // Delete materials (they'll be recreated) — safe because they cascade
     await prisma.stepMaterial.deleteMany({
@@ -164,19 +236,16 @@ export async function PUT(
     }
 
     // Update/create/delete steps in place to preserve BatchStep foreign keys
-    const newStepCount = cleanSteps.length
-    const existingStepCount = existingSteps.length
-
-    for (let i = 0; i < newStepCount; i++) {
-      const step = cleanSteps[i]
+    for (let i = 0; i < resolvedSteps.length; i++) {
+      const step = resolvedSteps[i]
       const unitRef = step.unitName
         ? recipe.units.find((u) => u.name === step.unitName)
         : null
 
-      if (i < existingStepCount) {
+      if (step.existingId) {
         // Update existing step in place (preserves BatchStep references)
         await prisma.recipeStep.update({
-          where: { id: existingSteps[i].id },
+          where: { id: step.existingId },
           data: {
             name: step.name,
             notes: step.notes || null,
@@ -202,7 +271,7 @@ export async function PUT(
       }
 
       // Recreate materials for this step
-      const stepId = i < existingStepCount ? existingSteps[i].id : (await prisma.recipeStep.findFirst({
+      const stepId = step.existingId || (await prisma.recipeStep.findFirst({
         where: { recipeId: id, order: i + 1 },
         select: { id: true },
       }))?.id
@@ -216,18 +285,6 @@ export async function PUT(
             unit: m.unit || 'units',
           })),
         })
-      }
-    }
-
-    // Delete extra steps that were removed (only if no batch steps reference them)
-    if (existingStepCount > newStepCount) {
-      for (let i = newStepCount; i < existingStepCount; i++) {
-        const stepId = existingSteps[i].id
-        const batchStepCount = await prisma.batchStep.count({ where: { recipeStepId: stepId } })
-        if (batchStepCount === 0) {
-          await prisma.recipeStep.delete({ where: { id: stepId } })
-        }
-        // If batch steps reference it, leave the recipe step (orphaned but safe)
       }
     }
 
