@@ -334,10 +334,11 @@ export async function DELETE(
     const session = await requireOwner()
     const { id } = await params
 
-    // Check if batch exists and is cancelled
+    // Only truly empty batches can be removed. Once work or inventory activity
+    // exists, cancellation preserves an accurate production record.
     const batch = await prisma.batch.findFirst({
       where: { id, organizationId: session.user.organizationId },
-      select: { status: true }
+      select: { id: true }
     })
 
     if (!batch) {
@@ -347,29 +348,30 @@ export async function DELETE(
       )
     }
 
-    if (batch.status !== 'CANCELLED') {
-      return NextResponse.json(
-        { error: 'Only cancelled batches can be deleted' },
-        { status: 400 }
-      )
-    }
+    await prisma.$transaction(async (tx) => {
+      const [progressLogs, removals, materialEvents, messages] = await Promise.all([
+        tx.progressLog.count({ where: { batchStep: { batchId: id } } }),
+        tx.batchRemoval.count({ where: { batchId: id } }),
+        tx.batchMaterialEvent.count({ where: { batchId: id } }),
+        tx.batchMessage.count({ where: { batchId: id } }),
+      ])
 
-    // Delete related records first (cascade)
-    await prisma.progressLog.deleteMany({
-      where: { batchStep: { batchId: id } }
-    })
-    await prisma.batchStep.deleteMany({
-      where: { batchId: id }
-    })
-    await prisma.batchAssignment.deleteMany({
-      where: { batchId: id }
-    })
-    await prisma.batch.delete({
-      where: { id }
+      if (progressLogs + removals + materialEvents + messages > 0) {
+        throw new Error('BATCH_HAS_RECORDED_WORK')
+      }
+
+      // Steps, assignments, audits, and other setup-only rows cascade.
+      await tx.batch.delete({ where: { id } })
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof Error && error.message === 'BATCH_HAS_RECORDED_WORK') {
+      return NextResponse.json(
+        { error: 'This batch has recorded activity and cannot be deleted. Cancel it to preserve the history.' },
+        { status: 409 }
+      )
+    }
     console.error('Delete batch error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

@@ -32,7 +32,11 @@ export default async function ManageBatchPage({
         product: { select: { id: true, name: true, brand: true, unitsPerCase: true } },
         assignments: { include: { worker: { select: { id: true, name: true } } } },
         leadWorker: { select: { id: true, name: true } },
-        steps: { orderBy: { order: 'asc' } },
+        steps: {
+          orderBy: { order: 'asc' },
+          include: { _count: { select: { progressLogs: true } } },
+        },
+        _count: { select: { messages: true, removals: true, materialEvents: true } },
       },
     }),
     prisma.worker.findMany({

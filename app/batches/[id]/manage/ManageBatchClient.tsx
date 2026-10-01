@@ -16,6 +16,7 @@ type WorkTeam = { id: string; name: string; members: { workerId: string }[] }
 type Step = {
   id: string; name: string; order: number; type: 'COUNT' | 'CHECK' | 'ENTRY'; unitLabel: string
   unitRatio: number; targetQuantity: number | null; completedQuantity: number; status: string
+  _count?: { progressLogs: number }
 }
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority: Priority
@@ -26,6 +27,7 @@ type Batch = {
   recipe: { id: string; name: string; baseUnit: string; units: { name: string; ratio: number }[]; products: { id: string; name: string; brand: string | null; unitsPerCase: number | null }[] }
   assignments: { worker: Worker }[]; steps: Step[]
   leadWorker?: Worker | null
+  _count?: { messages: number; removals: number; materialEvents: number }
 }
 
 const SKIPPED_PREFIX = '[Skipped] '
@@ -124,6 +126,10 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
   }), [initialBatch, duplicate])
   const current = JSON.stringify({ name, productId, openEnded, target, dueDate, priority, strain, lotNumber, metrcBatchId, packageTag, notes, workerIds: [...workerIds].sort(), leadWorkerId })
   const dirty = current !== original
+  const hasRecordedWork = batch.steps.some((step) => (step._count?.progressLogs || 0) > 0)
+    || (batch._count?.messages || 0) > 0
+    || (batch._count?.removals || 0) > 0
+    || (batch._count?.materialEvents || 0) > 0
   const unitOptions = useMemo(() => {
     const byKey = new Map<string, { label: string; ratio: number }>()
     byKey.set(unitKey(batch.recipe.baseUnit, 1), { label: batch.recipe.baseUnit, ratio: 1 })
@@ -346,7 +352,8 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
             {batch.status === 'ACTIVE' && (!batch.materialName || batch.materialReconciledAt) && <button type="button" onClick={() => setConfirm({ title: 'Mark batch complete?', message: 'Production logging will stop. Owners can reopen it later.', label: 'Mark Complete', action: () => lifecycle('COMPLETED') })} className="bf-btn bf-btn-success w-full">Mark Complete</button>}
             {batch.status !== 'ACTIVE' && session.role === 'OWNER' && <button type="button" onClick={() => setConfirm({ title: 'Reopen batch?', message: 'The team will be able to log production again.', label: 'Reopen', action: () => lifecycle('ACTIVE') })} className="bf-btn bf-btn-secondary w-full">Reopen Batch</button>}
             {batch.status === 'ACTIVE' && session.role === 'OWNER' && <button type="button" onClick={() => setConfirm({ title: 'Cancel batch?', message: 'This stops production but keeps the batch record.', label: 'Cancel Batch', action: () => lifecycle('CANCELLED') })} className="bf-btn bf-btn-soft-danger w-full">Cancel Batch</button>}
-            {batch.status === 'CANCELLED' && session.role === 'OWNER' && <button type="button" onClick={() => setConfirm({ title: 'Delete batch permanently?', message: 'This removes the cancelled batch and its production history. This cannot be undone.', label: 'Delete Permanently', action: deleteBatch })} className="bf-btn bf-btn-soft-danger w-full">Delete Permanently</button>}
+            {session.role === 'OWNER' && !hasRecordedWork && <button type="button" onClick={() => setConfirm({ title: 'Delete mistaken batch?', message: 'No work has been recorded. This permanently removes the batch and cannot be undone.', label: 'Delete Batch', action: deleteBatch })} className="bf-btn bf-btn-soft-danger w-full">Delete Mistaken Batch</button>}
+            {session.role === 'OWNER' && hasRecordedWork && <p className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">This batch has recorded activity, so it cannot be deleted. Cancel it to stop production while keeping the history accurate.</p>}
           </Section>}
         </div>
 
