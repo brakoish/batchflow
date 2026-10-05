@@ -88,7 +88,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   }
 
   // Weekly summary state
-  const [viewMode, setViewMode] = useState<'shifts' | 'weekly'>('shifts')
+  const [viewMode, setViewMode] = useState<'shifts' | 'weekly'>('weekly')
   const [weeklyData, setWeeklyData] = useState<WeeklySummary[]>([])
   const [weeklyTotalHours, setWeeklyTotalHours] = useState(0)
   const [weeklyTotalShifts, setWeeklyTotalShifts] = useState(0)
@@ -221,6 +221,15 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
     monday.setDate(today.getDate() + diff)
     monday.setHours(0, 0, 0, 0)
     return currentWeekStart.getTime() === monday.getTime()
+  }
+
+  const reviewWorkerShifts = (workerId: string) => {
+    haptic('light')
+    setFilterTeam('')
+    setFilterWorker(workerId)
+    setDateFrom('')
+    setDateTo('')
+    setViewMode('shifts')
   }
 
   const handleExport = () => {
@@ -365,7 +374,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
         </div>
       )}
 
-      {/* View Mode Toggle */}
+      {/* Summary-first navigation */}
       <div className="flex items-center justify-center gap-1 p-1 bg-muted rounded-lg w-fit mx-auto">
         <button
           onClick={() => { haptic('light'); setViewMode('shifts') }}
@@ -375,7 +384,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Shifts
+          Shift details
         </button>
         <button
           onClick={() => { haptic('light'); setViewMode('weekly') }}
@@ -385,12 +394,12 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Weekly Summary
+          Weekly hours
         </button>
       </div>
 
-      {/* Filters - Stack on mobile */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row">
         {teams.length > 0 && <select value={filterTeam} onChange={(e) => { setFilterTeam(e.target.value); if (e.target.value) setFilterWorker('') }} className="px-3 py-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"><option value="">All Employee Teams</option>{teams.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select>}
         <select
           value={filterWorker}
@@ -402,7 +411,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
         </select>
-        <div className="flex gap-2 w-full sm:w-auto">
+        {viewMode === 'shifts' && <div className="flex gap-2 w-full sm:w-auto">
           <input
             type="date"
             value={dateFrom}
@@ -415,7 +424,8 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
             onChange={(e) => setDateTo(e.target.value)}
             className="flex-1 min-w-0 px-3 py-3 min-h-[44px] rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:border-primary"
           />
-        </div>
+        </div>}
+        {viewMode === 'shifts' && <>
         <input
           type="month"
           value={exportMonth}
@@ -429,6 +439,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
         >
           Export Formatted Sheet
         </button>
+        </>}
       </div>
 
       {/* Summary */}
@@ -666,6 +677,13 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
                           })}
                         </div>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => reviewWorkerShifts(worker.workerId)}
+                        className="bf-btn bf-btn-secondary mt-3 w-full"
+                      >
+                        Review shifts
+                      </button>
                     </div>
                   )
                 })}

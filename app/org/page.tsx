@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
   BellAlertIcon,
-  ClockIcon,
   LinkIcon,
   UserGroupIcon,
   WrenchScrewdriverIcon,
@@ -16,8 +15,7 @@ const sections = [
   {
     title: 'Team',
     items: [
-      { href: '/workers', title: 'Employees & teams', description: 'People, roles, PINs, languages, pay rates, and saved crews', Icon: UserGroupIcon },
-      { href: '/timesheet', title: 'Time & pay', description: 'Hours, corrections, exports, and pay estimates', Icon: ClockIcon },
+      { href: '/workers', title: 'Team & hours', description: 'Employees, teams, weekly hours, corrections, and pay estimates', Icon: UserGroupIcon },
       { href: '/reminders', title: 'Reminders', description: 'Recurring messages for employees on shift', Icon: BellAlertIcon },
     ],
   },
