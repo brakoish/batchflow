@@ -51,6 +51,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [activeShifts, setActiveShifts] = useState<Shift[]>([])
 
   // Correction requests
   const [corrections, setCorrections] = useState<any[]>([])
@@ -104,6 +105,20 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
     monday.setHours(0, 0, 0, 0)
     return monday
   })
+  const [periodPreset, setPeriodPreset] = useState<'this' | 'last' | 'custom'>('this')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+
+  const fetchActiveShifts = async () => {
+    try {
+      const res = await fetch('/api/shifts/all?status=ACTIVE', { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        setActiveShifts(data.shifts || [])
+        setTimezone(data.timezone || 'America/New_York')
+      }
+    } catch {}
+  }
 
   const fetchShifts = async () => {
     setLoading(true)
@@ -127,14 +142,29 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   const fetchWeeklySummary = async () => {
     setLoading(true)
     try {
-      // Calculate week end (Sunday)
-      const weekEnd = new Date(currentWeekStart)
-      weekEnd.setDate(currentWeekStart.getDate() + 6)
-      weekEnd.setHours(23, 59, 59, 999)
+      if (periodPreset === 'custom' && (!customFrom || !customTo)) {
+        setWeeklyData([])
+        setWeeklyTotalHours(0)
+        setWeeklyTotalShifts(0)
+        setWeeklyEstimatedPay(0)
+        setWeeklyMissingWages(0)
+        setLoading(false)
+        return
+      }
+      const rangeStart = periodPreset === 'custom' && customFrom
+        ? new Date(`${customFrom}T00:00:00`)
+        : new Date(currentWeekStart)
+      const rangeEnd = periodPreset === 'custom' && customTo
+        ? new Date(`${customTo}T23:59:59.999`)
+        : new Date(currentWeekStart)
+      if (periodPreset !== 'custom') {
+        rangeEnd.setDate(currentWeekStart.getDate() + 6)
+        rangeEnd.setHours(23, 59, 59, 999)
+      }
 
       const params = new URLSearchParams()
-      params.append('from', currentWeekStart.toISOString())
-      params.append('to', weekEnd.toISOString())
+      params.append('from', rangeStart.toISOString())
+      params.append('to', rangeEnd.toISOString())
       if (filterWorker) params.append('workerId', filterWorker)
       if (filterTeam) params.append('teamId', filterTeam)
 
@@ -158,10 +188,13 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
     } else {
       fetchWeeklySummary()
     }
-  }, [filterWorker, filterTeam, dateFrom, dateTo, viewMode, currentWeekStart])
+  }, [filterWorker, filterTeam, dateFrom, dateTo, viewMode, currentWeekStart, periodPreset, customFrom, customTo])
 
   useEffect(() => {
     fetchCorrections()
+    fetchActiveShifts()
+    const interval = window.setInterval(fetchActiveShifts, 60000)
+    return () => window.clearInterval(interval)
   }, [])
 
   const totalHours = shifts.reduce((sum, s) => sum + s.hours, 0)
@@ -180,27 +213,14 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
     currency: 'USD',
   }).format(amount)
 
-  const goToPreviousWeek = () => {
+  const selectPeriod = (period: 'this' | 'last' | 'custom') => {
     haptic('light')
-    const prev = new Date(currentWeekStart)
-    prev.setDate(prev.getDate() - 7)
-    setCurrentWeekStart(prev)
-  }
-
-  const goToNextWeek = () => {
-    haptic('light')
-    const next = new Date(currentWeekStart)
-    next.setDate(next.getDate() + 7)
-    setCurrentWeekStart(next)
-  }
-
-  const goToThisWeek = () => {
-    haptic('light')
+    setPeriodPreset(period)
+    if (period === 'custom') return
     const today = new Date()
     const day = today.getDay()
-    const diff = day === 0 ? -6 : 1 - day
     const monday = new Date(today)
-    monday.setDate(today.getDate() + diff)
+    monday.setDate(today.getDate() + (day === 0 ? -6 : 1 - day) - (period === 'last' ? 7 : 0))
     monday.setHours(0, 0, 0, 0)
     setCurrentWeekStart(monday)
   }
@@ -211,16 +231,6 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
     const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     return `Week of ${startStr} - ${endStr}`
-  }
-
-  const isCurrentWeek = () => {
-    const today = new Date()
-    const day = today.getDay()
-    const diff = day === 0 ? -6 : 1 - day
-    const monday = new Date(today)
-    monday.setDate(today.getDate() + diff)
-    monday.setHours(0, 0, 0, 0)
-    return currentWeekStart.getTime() === monday.getTime()
   }
 
   const reviewWorkerShifts = (workerId: string) => {
@@ -329,6 +339,31 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
 
   return (
     <div className="space-y-4">
+      {activeShifts.length > 0 && (
+        <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Clocked in now</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">{activeShifts.length} employee{activeShifts.length === 1 ? '' : 's'} on shift</p>
+            </div>
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden="true" />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {activeShifts.map((shift) => (
+              <button
+                key={shift.id}
+                type="button"
+                onClick={() => reviewWorkerShifts(shift.worker.id)}
+                className="min-h-[44px] rounded-xl border border-emerald-500/20 bg-card px-3 py-2 text-left"
+              >
+                <span className="block text-sm font-semibold text-foreground">{shift.worker.name}</span>
+                <span className="block text-xs text-muted-foreground">Since {formatTimeInTz(shift.startedAt, timezone)} · {formatDuration(shift.hours)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Pending Correction Requests */}
       {corrections.length > 0 && (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
@@ -442,6 +477,33 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
         </>}
       </div>
 
+      {viewMode === 'weekly' && (
+        <div className="space-y-3 rounded-2xl border border-border bg-card p-3">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1" aria-label="Pay period">
+            {([
+              ['this', 'This week'],
+              ['last', 'Last week'],
+              ['custom', 'Custom'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => selectPeriod(value)}
+                className={`min-h-[42px] rounded-lg px-2 text-sm font-medium ${periodPreset === value ? 'border border-border bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {periodPreset === 'custom' && (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs text-muted-foreground">From<input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="mt-1 min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground" /></label>
+              <label className="text-xs text-muted-foreground">To<input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="mt-1 min-h-[44px] w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground" /></label>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Summary */}
       {viewMode === 'shifts' ? (
         <div>
@@ -459,7 +521,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
         </div>
       ) : (
         <div className="text-sm">
-          <span className="text-muted-foreground">{formatWeekRange(currentWeekStart)}</span>
+          <span className="text-muted-foreground">{periodPreset === 'custom' ? (customFrom && customTo ? `${customFrom} – ${customTo}` : 'Choose a date range') : formatWeekRange(currentWeekStart)}</span>
         </div>
       )}
 
@@ -593,29 +655,6 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Week Navigation */}
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={goToPreviousWeek}
-              className="px-4 py-2.5 min-h-[44px] rounded-lg bg-card border border-border text-foreground text-sm font-medium hover:bg-muted transition-colors"
-            >
-              ← Previous Week
-            </button>
-            <button
-              onClick={goToThisWeek}
-              disabled={isCurrentWeek()}
-              className="px-4 py-2.5 min-h-[44px] rounded-lg bg-card border border-border text-foreground text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              This Week
-            </button>
-            <button
-              onClick={goToNextWeek}
-              className="px-4 py-2.5 min-h-[44px] rounded-lg bg-card border border-border text-foreground text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Next Week →
-            </button>
-          </div>
-
           {/* Weekly Summary Cards */}
           <div className="space-y-2">
             {weeklyData.length === 0 ? (

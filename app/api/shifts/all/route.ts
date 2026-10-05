@@ -11,6 +11,7 @@ export async function GET(request: Request) {
     const teamId = searchParams.get('teamId')
     const dateFrom = searchParams.get('from')
     const dateTo = searchParams.get('to')
+    const status = searchParams.get('status')
 
     // Get organization timezone
     const organization = await prisma.organization.findUnique({
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
       },
     }
     if (workerId) where.workerId = workerId
+    if (status === 'ACTIVE') where.status = 'ACTIVE'
     if (teamId) {
       const team = await prisma.workTeam.findFirst({ where: { id: teamId, organizationId: session.user.organizationId }, select: { members: { select: { workerId: true } } } })
       if (!team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
