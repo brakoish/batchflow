@@ -25,6 +25,8 @@ export default async function BatchDetailPage({
       include: {
         recipe: true,
         product: true,
+        variation: true,
+        completionReport: true,
         steps: {
           orderBy: { order: 'asc' },
           include: {

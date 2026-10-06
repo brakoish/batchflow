@@ -216,6 +216,8 @@ model Recipe {
   brand          String?
   description    String?
   baseUnit       String        @default("units")
+  // Broad cannabis processing family used to seed sensible product workflows.
+  category       String        @default("OTHER")
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())
@@ -229,6 +231,7 @@ model Recipe {
   @@index([organizationId])
   @@index([organizationId, archivedAt])
   @@index([organizationId, brand])
+  @@index([organizationId, category, archivedAt])
 }
 
 model Product {
@@ -236,6 +239,8 @@ model Product {
   name           String
   brand          String?
   unitsPerCase   Int?
+  // Net cannabis material packed into one finished item.
+  materialWeightGrams Float?
   recipeId       String
   recipe         Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   organizationId String
@@ -243,12 +248,26 @@ model Product {
   archivedAt     DateTime?
   createdAt      DateTime     @default(now())
   batches        Batch[]
+  variations     ProductVariation[]
   stockAdjustments StockAdjustment[]
 
   @@unique([recipeId, name])
   @@index([organizationId, archivedAt])
   @@index([organizationId, brand])
   @@index([recipeId, archivedAt])
+}
+
+model ProductVariation {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  batches   Batch[]
+
+  @@unique([productId, name])
+  @@index([productId, archivedAt])
 }
 
 model StockAdjustment {
@@ -321,6 +340,8 @@ model Batch {
   recipe          Recipe        @relation(fields: [recipeId], references: [id])
   productId       String?
   product         Product?      @relation(fields: [productId], references: [id])
+  variationId     String?
+  variation       ProductVariation? @relation(fields: [variationId], references: [id], onDelete: SetNull)
   name            String
   targetQuantity  Int?
   baseUnit        String        @default("units")
@@ -353,13 +374,37 @@ model Batch {
   materialRatio   Float?
   materialReconciledAt DateTime?
   materialEvents  BatchMaterialEvent[]
+  completionReport BatchCompletionReport?
 
   @@index([recipeId])
   @@index([productId])
+  @@index([variationId])
   @@index([status])
   @@index([priority])
   @@index([organizationId])
   @@index([leadWorkerId])
+}
+
+model BatchCompletionReport {
+  id                String   @id @default(cuid())
+  batchId           String   @unique
+  batch             Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  productName       String
+  variationName     String?
+  batchName         String
+  receivedGrams     Float?
+  producedUnits     Int
+  producedUnitLabel String
+  gramsPerUnit      Float?
+  producedGrams     Float?
+  shakeGrams        Float    @default(0)
+  wasteGrams        Float    @default(0)
+  missingLabels     Int      @default(0)
+  issues            String?  @db.Text
+  completedAt       DateTime
+  createdAt         DateTime @default(now())
+
+  @@index([completedAt])
 }
 
 model WorkTeam {

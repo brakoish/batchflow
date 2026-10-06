@@ -70,9 +70,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'Log not found' }, { status: 404 })
     }
 
+    if (log.batchStep.batch.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Reopen this batch before correcting its production logs' }, { status: 409 })
+    }
+
     const nextQuantity = quantity === undefined ? log.quantity : parseStepQuantity(quantity, log.batchStep.type)
     if (nextQuantity === null) {
-      return NextResponse.json({ error: log.batchStep.type === 'ENTRY' ? 'Entry must be greater than 0' : 'Quantity must be a whole number greater than 0' }, { status: 400 })
+      return NextResponse.json({ error: log.batchStep.type === 'ENTRY' ? 'Entry must be 0 or greater' : 'Quantity must be a whole number greater than 0' }, { status: 400 })
     }
 
     // Only the worker who made it or an owner can edit
@@ -121,11 +125,12 @@ export async function PATCH(
     const totalResult = await prisma.progressLog.aggregate({
       where: { batchStepId: log.batchStepId },
       _sum: { quantity: true },
+      _count: { _all: true },
     })
 
     const recordedTotal = totalResult._sum.quantity || 0
     const step = log.batchStep
-    const newTotal = getRecordedStepTotal(step.type, recordedTotal)
+    const newTotal = getRecordedStepTotal(step.type, recordedTotal, totalResult._count._all > 0)
     const previousStep = [...step.batch.steps]
       .reverse()
       .find((s) => s.order < step.order && s.type === 'COUNT' && !isSkippedStep(s))
@@ -200,6 +205,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Log not found' }, { status: 404 })
     }
 
+    if (log.batchStep.batch.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Reopen this batch before deleting production logs' }, { status: 409 })
+    }
+
     // Only the worker who made it or an owner can delete
     if (log.workerId !== session.user.workerId && session.user.role !== 'OWNER') {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
@@ -224,11 +233,12 @@ export async function DELETE(
     const remaining = await prisma.progressLog.aggregate({
       where: { batchStepId: log.batchStepId },
       _sum: { quantity: true },
+      _count: { _all: true },
     })
 
     const recordedTotal = remaining._sum.quantity || 0
     const step = log.batchStep
-    const newTotal = getRecordedStepTotal(step.type, recordedTotal)
+    const newTotal = getRecordedStepTotal(step.type, recordedTotal, remaining._count._all > 0)
     const previousStep = [...step.batch.steps]
       .reverse()
       .find((s) => s.order < step.order && s.type === 'COUNT' && !isSkippedStep(s))

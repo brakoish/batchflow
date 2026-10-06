@@ -53,6 +53,11 @@ type BatchStep = {
   progressLogs: ProgressLog[]
 }
 type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
+type CompletionReport = {
+  productName: string; variationName?: string | null; batchName: string; receivedGrams?: number | null
+  producedUnits: number; producedUnitLabel: string; gramsPerUnit?: number | null; producedGrams?: number | null
+  shakeGrams: number; wasteGrams: number; missingLabels: number; issues?: string | null; completedAt: string
+}
 type Batch = {
   id: string; name: string; targetQuantity: number | null; baseUnit: string; status: string; priority?: BatchPriority
   dueDate?: string
@@ -61,7 +66,7 @@ type Batch = {
   strain?: string
   packageTag?: string
   notes?: string | null
-  recipe: { id: string; name: string }; product?: { id: string; name: string } | null; steps: BatchStep[]
+  recipe: { id: string; name: string; category?: string }; product?: { id: string; name: string; materialWeightGrams?: number | null } | null; variation?: { id: string; name: string } | null; steps: BatchStep[]
   assignments?: { worker: Worker }[]
   removals?: BatchRemoval[]
   materialName?: string | null
@@ -69,6 +74,7 @@ type Batch = {
   materialRatio?: number | null
   materialReconciledAt?: string | null
   materialEvents?: BatchMaterialEvent[]
+  completionReport?: CompletionReport | null
 }
 type BatchMessage = {
   id: string
@@ -241,6 +247,13 @@ export default function BatchDetailClient({
   const [materialNote, setMaterialNote] = useState('')
   const [savingMaterial, setSavingMaterial] = useState(false)
 
+  // Finish-job report state
+  const [showFinishReport, setShowFinishReport] = useState(false)
+  const [finishShake, setFinishShake] = useState('0')
+  const [finishWaste, setFinishWaste] = useState('0')
+  const [finishMissingLabels, setFinishMissingLabels] = useState('0')
+  const [finishIssues, setFinishIssues] = useState('')
+
   // Duplicate modal state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
   const [duplicateName, setDuplicateName] = useState('')
@@ -331,6 +344,12 @@ export default function BatchDetailClient({
   }
 
   const handleStatusChange = async (status: string) => {
+    if (status === 'COMPLETED' && !batch.completionReport) {
+      const wasteStep = [...batch.steps].reverse().find(step => step.type === 'ENTRY' && /waste/i.test(step.name))
+      setFinishWaste(String(wasteStep?.progressLogs[0]?.quantity ?? 0))
+      setShowFinishReport(true)
+      return
+    }
     const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
     const productionResult = getProductionResult(batch)
     setConfirmAction({
@@ -348,7 +367,7 @@ export default function BatchDetailClient({
     })
   }
 
-  const performStatusChange = async (status: string) => {
+  const performStatusChange = async (status: string, completionReport?: { shakeGrams: number; wasteGrams: number; missingLabels: number; issues: string }) => {
     const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
     setConfirmAction(null)
     setError('')
@@ -356,7 +375,7 @@ export default function BatchDetailClient({
       const res = await fetch(`/api/batches/${batch.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, completionReport }),
       })
       if (!res.ok) { 
         const data = await res.json().catch(() => ({ error: 'Server error' }))
@@ -365,6 +384,7 @@ export default function BatchDetailClient({
       }
       const data = await res.json().catch(() => null)
       setBatch(prev => data?.batch || { ...prev, status })
+      setShowFinishReport(false)
       lastSaveTsRef.current = Date.now()
       emitBatchChanged(batch.id, 'status')
       const productionResult = status === 'COMPLETED' ? getProductionResult(batch) : null
@@ -690,7 +710,8 @@ export default function BatchDetailClient({
   }
 
   const handleSaveEdit = async () => {
-    if (!editingLog || !editQuantity || Number(editQuantity) <= 0) {
+    const editingStep = editingLog ? batch.steps.find(step => step.id === (editingLog as any).stepId) : null
+    if (!editingLog || editQuantity === '' || Number(editQuantity) < 0 || (editingStep?.type !== 'ENTRY' && Number(editQuantity) === 0)) {
       setError('Enter a valid quantity')
       return
     }
@@ -899,7 +920,7 @@ export default function BatchDetailClient({
   )
 
   const submitLog = async (stepBeingLogged: BatchStep, qty: number, noteBeingLogged?: string) => {
-    if (!stepBeingLogged || qty <= 0) {
+    if (!stepBeingLogged || qty < 0 || (stepBeingLogged.type !== 'ENTRY' && qty === 0)) {
       setError('Enter a valid quantity'); return
     }
     haptic('medium')
@@ -967,7 +988,7 @@ export default function BatchDetailClient({
   }
 
   const handleSubmit = async () => {
-    if (!selectedStep || !quantity || Number(quantity) <= 0) {
+    if (!selectedStep || quantity === '' || Number(quantity) < 0 || (selectedStep.type !== 'ENTRY' && Number(quantity) === 0)) {
       setError('Enter a valid quantity'); return
     }
     const qty = selectedStep.type === 'ENTRY' ? Number(quantity) : parseInt(quantity)
@@ -1325,7 +1346,7 @@ export default function BatchDetailClient({
           </div>
           )}
 
-          {materialResult && !isWorker && (
+          {false && materialResult && !isWorker && (
             <div className={`mt-3 rounded-xl border p-3 ${batch.materialReconciledAt ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-amber-500/25 bg-amber-500/5'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1401,6 +1422,22 @@ export default function BatchDetailClient({
             </div>
           )}
 
+          {batch.completionReport && (
+            <div className="mt-3 rounded-xl border border-blue-500/25 bg-blue-500/5 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Finished job report</p>
+              <p className="mt-0.5 text-sm font-semibold text-foreground">{batch.completionReport.productName}{batch.completionReport.variationName ? ` · ${batch.completionReport.variationName}` : ''}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-card/70 p-2"><p className="text-muted-foreground">Received</p><p className="font-bold tabular-nums">{batch.completionReport.receivedGrams == null ? 'Not recorded' : `${batch.completionReport.receivedGrams.toLocaleString()} g`}</p></div>
+                <div className="rounded-lg bg-card/70 p-2"><p className="text-muted-foreground">Produced</p><p className="font-bold tabular-nums">{batch.completionReport.producedUnits.toLocaleString()} {batch.completionReport.producedUnitLabel}{batch.completionReport.producedGrams == null ? '' : ` · ${batch.completionReport.producedGrams.toLocaleString()} g`}</p></div>
+                <div className="rounded-lg bg-card/70 p-2"><p className="text-muted-foreground">Shake</p><p className="font-bold tabular-nums">{batch.completionReport.shakeGrams.toLocaleString()} g</p></div>
+                <div className="rounded-lg bg-card/70 p-2"><p className="text-muted-foreground">Waste</p><p className="font-bold tabular-nums">{batch.completionReport.wasteGrams.toLocaleString()} g</p></div>
+                <div className="rounded-lg bg-card/70 p-2"><p className="text-muted-foreground">Missing labels</p><p className="font-bold tabular-nums">{batch.completionReport.missingLabels.toLocaleString()}</p></div>
+                <div className="rounded-lg bg-card/70 p-2"><p className="text-muted-foreground">Variance</p><p className="font-bold tabular-nums">{batch.completionReport.receivedGrams == null || batch.completionReport.producedGrams == null ? '—' : `${(batch.completionReport.receivedGrams - batch.completionReport.producedGrams - batch.completionReport.shakeGrams - batch.completionReport.wasteGrams).toLocaleString()} g`}</p></div>
+              </div>
+              {batch.completionReport.issues && <p className="mt-3 rounded-lg bg-card/70 p-2 text-xs text-foreground"><span className="font-semibold">Issues:</span> {batch.completionReport.issues}</p>}
+            </div>
+          )}
+
           {/* Batch notes */}
           {batch.notes && (
             <div className="mt-3 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-3">
@@ -1439,15 +1476,14 @@ export default function BatchDetailClient({
                   Reopen Batch
                 </button>
               )}
-              {batch.status === 'ACTIVE' && (isOpenEnded || producedBaseUnits >= (batch.targetQuantity || 0)) && (
+              {batch.status === 'ACTIVE' && (isOpenEnded || stepsCompleted === totalSteps || producedBaseUnits >= (batch.targetQuantity || 0)) && (
                 <button
                   type="button"
                   onClick={() => { haptic('light'); handleStatusChange('COMPLETED') }}
-                  disabled={Boolean(batch.materialName && !batch.materialReconciledAt)}
-                  className="bf-btn bf-btn-success h-11 flex-1 disabled:cursor-not-allowed disabled:opacity-50"
-                  title={batch.materialName && !batch.materialReconciledAt ? 'Reconcile material before finishing' : 'Finish batch'}
+                  className="bf-btn bf-btn-success h-11 flex-1"
+                  title="Finish batch"
                 >
-                  {batch.materialName && !batch.materialReconciledAt ? 'Reconcile to Finish' : 'Finish Batch'}
+                  Finish Batch
                 </button>
               )}
               <button
@@ -2149,7 +2185,7 @@ export default function BatchDetailClient({
                 <div>
                   <p className="text-sm font-semibold text-foreground">{displayStepName(selectedStep)}</p>
                   <p className="text-xs text-foreground tabular-nums mt-0.5">
-                    {selectedStep.type === 'ENTRY' ? `Record starting material in ${selectedStep.unitLabel}` : <>{selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}</>}
+                    {selectedStep.type === 'ENTRY' ? `Record measurement in ${selectedStep.unitLabel}` : <>{selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}</>}
                   </p>
                 </div>
                 <button
@@ -2268,12 +2304,12 @@ export default function BatchDetailClient({
               {/* Submit */}
               <button
                 onClick={handleSubmit}
-                disabled={loading || !quantity || Number(quantity) <= 0 || (selectedStep && getSafeRemaining(selectedStep) !== null && Number(quantity) > getSafeRemaining(selectedStep)!)}
+                disabled={loading || quantity === '' || Number(quantity) < 0 || (selectedStep?.type !== 'ENTRY' && Number(quantity) === 0) || (selectedStep && getSafeRemaining(selectedStep) !== null && Number(quantity) > getSafeRemaining(selectedStep)!)}
                 className="bf-btn bf-btn-success bf-btn-lg bf-btn-full mt-4"
               >
                 {loading
                   ? 'Saving...'
-                  : quantity && Number(quantity) > 0
+                  : quantity !== '' && Number(quantity) >= 0
                     ? (getSafeRemaining(selectedStep) !== null && Number(quantity) > getSafeRemaining(selectedStep)!
                       ? `Max ${getSafeRemaining(selectedStep)!.toLocaleString()} ${selectedStep.unitLabel}`
                       : `${selectedStep.type === 'ENTRY' ? 'Record' : 'Log'} ${Number(quantity).toLocaleString()} ${selectedStep.unitLabel}`)
@@ -2334,7 +2370,7 @@ export default function BatchDetailClient({
 
                 <button
                   onClick={handleSaveEdit}
-                  disabled={loading || !editQuantity || Number(editQuantity) <= 0}
+                  disabled={loading || editQuantity === '' || Number(editQuantity) < 0 || (batch.steps.find(step => step.id === (editingLog as any).stepId)?.type !== 'ENTRY' && Number(editQuantity) === 0)}
                   className="bf-btn bf-btn-success bf-btn-full"
                 >
                   {loading ? 'Saving...' : 'Save Changes'}
@@ -2353,7 +2389,7 @@ export default function BatchDetailClient({
         </div>
       )}
 
-      {materialModal && (
+      {false && materialModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
           <div className="safe-bottom w-full max-w-md rounded-t-2xl border border-border bg-card p-5 sm:rounded-2xl">
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2474,6 +2510,22 @@ export default function BatchDetailClient({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showFinishReport && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
+          <div className="safe-bottom w-full max-w-md rounded-t-2xl border border-border bg-card p-5 sm:rounded-2xl">
+            <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Finish job</h2><p className="text-sm text-muted-foreground">These values create the permanent finished-job report.</p></div><button type="button" onClick={() => setShowFinishReport(false)} className="bf-icon-btn">×</button></div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-xs font-semibold text-muted-foreground">Shake weight (g)<input type="number" inputMode="decimal" min="0" step="0.01" value={finishShake} onChange={event => setFinishShake(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-xl border border-input bg-background px-3 text-base text-foreground" /></label>
+              <label className="text-xs font-semibold text-muted-foreground">Waste weight (g)<input type="number" inputMode="decimal" min="0" step="0.01" value={finishWaste} onChange={event => setFinishWaste(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-xl border border-input bg-background px-3 text-base text-foreground" /></label>
+              <label className="col-span-2 text-xs font-semibold text-muted-foreground">Missing labels<input type="number" inputMode="numeric" min="0" step="1" value={finishMissingLabels} onChange={event => setFinishMissingLabels(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-xl border border-input bg-background px-3 text-base text-foreground" /></label>
+              <label className="col-span-2 text-xs font-semibold text-muted-foreground">Issues / notes<textarea value={finishIssues} onChange={event => setFinishIssues(event.target.value.slice(0, 2000))} placeholder="Leave blank if there were no issues" className="mt-1 min-h-[88px] w-full rounded-xl border border-input bg-background p-3 text-base text-foreground" /></label>
+            </div>
+            {error && <p className="mt-3 text-center text-xs text-red-500">{error}</p>}
+            <button type="button" disabled={loading || Number(finishShake) < 0 || Number(finishWaste) < 0 || !Number.isInteger(Number(finishMissingLabels)) || Number(finishMissingLabels) < 0} onClick={() => performStatusChange('COMPLETED', { shakeGrams: Number(finishShake || 0), wasteGrams: Number(finishWaste || 0), missingLabels: Number(finishMissingLabels || 0), issues: finishIssues })} className="bf-btn bf-btn-success bf-btn-lg mt-4 w-full">Finish & create report</button>
           </div>
         </div>
       )}

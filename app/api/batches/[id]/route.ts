@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isRecordedStepComplete } from '@/lib/stepRecording'
 import { requireSession, requireOwner, requireSupervisorOrOwner } from '@/lib/auth'
+import { getProducedBaseUnits } from '@/lib/inventory'
+import { convertMaterialQuantity } from '@/lib/materialUnits'
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +18,8 @@ export async function GET(
       include: {
         recipe: { include: { units: { orderBy: { name: 'asc' } } } },
         product: true,
+        variation: true,
+        completionReport: true,
         leadWorker: { select: { id: true, name: true } },
         steps: {
           orderBy: {
@@ -83,7 +87,14 @@ export async function PATCH(
 
     const existingBatch = await prisma.batch.findFirst({
       where: { id, organizationId: session.user.organizationId },
-      include: { steps: { orderBy: { order: 'asc' } }, assignments: { select: { workerId: true } } },
+      include: {
+        recipe: { select: { name: true, category: true } },
+        product: { select: { id: true, name: true, materialWeightGrams: true } },
+        variation: { select: { id: true, name: true } },
+        completionReport: true,
+        steps: { orderBy: { order: 'asc' }, include: { progressLogs: { orderBy: { createdAt: 'asc' } } } },
+        assignments: { select: { workerId: true } },
+      },
     })
 
     if (!existingBatch) {
@@ -102,16 +113,64 @@ export async function PATCH(
       if (session.user.role === 'SUPERVISOR' && status !== 'COMPLETED') {
         return NextResponse.json({ error: 'Owner access required for this status change' }, { status: 403 })
       }
-      if (status === 'COMPLETED' && existingBatch.materialName && !existingBatch.materialReconciledAt) {
-        return NextResponse.json({ error: 'Reconcile the issued material before completing this batch' }, { status: 400 })
+
+      const completedAt = status === 'COMPLETED' ? new Date() : null
+      const reportInput = body.completionReport || {}
+      if (status === 'COMPLETED' && !body.completionReport) {
+        return NextResponse.json({ error: 'Finish this job from the batch page to complete its report' }, { status: 400 })
       }
-      
-      await prisma.batch.update({
-        where: { id },
-        data: {
-          status,
-          completedDate: status === 'COMPLETED' ? new Date() : null,
-        },
+      const parseNonNegative = (value: unknown, fallback = 0) => {
+        if (value == null || value === '') return fallback
+        const parsed = Number(value)
+        return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+      }
+      const shakeGrams = parseNonNegative(reportInput.shakeGrams)
+      const missingLabels = parseNonNegative(reportInput.missingLabels)
+      if (status === 'COMPLETED' && (shakeGrams == null || missingLabels == null || !Number.isInteger(missingLabels))) {
+        return NextResponse.json({ error: 'Shake, waste, and missing labels must be 0 or greater' }, { status: 400 })
+      }
+      const inputStep = existingBatch.steps.find(step => step.type === 'ENTRY' && !/(waste|shake)/i.test(step.name) && step.progressLogs.length > 0)
+      const wasteStep = [...existingBatch.steps].reverse().find(step => step.type === 'ENTRY' && /waste/i.test(step.name) && step.progressLogs.length > 0)
+      const entryGrams = (step: typeof inputStep) => {
+        if (!step?.progressLogs[0]) return null
+        return convertMaterialQuantity(step.progressLogs[0].quantity, step.unitLabel, 'g')
+      }
+      const wasteFromStep = entryGrams(wasteStep)
+      const wasteGrams = parseNonNegative(reportInput.wasteGrams, wasteFromStep ?? 0)
+      if (status === 'COMPLETED' && wasteGrams == null) {
+        return NextResponse.json({ error: 'Waste must be 0 or greater' }, { status: 400 })
+      }
+      const producedUnits = getProducedBaseUnits(existingBatch.steps)
+      const gramsPerUnit = existingBatch.product?.materialWeightGrams ?? null
+
+      await prisma.$transaction(async tx => {
+        await tx.batch.update({
+          where: { id },
+          data: { status, completedDate: completedAt },
+        })
+        if (status === 'ACTIVE' && existingBatch.completionReport) {
+          await tx.batchCompletionReport.delete({ where: { batchId: id } })
+        }
+        if (status === 'COMPLETED' && completedAt && !existingBatch.completionReport) {
+          await tx.batchCompletionReport.create({
+            data: {
+              batchId: id,
+              productName: existingBatch.product?.name || existingBatch.recipe.name,
+              variationName: existingBatch.variation?.name || existingBatch.strain || null,
+              batchName: existingBatch.name,
+              receivedGrams: entryGrams(inputStep),
+              producedUnits,
+              producedUnitLabel: existingBatch.baseUnit,
+              gramsPerUnit,
+              producedGrams: gramsPerUnit == null ? null : producedUnits * gramsPerUnit,
+              shakeGrams: shakeGrams!,
+              wasteGrams: wasteGrams!,
+              missingLabels: missingLabels!,
+              issues: String(reportInput.issues || '').trim().slice(0, 2000) || null,
+              completedAt,
+            },
+          })
+        }
       })
       const batch = await prisma.batch.findUnique({
         where: { id },
@@ -140,6 +199,7 @@ export async function PATCH(
             include: { worker: { select: { id: true, name: true } } },
             orderBy: { createdAt: 'asc' },
           },
+          completionReport: true,
         },
       })
       return NextResponse.json({ batch })

@@ -57,7 +57,7 @@ export async function POST(
     const quantity = parseStepQuantity(requestedQuantity, step.type)
     if (quantity === null) {
       return NextResponse.json(
-        { error: step.type === 'ENTRY' ? 'Entry must be greater than 0' : 'Quantity must be a whole number greater than 0' },
+        { error: step.type === 'ENTRY' ? 'Entry must be 0 or greater' : 'Quantity must be a whole number greater than 0' },
         { status: 400 }
       )
     }
@@ -99,7 +99,7 @@ export async function POST(
     }
 
     // Calculate ceiling (normalize across different unit ratios)
-    const newTotal = getRecordedStepTotal(step.type, step.completedQuantity + quantity)
+    const newTotal = getRecordedStepTotal(step.type, step.completedQuantity + quantity, step.type === 'ENTRY')
 
     // Each station may record independently. The workflow order is guidance,
     // while the station's own target remains the safety ceiling.
@@ -191,55 +191,9 @@ export async function POST(
       })
     }
 
-    // Check if all steps are completed
-    // Skip auto-complete for open-ended batches (any step has null targetQuantity)
-    const allSteps = await prisma.batchStep.findMany({
-      where: { batchId: step.batchId },
-    })
-
-    const hasOpenEndedSteps = allSteps.some(
-      (s: { targetQuantity: number | null }) => s.targetQuantity == null
-    )
-
-    if (!hasOpenEndedSteps) {
-      const allCompleted = allSteps.every(
-        (s: { id: string; name: string; order: number; type: string; status: string; targetQuantity: number | null; completedQuantity: number; unitRatio: number | null }) => {
-          if (isSkippedStep(s)) return true
-          const candidate = s.id === stepId
-            ? { ...s, completedQuantity: newTotal, status: shouldCompleteStep ? 'COMPLETED' : s.status }
-            : s
-          return isCountStepComplete(candidate)
-        }
-      )
-
-      if (allCompleted) {
-        await prisma.batch.update({
-          where: { id: step.batchId },
-          data: {
-            status: 'COMPLETED',
-            completedDate: new Date(),
-          },
-        })
-
-        // Notify all assigned workers about batch completion
-        const assignments = await prisma.batchAssignment.findMany({
-          where: { batchId: step.batchId },
-        })
-
-        assignments.forEach((assignment) => {
-          fetch(`${request.nextUrl.origin}/api/notifications/send`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') || '' },
-            body: JSON.stringify({
-              workerId: assignment.workerId,
-              title: `Batch completed: ${step.batch.name}`,
-              body: 'All steps have been completed',
-              url: `/batches/${step.batchId}`,
-            }),
-          }).catch((error) => console.error('Failed to send notification:', error))
-        })
-      }
-    }
+    // Completing the workflow leaves the batch ready for owner/supervisor
+    // closeout. The Finish Job action records shake, waste, label shortages,
+    // and issues before changing the batch lifecycle to COMPLETED.
 
     return NextResponse.json({
       progressLog,

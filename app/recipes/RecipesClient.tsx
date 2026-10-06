@@ -6,15 +6,16 @@ import { CheckCircleIcon, DocumentDuplicateIcon, HashtagIcon, PencilIcon, Pencil
 import RecipeBuilder from './RecipeBuilder'
 import EmptyState from '@/app/components/EmptyState'
 import ConfirmModal from '@/app/components/ConfirmModal'
+import { categoryLabel } from '@/lib/processingCategories'
 
 type Recipe = {
-  id: string; name: string; brand: string | null; description: string | null; baseUnit: string
+  id: string; name: string; brand: string | null; description: string | null; baseUnit: string; category?: string
   units: { name: string; ratio: number }[]
-  products: { id: string; name: string; brand: string | null; unitsPerCase: number | null }[]
+  products: { id: string; name: string; brand: string | null; unitsPerCase: number | null; materialWeightGrams?: number | null; variations?: { name: string }[] }[]
   steps: { id: string; name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null; materials: { name: string; quantityPerUnit: number; unit: string }[] }[]
   _count: { batches: number }
 }
-type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null }
+type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null; materialWeightGrams?: number | null; variations?: { name: string }[] }
 type ConfirmAction = {
   title: string
   message?: string
@@ -156,6 +157,7 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                       </div>
                       {recipe.description && <p className="text-xs text-muted-foreground mt-0.5">{recipe.description}</p>}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">{categoryLabel(recipe.category || 'OTHER')}</span>
                         <span className="text-[10px] text-muted-foreground/60">Base: {recipe.baseUnit}</span>
                         {recipe.units.map((u, i) => (
                           <span key={i} className="text-[10px] text-muted-foreground/60">· {u.name} = {u.ratio} {recipe.baseUnit}</span>
@@ -163,7 +165,7 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                         <span className="text-[10px] text-muted-foreground/60">· {recipe._count.batches} batch{recipe._count.batches !== 1 ? 'es' : ''}</span>
                       </div>
                       {recipe.products.length > 0 && (
-                        <p className="mt-1 text-xs text-muted-foreground">Items: {recipe.products.map(product => `${product.brand || 'Unassigned'} · ${product.name}`).join(', ')}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Products: {recipe.products.map(product => `${product.brand || 'Unassigned'} · ${product.name}${product.variations?.length ? ` (${product.variations.length} variations)` : ''}`).join(', ')}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0 ml-2">

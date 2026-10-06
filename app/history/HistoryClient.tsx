@@ -10,6 +10,7 @@ type Batch = {
   id: string; name: string; targetQuantity: number | null; baseUnit: string; status: string
   completedDate: string | null; startDate: string; createdAt: string
   recipe: { name: string }; product?: { name: string } | null; steps: (Step & { unitRatio?: number })[]
+  completionReport?: { receivedGrams: number | null; producedUnits: number; producedGrams: number | null; shakeGrams: number; wasteGrams: number; missingLabels: number; issues: string | null } | null
 }
 
 const SKIPPED_PREFIX = '[Skipped] '
@@ -211,6 +212,9 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                       </p>
                     </div>
                   </div>
+                )}
+                {batch.completionReport && (
+                  <p className="mt-2 text-[10px] font-medium text-blue-600 dark:text-blue-400">Report ready · {batch.completionReport.producedGrams == null ? `${batch.completionReport.producedUnits.toLocaleString()} produced` : `${batch.completionReport.producedGrams.toLocaleString()} g packed`} · {batch.completionReport.wasteGrams.toLocaleString()} g waste</p>
                 )}
               </Link>
             )

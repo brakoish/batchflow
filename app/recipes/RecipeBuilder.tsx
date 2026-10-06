@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, PencilSquareIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import MeasurementUnitPicker from '@/app/components/MeasurementUnitPicker'
+import { baseStepsForCategory, PROCESSING_CATEGORIES, type ProcessingCategory } from '@/lib/processingCategories'
 
 // Relations between units. Three fields:
 //  - name:   the unit being defined (Pre-rolls, Case, Tray, etc.)
@@ -19,12 +20,12 @@ import MeasurementUnitPicker from '@/app/components/MeasurementUnitPicker'
 //   smaller : ratio = basedOnRatio / count   (fractional — requires Float in DB)
 type UnitDef = { name: string; count: number; basedOn?: string; direction?: 'bigger' | 'smaller' }
 type StepDef = { id?: string; name: string; notes: string; type: 'CHECK' | 'COUNT' | 'ENTRY'; unitName: string; entryUnit: string }
-type ProductDef = { id?: string; name: string; brand: string }
-type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null }
+type ProductDef = { id?: string; name: string; brand: string; materialWeightGrams: string; variations: string }
+type AvailableProduct = { id: string; name: string; brand: string | null; recipeId: string; unitsPerCase: number | null; materialWeightGrams?: number | null; variations?: { name: string }[] }
 type EditRecipe = {
-  id: string; name: string; brand: string | null; description: string | null; baseUnit: string
+  id: string; name: string; brand: string | null; description: string | null; baseUnit: string; category?: string
   units: { name: string; ratio: number }[]
-  products: { id: string; name: string; brand: string | null }[]
+  products: { id: string; name: string; brand: string | null; materialWeightGrams?: number | null; variations?: { name: string }[] }[]
   steps: { id: string; name: string; notes: string | null; type: string; unit: { name: string } | null; entryUnit?: string | null }[]
 } | null
 
@@ -40,9 +41,10 @@ function formatRelationCount(value: number) {
 export default function RecipeBuilder({ editRecipe, availableProducts, onDone }: { editRecipe?: EditRecipe; availableProducts: AvailableProduct[]; onDone?: () => void }) {
   const isEdit = !!editRecipe
   const [name, setName] = useState(editRecipe?.name || '')
+  const [category, setCategory] = useState<ProcessingCategory>((editRecipe?.category as ProcessingCategory) || 'OTHER')
   const [knownBrands, setKnownBrands] = useState<string[]>([])
   const [description, setDescription] = useState(editRecipe?.description || '')
-  const [products, setProducts] = useState<ProductDef[]>(editRecipe?.products.map(product => ({ id: product.id, name: product.name, brand: product.brand || editRecipe.brand || '' })) || [])
+  const [products, setProducts] = useState<ProductDef[]>(editRecipe?.products.map(product => ({ id: product.id, name: product.name, brand: product.brand || editRecipe.brand || '', materialWeightGrams: product.materialWeightGrams?.toString() || '', variations: product.variations?.map(variation => variation.name).join(', ') || '' })) || [])
   const [existingProductId, setExistingProductId] = useState('')
   const [baseUnit, setBaseUnit] = useState(editRecipe?.baseUnit || '')
   // When editing an existing recipe we only have the flat base-unit ratio,
@@ -170,6 +172,17 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
     setExpandedStep(t)
   }
 
+  const applyCategoryBase = (nextCategory: ProcessingCategory) => {
+    const defaults = baseStepsForCategory(nextCategory)
+    if (!defaults.length) return
+    setSteps(defaults)
+    setExpandedStep(0)
+    if (!baseUnit) {
+      const suggested = nextCategory === 'FLOWER' ? 'Jars' : nextCategory === 'VAPE' ? 'Cartridges' : nextCategory.startsWith('PRE_ROLL') ? 'Pre-rolls' : 'Units'
+      setBaseUnit(suggested)
+    }
+  }
+
   const reviewRecipe = () => {
     if (!name.trim()) { setError('Give your recipe a name — like "1g Pre-Rolls" or "Flower Jars"'); return }
     if (!baseUnit.trim()) { setError('What are you counting? Enter a base unit like "bags", "jars", or "pre-rolls"'); return }
@@ -232,8 +245,8 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, description: description || undefined, baseUnit,
-          products: products.map(product => ({ id: product.id, name: product.name.trim(), brand: product.brand.trim() })).filter(product => product.name),
+          name, description: description || undefined, baseUnit, category,
+          products: products.map(product => ({ id: product.id, name: product.name.trim(), brand: product.brand.trim(), materialWeightGrams: product.materialWeightGrams || null, variations: product.variations.split(',').map(value => value.trim()).filter(Boolean) })).filter(product => product.name),
           // Submit each unit's ratio in base-units-per-1-of-this-unit.
           // getBaseRatio already honors direction ('bigger' multiplies, 'smaller' divides).
           units: units.filter(u => u.name.trim()).map(u => ({
@@ -249,7 +262,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
       const savedBrands = products.map(product => product.brand.trim()).filter(Boolean)
       if (savedBrands.length) setKnownBrands((current) => Array.from(new Set([...current, ...savedBrands])).sort((a, b) => a.localeCompare(b)))
       if (!isEdit) {
-        setName(''); setDescription(''); setBaseUnit('')
+        setName(''); setDescription(''); setBaseUnit(''); setCategory('OTHER')
         setProducts([])
         setUnits([]); setSteps([{ name: '', notes: '', type: 'COUNT', unitName: '', entryUnit: 'g' }])
       }
@@ -267,13 +280,22 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
       <div className="space-y-8">
         {/* ── Recipe and products ── */}
         <div className="rounded-xl border border-border bg-card p-5">
+          <label className="text-base text-foreground font-semibold block mb-1">Processing category</label>
+          <p className="mb-3 text-sm text-muted-foreground">Start with the common touch points, then tailor them to this brand and product.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {PROCESSING_CATEGORIES.map(option => <button key={option.value} type="button" onClick={() => { setCategory(option.value); if (!isEdit && steps.length === 1 && !steps[0].name.trim()) applyCategoryBase(option.value) }} className={`bf-select-btn justify-center ${category === option.value ? 'bf-select-btn-active' : ''}`}>{option.label}</button>)}
+          </div>
+          {category !== 'OTHER' && <button type="button" onClick={() => applyCategoryBase(category)} className="bf-btn bf-btn-secondary mt-3 w-full">Reset steps to {PROCESSING_CATEGORIES.find(option => option.value === category)?.label} base</button>}
+
+          <div className="mt-5 border-t border-border pt-5">
           <label className="text-base text-foreground font-semibold block mb-1">Name this production flow</label>
           <p className="text-sm text-muted-foreground mb-3">
-            One recipe can make several finished products when the worker steps are the same.
+            Make this workflow specific to one brand and product. Strains or flavors belong under it as variations.
           </p>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
             placeholder="e.g., Charas Jars, 1g Pre-Roll Tins" disabled={loading}
             className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+          </div>
 
           <datalist id="batchflow-brand-options">
             {knownBrands.map((option) => <option key={option} value={option} />)}
@@ -281,7 +303,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
 
           <div className="mt-4 border-t border-border pt-4">
             <label className="text-sm font-semibold text-foreground">Finished products</label>
-            <p className="mb-3 mt-1 text-xs text-muted-foreground">Optional. If you add products, you’ll choose one when starting a batch.</p>
+            <p className="mb-3 mt-1 text-xs text-muted-foreground">The sellable format this workflow makes. Example: Terp Selection · 3.5g Jar.</p>
             <div className="space-y-2">
               {products.map((product, index) => (
                 <div key={index} className="rounded-xl border border-border bg-muted/20 p-2">
@@ -289,19 +311,24 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                   <button type="button" onClick={() => setProducts(current => current.filter((_, itemIndex) => itemIndex !== index))} className="bf-icon-btn bf-icon-btn-danger" aria-label="Remove product">
                     <XMarkIcon className="h-5 w-5" />
                   </button></div>
-                  <input type="text" value={product.brand} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, brand: event.target.value } : value))} list="batchflow-brand-options" placeholder="Brand — e.g., Gotti" maxLength={100} disabled={loading} className="mt-2 min-h-[46px] w-full rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
+                  <input type="text" value={product.brand} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, brand: event.target.value } : value))} list="batchflow-brand-options" placeholder="Brand — e.g., Terp Selection" maxLength={100} disabled={loading} className="mt-2 min-h-[46px] w-full rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <input type="number" inputMode="decimal" min="0.01" step="0.01" value={product.materialWeightGrams} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, materialWeightGrams: event.target.value } : value))} placeholder="Material per item (g)" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
+                    <input type="text" value={product.variations} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, variations: event.target.value } : value))} placeholder="Variations — Blue Dream, LCG" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Variations share this workflow. Separate names with commas.</p>
                 </div>
               ))}
             </div>
-            <button type="button" onClick={() => setProducts(current => [...current, { name: '', brand: '' }])} disabled={loading} className="bf-btn bf-btn-secondary mt-3 w-full border-dashed">
-              <PlusIcon className="h-4 w-4" /> Add finished product
-            </button>
+            {(isEdit || products.length === 0) && <button type="button" onClick={() => setProducts(current => [...current, { name: '', brand: '', materialWeightGrams: '', variations: '' }])} disabled={loading} className="bf-btn bf-btn-secondary mt-3 w-full border-dashed">
+              <PlusIcon className="h-4 w-4" /> {products.length ? 'Add legacy shared product' : 'Add product'}
+            </button>}
             <div className="mt-2 flex gap-2">
               <select value={existingProductId} onChange={(event) => setExistingProductId(event.target.value)} className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-sm text-foreground">
                 <option value="">Use existing product…</option>
                 {availableProducts.filter((option) => !products.some((product) => product.id === option.id)).map((option) => <option key={option.id} value={option.id}>{option.brand ? `${option.brand} · ` : ''}{option.name}</option>)}
               </select>
-              <button type="button" disabled={!existingProductId} onClick={() => { const selected = availableProducts.find((option) => option.id === existingProductId); if (selected) setProducts((current) => [...current, { id: selected.id, name: selected.name, brand: selected.brand || '' }]); setExistingProductId('') }} className="bf-btn bf-btn-secondary">Add</button>
+              <button type="button" disabled={!existingProductId} onClick={() => { const selected = availableProducts.find((option) => option.id === existingProductId); if (selected) setProducts((current) => [...current, { id: selected.id, name: selected.name, brand: selected.brand || '', materialWeightGrams: selected.materialWeightGrams?.toString() || '', variations: selected.variations?.map(variation => variation.name).join(', ') || '' }]); setExistingProductId('') }} className="bf-btn bf-btn-secondary">Add</button>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Using an existing product moves it to this recipe. Its stock and batch history stay attached.</p>
           </div>

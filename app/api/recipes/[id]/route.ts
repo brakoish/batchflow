@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
+import { normalizeProcessingCategory } from '@/lib/processingCategories'
 
 const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
 
@@ -28,7 +29,7 @@ export async function GET(
       include: {
         units: { orderBy: { order: 'asc' } },
         steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
-        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' }, include: { variations: { where: { archivedAt: null }, orderBy: { name: 'asc' } } } },
         _count: { select: { batches: true } },
       },
     })
@@ -50,7 +51,7 @@ export async function PUT(
   try {
     const session = await requireSupervisorOrOwner()
     const { id } = await params
-    const { name, brand, description, baseUnit, units, steps, products } = await request.json()
+    const { name, brand, description, baseUnit, category, units, steps, products } = await request.json()
 
     const ownedRecipe = await prisma.recipe.findFirst({
       where: { id, organizationId: session.user.organizationId },
@@ -72,15 +73,28 @@ export async function PUT(
       entryUnit?: string
       materials?: Array<{ name: string; quantityPerUnit: number; unit: string }>
     }>
+    const normalizedCategory = normalizeProcessingCategory(category)
     if (cleanSteps.length === 0) {
       return NextResponse.json({ error: 'Add at least one named step' }, { status: 400 })
     }
+    if (normalizedCategory === 'FLOWER') {
+      const first = cleanSteps[0]
+      const last = cleanSteps[cleanSteps.length - 1]
+      if (first.type !== 'ENTRY' || String(first.entryUnit || 'g').toLowerCase() !== 'g' || /waste|shake/i.test(first.name)) {
+        return NextResponse.json({ error: 'Flower workflows must start with an input weight Entry in grams' }, { status: 400 })
+      }
+      if (last.type !== 'ENTRY' || String(last.entryUnit || 'g').toLowerCase() !== 'g' || !/waste/i.test(last.name)) {
+        return NextResponse.json({ error: 'Flower workflows must end with a waste weight Entry in grams' }, { status: 400 })
+      }
+    }
     const duplicateUnit = findDuplicate(cleanUnits.map((u: { name: string }) => u.name))
     const duplicateStep = findDuplicate(cleanSteps.map((s: { name: string }) => s.name))
-    const cleanProducts = (products || []).map((product: string | { id?: string; name?: string; brand?: string }) => ({
+    const cleanProducts = (products || []).map((product: string | { id?: string; name?: string; brand?: string; materialWeightGrams?: number | string | null; variations?: string[] }) => ({
       id: typeof product === 'string' ? undefined : String(product?.id || '') || undefined,
       name: String(typeof product === 'string' ? product : product?.name || '').trim().slice(0, 120),
       brand: String(typeof product === 'string' ? brand || '' : product?.brand || '').trim().slice(0, 100),
+      materialWeightGrams: typeof product === 'string' || product.materialWeightGrams == null || product.materialWeightGrams === '' ? null : Number(product.materialWeightGrams),
+      variations: typeof product === 'string' ? [] : [...new Map((product.variations || []).map(value => String(value).trim().slice(0, 120)).filter(Boolean).map(value => [value.toLowerCase(), value])).values()],
     })).filter((product: { name: string }) => product.name)
     const duplicateProduct = findDuplicate(cleanProducts.map((product: { name: string }) => product.name))
     if (duplicateUnit) {
@@ -94,6 +108,9 @@ export async function PUT(
     }
     if (cleanProducts.some((product: { brand: string }) => !product.brand)) {
       return NextResponse.json({ error: 'Add a brand for each finished product' }, { status: 400 })
+    }
+    if (cleanProducts.some((product: { materialWeightGrams: number | null }) => product.materialWeightGrams != null && (!Number.isFinite(product.materialWeightGrams) || product.materialWeightGrams <= 0))) {
+      return NextResponse.json({ error: 'Material weight per item must be greater than 0 grams' }, { status: 400 })
     }
     const submittedProductIds = cleanProducts.map((product: { id?: string }) => product.id).filter((productId): productId is string => Boolean(productId))
     if (submittedProductIds.length) {
@@ -194,6 +211,7 @@ export async function PUT(
         brand: null,
         description,
         baseUnit: baseUnit || 'units',
+        category: normalizedCategory,
         units: {
           create: cleanUnits.map((u: { name: string; ratio: number }, i: number) => ({
             name: String(u.name).trim(),
@@ -207,21 +225,21 @@ export async function PUT(
 
     const existingProducts = await prisma.product.findMany({
       where: { recipeId: id, organizationId: session.user.organizationId },
-      select: { id: true, name: true, brand: true },
+      select: { id: true, name: true, brand: true, materialWeightGrams: true },
     })
-    const wantedProducts = new Map<string, { id?: string; name: string; brand: string }>(cleanProducts.map((product: { id?: string; name: string; brand: string }) => [product.id || product.name.toLowerCase(), product]))
+    const wantedProducts = new Map<string, { id?: string; name: string; brand: string; materialWeightGrams: number | null; variations: string[] }>(cleanProducts.map((product: { id?: string; name: string; brand: string; materialWeightGrams: number | null; variations: string[] }) => [product.id || product.name.toLowerCase(), product]))
     for (const product of existingProducts) {
       const wanted = wantedProducts.get(product.id) || wantedProducts.get(product.name.toLowerCase())
       await prisma.product.update({
         where: { id: product.id },
-        data: { archivedAt: wanted ? null : new Date(), ...(wanted ? { brand: wanted.brand } : {}) },
+        data: { archivedAt: wanted ? null : new Date(), ...(wanted ? { brand: wanted.brand, materialWeightGrams: wanted.materialWeightGrams } : {}) },
       })
       wantedProducts.delete(product.id)
       wantedProducts.delete(product.name.toLowerCase())
     }
     const productsToMove = [...wantedProducts.values()].filter((product) => product.id)
     for (const product of productsToMove) {
-      await prisma.product.update({ where: { id: product.id }, data: { recipeId: id, brand: product.brand, archivedAt: null } })
+      await prisma.product.update({ where: { id: product.id }, data: { recipeId: id, brand: product.brand, materialWeightGrams: product.materialWeightGrams, archivedAt: null } })
     }
     const productsToCreate = [...wantedProducts.values()].filter((product) => !product.id)
     if (productsToCreate.length > 0) {
@@ -229,10 +247,28 @@ export async function PUT(
         data: productsToCreate.map((product) => ({
           name: product.name,
           brand: product.brand,
+          materialWeightGrams: product.materialWeightGrams,
           recipeId: id,
           organizationId: session.user.organizationId,
         })),
       })
+    }
+
+    for (const product of cleanProducts) {
+      const savedProduct = product.id
+        ? await prisma.product.findFirst({ where: { id: product.id, recipeId: id }, select: { id: true } })
+        : await prisma.product.findFirst({ where: { recipeId: id, name: product.name }, select: { id: true } })
+      if (!savedProduct) continue
+      const existingVariations = await prisma.productVariation.findMany({ where: { productId: savedProduct.id }, select: { id: true, name: true } })
+      const wantedNames = new Set(product.variations.map(name => name.toLowerCase()))
+      for (const variation of existingVariations) {
+        await prisma.productVariation.update({ where: { id: variation.id }, data: { archivedAt: wantedNames.has(variation.name.toLowerCase()) ? null : new Date() } })
+      }
+      for (const variationName of product.variations) {
+        const existingVariation = existingVariations.find(variation => variation.name.toLowerCase() === variationName.toLowerCase())
+        if (existingVariation) await prisma.productVariation.update({ where: { id: existingVariation.id }, data: { name: variationName, archivedAt: null } })
+        else await prisma.productVariation.create({ data: { productId: savedProduct.id, name: variationName } })
+      }
     }
 
     // Update/create/delete steps in place to preserve BatchStep foreign keys
@@ -293,7 +329,7 @@ export async function PUT(
       include: {
         units: { orderBy: { order: 'asc' } },
         steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
-        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' }, include: { variations: { where: { archivedAt: null }, orderBy: { name: 'asc' } } } },
         _count: { select: { batches: true } },
       },
     })

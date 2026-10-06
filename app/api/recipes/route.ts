@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
+import { normalizeProcessingCategory } from '@/lib/processingCategories'
 
 const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
 
@@ -31,7 +32,7 @@ export async function GET() {
           orderBy: { order: 'asc' },
           include: { unit: true, materials: true },
         },
-        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' }, include: { variations: { where: { archivedAt: null }, orderBy: { name: 'asc' } } } },
         _count: { select: { batches: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireSupervisorOrOwner()
 
-    const { name, brand, description, baseUnit, units, steps, products } = await request.json()
+    const { name, brand, description, baseUnit, category, units, steps, products } = await request.json()
 
     if (!name || !steps || steps.length === 0) {
       return NextResponse.json({ error: 'Name and steps are required' }, { status: 400 })
@@ -55,15 +56,28 @@ export async function POST(request: NextRequest) {
 
     const cleanUnits = (units || []).filter((u: { name: string }) => String(u.name || '').trim())
     const cleanSteps = (steps || []).filter((s: { name: string }) => String(s.name || '').trim())
+    const normalizedCategory = normalizeProcessingCategory(category)
     if (cleanSteps.length === 0) {
       return NextResponse.json({ error: 'Add at least one named step' }, { status: 400 })
     }
+    if (normalizedCategory === 'FLOWER') {
+      const first = cleanSteps[0]
+      const last = cleanSteps[cleanSteps.length - 1]
+      if (first.type !== 'ENTRY' || String(first.entryUnit || 'g').toLowerCase() !== 'g' || /waste|shake/i.test(first.name)) {
+        return NextResponse.json({ error: 'Flower workflows must start with an input weight Entry in grams' }, { status: 400 })
+      }
+      if (last.type !== 'ENTRY' || String(last.entryUnit || 'g').toLowerCase() !== 'g' || !/waste/i.test(last.name)) {
+        return NextResponse.json({ error: 'Flower workflows must end with a waste weight Entry in grams' }, { status: 400 })
+      }
+    }
     const duplicateUnit = findDuplicate(cleanUnits.map((u: { name: string }) => u.name))
     const duplicateStep = findDuplicate(cleanSteps.map((s: { name: string }) => s.name))
-    const cleanProducts = (products || []).map((product: string | { id?: string; name?: string; brand?: string }) => ({
+    const cleanProducts = (products || []).map((product: string | { id?: string; name?: string; brand?: string; materialWeightGrams?: number | string | null; variations?: string[] }) => ({
       id: typeof product === 'string' ? undefined : String(product?.id || '') || undefined,
       name: String(typeof product === 'string' ? product : product?.name || '').trim().slice(0, 120),
       brand: String(typeof product === 'string' ? brand || '' : product?.brand || '').trim().slice(0, 100),
+      materialWeightGrams: typeof product === 'string' || product.materialWeightGrams == null || product.materialWeightGrams === '' ? null : Number(product.materialWeightGrams),
+      variations: typeof product === 'string' ? [] : [...new Map((product.variations || []).map(value => String(value).trim().slice(0, 120)).filter(Boolean).map(value => [value.toLowerCase(), value])).values()],
     })).filter((product: { name: string }) => product.name)
     const duplicateProduct = findDuplicate(cleanProducts.map((product: { name: string }) => product.name))
     if (duplicateUnit) {
@@ -77,6 +91,9 @@ export async function POST(request: NextRequest) {
     }
     if (cleanProducts.some((product: { brand: string }) => !product.brand)) {
       return NextResponse.json({ error: 'Add a brand for each finished product' }, { status: 400 })
+    }
+    if (cleanProducts.some((product: { materialWeightGrams: number | null }) => product.materialWeightGrams != null && (!Number.isFinite(product.materialWeightGrams) || product.materialWeightGrams <= 0))) {
+      return NextResponse.json({ error: 'Material weight per item must be greater than 0 grams' }, { status: 400 })
     }
     const existingProductIds = cleanProducts.map((product: { id?: string }) => product.id).filter((id): id is string => Boolean(id))
     if (existingProductIds.length) {
@@ -99,6 +116,7 @@ export async function POST(request: NextRequest) {
         brand: null,
         description,
         baseUnit: baseUnit || 'units',
+        category: normalizedCategory,
         organizationId: session.user.organizationId,
         units: {
           create: cleanUnits.map((u: { name: string; ratio: number }, i: number) => ({
@@ -108,10 +126,12 @@ export async function POST(request: NextRequest) {
           })),
         },
         products: {
-          create: cleanProducts.filter((product: { id?: string }) => !product.id).map((product: { name: string; brand: string }) => ({
+          create: cleanProducts.filter((product: { id?: string }) => !product.id).map((product: { name: string; brand: string; materialWeightGrams: number | null; variations: string[] }) => ({
             name: product.name,
             brand: product.brand,
+            materialWeightGrams: product.materialWeightGrams,
             organizationId: session.user.organizationId,
+            variations: { create: product.variations.map(name => ({ name })) },
           })),
         },
       },
@@ -119,7 +139,12 @@ export async function POST(request: NextRequest) {
     })
 
     for (const product of cleanProducts.filter((item: { id?: string }) => item.id)) {
-      await prisma.product.update({ where: { id: product.id }, data: { recipeId: recipe.id, brand: product.brand, archivedAt: null } })
+      await prisma.product.update({ where: { id: product.id }, data: { recipeId: recipe.id, brand: product.brand, materialWeightGrams: product.materialWeightGrams, archivedAt: null } })
+      for (const variationName of product.variations) {
+        const existingVariation = await prisma.productVariation.findFirst({ where: { productId: product.id!, name: { equals: variationName, mode: 'insensitive' } }, select: { id: true } })
+        if (existingVariation) await prisma.productVariation.update({ where: { id: existingVariation.id }, data: { name: variationName, archivedAt: null } })
+        else await prisma.productVariation.create({ data: { productId: product.id!, name: variationName } })
+      }
     }
 
     // Create steps with unit references and materials
@@ -159,7 +184,7 @@ export async function POST(request: NextRequest) {
       include: {
         units: { orderBy: { order: 'asc' } },
         steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
-        products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
+        products: { where: { archivedAt: null }, orderBy: { name: 'asc' }, include: { variations: { where: { archivedAt: null }, orderBy: { name: 'asc' } } } },
       },
     })
 

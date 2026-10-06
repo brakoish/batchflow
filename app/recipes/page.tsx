@@ -22,13 +22,13 @@ export default async function RecipesPage() {
     include: {
       units: { orderBy: { order: 'asc' } },
       steps: { orderBy: { order: 'asc' }, include: { unit: true, materials: true } },
-      products: { where: { archivedAt: null }, orderBy: { name: 'asc' } },
+      products: { where: { archivedAt: null }, orderBy: { name: 'asc' }, include: { variations: { where: { archivedAt: null }, orderBy: { name: 'asc' } } } },
       _count: { select: { batches: true } },
     },
     orderBy: { createdAt: 'desc' },
   }), prisma.product.findMany({
     where: { organizationId: session.organizationId, archivedAt: null },
-    select: { id: true, name: true, brand: true, recipeId: true, unitsPerCase: true },
+    select: { id: true, name: true, brand: true, recipeId: true, unitsPerCase: true, materialWeightGrams: true, variations: { where: { archivedAt: null }, select: { name: true }, orderBy: { name: 'asc' } } },
     orderBy: [{ brand: 'asc' }, { name: 'asc' }],
   })])
 

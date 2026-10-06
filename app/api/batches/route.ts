@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     const {
       recipeId,
       productId,
+      variationId,
       name,
       targetQuantity,
       startDate,
@@ -113,7 +114,10 @@ export async function POST(request: NextRequest) {
       : cleanMaterialUnit
     const perBaseUnit = materialPerBaseUnit == null || materialPerBaseUnit === '' ? null : Number(materialPerBaseUnit)
     const issuedQuantity = materialIssued == null || materialIssued === '' ? null : Number(materialIssued)
-    const tracksMaterial = Boolean(cleanMaterialName || cleanMaterialUnit || perBaseUnit != null || issuedQuantity != null)
+    // Material reconciliation is retired from the active workflow. Existing
+    // ledger records remain preserved for history, while Entry steps capture
+    // starting weight for new production runs.
+    const tracksMaterial = false
     if (tracksMaterial && (!cleanMaterialName || !cleanMaterialUnit || !Number.isFinite(perBaseUnit) || perBaseUnit! <= 0 || !Number.isFinite(issuedQuantity) || issuedQuantity! <= 0)) {
       return NextResponse.json({ error: 'Enter the material, weight issued, unit, and amount used per finished unit' }, { status: 400 })
     }
@@ -143,6 +147,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Product not found for this recipe' }, { status: 400 })
     }
     const selectedProduct = activeProducts.find(product => product.id === selectedProductId) || null
+    const selectedVariationId = variationId || sourceBatch?.variationId || null
+    const selectedVariation = selectedVariationId
+      ? await prisma.productVariation.findFirst({
+          where: { id: String(selectedVariationId), productId: selectedProductId || undefined, product: { organizationId: session.user.organizationId }, archivedAt: null },
+          select: { id: true, name: true },
+        })
+      : null
+    if (selectedVariationId && !selectedVariation) {
+      return NextResponse.json({ error: 'Select a valid product variation' }, { status: 400 })
+    }
     const applyItemCaseSize = <T extends { type: string; unitLabel: string; unitRatio: number; targetQuantity: number | null }>(step: T): T => {
       if (!selectedProduct?.unitsPerCase || step.type !== 'COUNT' || !/^cases?$/i.test(step.unitLabel.trim())) return step
       return {
@@ -232,6 +246,7 @@ export async function POST(request: NextRequest) {
       data: {
         recipeId,
         productId: selectedProductId,
+        variationId: selectedVariation?.id || null,
         name,
         targetQuantity: targetQuantity ?? null,
         baseUnit: recipe.baseUnit,
@@ -242,7 +257,7 @@ export async function POST(request: NextRequest) {
         dueDate: dueDate ? new Date(dueDate) : undefined,
         metrcBatchId: metrcBatchId || undefined,
         lotNumber: lotNumber || undefined,
-        strain: strain || undefined,
+        strain: selectedVariation?.name || strain || undefined,
         packageTag: packageTag || undefined,
         notes: notes ? String(notes).slice(0, 2000) : undefined,
         materialName: tracksMaterial ? cleanMaterialName : undefined,

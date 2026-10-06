@@ -53,6 +53,7 @@ export async function POST(
           brand: source.brand,
           description: source.description,
           baseUnit: source.baseUnit,
+          category: source.category,
           organizationId,
           units: {
             create: source.units.map((unit) => ({
