@@ -357,7 +357,7 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
           </Section>}
         </div>
 
-        <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 backdrop-blur sm:left-1/2 sm:max-w-2xl sm:-translate-x-1/2">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+max(env(safe-area-inset-bottom,0px),1rem))] z-40 border-t border-border bg-background/95 p-3 backdrop-blur sm:bottom-0 sm:left-1/2 sm:max-w-2xl sm:-translate-x-1/2">
           <button type="button" onClick={save} disabled={saving || (!dirty && !duplicate)} className="bf-btn bf-btn-primary min-h-[52px] w-full">{saving ? 'Saving…' : duplicate ? 'Create Duplicate' : dirty ? 'Save Changes' : 'All Changes Saved'}</button>
         </div>
       </main>
