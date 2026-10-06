@@ -22,7 +22,7 @@ const sections = [
   {
     title: 'Products',
     items: [
-      { href: '/products', title: 'Products & brands', description: 'Organize brands and archive finished products', Icon: TagIcon },
+      { href: '/products', title: 'Products & variations', description: 'Manage brands, products, strains, and flavors', Icon: TagIcon },
     ],
   },
   {
