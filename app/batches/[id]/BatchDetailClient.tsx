@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
 import ConfirmModal from '@/app/components/ConfirmModal'
+import MeasurementUnitPicker from '@/app/components/MeasurementUnitPicker'
 import {
   CheckCircleIcon,
   CheckIcon,
@@ -2001,7 +2002,7 @@ export default function BatchDetailClient({
                   </div>
                 </div>
               )}
-              {newStepType === 'ENTRY' && <div className="mt-4"><label className="block text-xs font-medium text-muted-foreground mb-1.5">Measurement unit</label><input type="text" value={newStepUnit} onChange={(e) => setNewStepUnit(e.target.value.slice(0, 30))} list="batch-entry-units" placeholder="g, kg, oz, lb" className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"/><datalist id="batch-entry-units"><option value="g"/><option value="kg"/><option value="oz"/><option value="lb"/></datalist></div>}
+              {newStepType === 'ENTRY' && <MeasurementUnitPicker className="mt-4" value={newStepUnit} onChange={setNewStepUnit} />}
 
               {error && <p className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
 
@@ -2101,7 +2102,7 @@ export default function BatchDetailClient({
                   </div>
                 </div>
               )}
-              {editStepType === 'ENTRY' && <div className="mt-4"><label className="block text-xs font-medium text-muted-foreground mb-1.5">Measurement unit</label><input type="text" value={editStepUnit} onChange={(e) => setEditStepUnit(e.target.value.slice(0, 30))} list="edit-entry-units" placeholder="g, kg, oz, lb" className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"/><datalist id="edit-entry-units"><option value="g"/><option value="kg"/><option value="oz"/><option value="lb"/></datalist></div>}
+              {editStepType === 'ENTRY' && <MeasurementUnitPicker className="mt-4" value={editStepUnit} onChange={setEditStepUnit} />}
 
               {editingStep.progressLogs.length > 0 && (
                 <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2">

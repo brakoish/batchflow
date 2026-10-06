@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, PencilSquareIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
+import MeasurementUnitPicker from '@/app/components/MeasurementUnitPicker'
 
 // Relations between units. Three fields:
 //  - name:   the unit being defined (Pre-rolls, Case, Tray, etc.)
@@ -576,12 +577,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                 </div>
 
                 {step.type === 'ENTRY' && (
-                  <div className="mb-3">
-                    <label className="text-xs text-muted-foreground font-medium block mb-1.5">Measurement unit</label>
-                    <input value={step.entryUnit} onChange={(e) => updateStep(i, 'entryUnit', e.target.value.slice(0, 30))} list="entry-weight-units" placeholder="g, kg, oz, lb" className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm focus:outline-none focus:border-amber-500 transition-all" />
-                    <datalist id="entry-weight-units"><option value="g"/><option value="kg"/><option value="oz"/><option value="lb"/></datalist>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Workers enter the measured amount once; BatchFlow records who entered it and when.</p>
-                  </div>
+                  <MeasurementUnitPicker className="mb-3" value={step.entryUnit} onChange={(value) => updateStep(i, 'entryUnit', value)} />
                 )}
 
                 {/* Unit selector for COUNT steps */}
