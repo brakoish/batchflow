@@ -83,7 +83,6 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
   const [error, setError] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(isEdit && !!editRecipe?.units.length)
   const [expandedStep, setExpandedStep] = useState<number | null>(0)
-  const [reviewing, setReviewing] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -181,21 +180,6 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
       const suggested = nextCategory === 'FLOWER' ? 'Jars' : nextCategory === 'VAPE' ? 'Cartridges' : nextCategory.startsWith('PRE_ROLL') ? 'Pre-rolls' : 'Units'
       setBaseUnit(suggested)
     }
-  }
-
-  const reviewRecipe = () => {
-    if (!name.trim()) { setError('Give your recipe a name — like "1g Pre-Rolls" or "Flower Jars"'); return }
-    if (!baseUnit.trim()) { setError('What are you counting? Enter a base unit like "bags", "jars", or "pre-rolls"'); return }
-    if (!steps.some((s) => s.name.trim())) { setError('Add at least one step so your team knows what to do'); return }
-    if (products.some(product => product.name.trim() && !product.brand.trim())) { setError('Add a brand for each finished product'); return }
-    if (duplicateUnits.length) { setError(`Unit names must be unique: ${Array.from(new Set(duplicateUnits)).join(', ')}`); return }
-    if (duplicateSteps.length) { setError(`Step names must be unique: ${Array.from(new Set(duplicateSteps)).join(', ')}`); return }
-    if (missingStepUnits.length) { setError(`These steps point to a missing unit: ${missingStepUnits.join(', ')}`); return }
-    const badUnit = trimmedUnits.find(u => u.name && (!Number.isFinite(u.count) || u.count <= 0))
-    if (badUnit) { setError(`Check the relation for ${badUnit.name}. The number must be greater than 0.`); return }
-    setError('')
-    setReviewing(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // How many base units are in one of `unitName`. Walks the basedOn chain,
@@ -744,37 +728,9 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
           </div>
         )}
 
-        {/* ── Review and submit ── */}
-        {reviewing ? (
-          <div className="rounded-xl border-2 border-emerald-500/40 bg-emerald-500/5 p-5">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Final review</p>
-            <h3 className="mt-1 text-xl font-bold text-foreground">{name.trim()}</h3>
-            <p className="text-sm text-muted-foreground">Batch targets: {baseUnit.trim()} · {steps.filter(s => s.name.trim()).length} worker steps</p>
-            <div className="mt-4 space-y-2">
-              {steps.filter(s => s.name.trim()).map((step, index) => (
-                <div key={`${step.name}-${index}`} className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold text-muted-foreground">{index + 1}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">{step.name}</span>
-                    {step.notes && <span className="block truncate text-[11px] text-muted-foreground">{step.notes}</span>}
-                  </span>
-                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{step.type === 'CHECK' ? 'Done tap' : step.type === 'ENTRY' ? `Enter ${step.entryUnit || 'g'}` : step.unitName || baseUnit}</span>
-                </div>
-              ))}
-            </div>
-            {units.some(unit => unit.name.trim()) && <p className="mt-3 text-xs text-muted-foreground">Advanced quantities: {units.filter(unit => unit.name.trim()).map(unit => unit.name.trim()).join(', ')}</p>}
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setReviewing(false)} disabled={loading} className="bf-btn bf-btn-secondary">Back to edit</button>
-              <button type="button" onClick={handleSubmit} disabled={loading} className="bf-btn bf-btn-success">
-                {loading ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Confirm & Save' : 'Confirm & Create')}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={reviewRecipe} disabled={loading} className="bf-btn bf-btn-success bf-btn-lg bf-btn-full">
-            Review Recipe &rarr;
-          </button>
-        )}
+        <button type="button" onClick={handleSubmit} disabled={loading} className="bf-btn bf-btn-success bf-btn-lg bf-btn-full">
+          {loading ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Save Recipe' : 'Create Recipe')}
+        </button>
       </div>
     </div>
   )
