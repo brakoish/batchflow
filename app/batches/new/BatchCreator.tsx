@@ -2,17 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircleIcon } from '@heroicons/react/24/solid'
+import { PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { emitBatchChanged } from '@/lib/batchEvents'
-import ProductPicker from '@/app/components/ProductPicker'
+import NewProductWizard, { type NewBatchRecipe } from './NewProductWizard'
 
-type Recipe = {
-  id: string; name: string; description: string | null; baseUnit: string; category?: string
-  units: { id: string; name: string; ratio: number }[]
-  products: { id: string; name: string; brand: string | null; unitsPerCase: number | null; materialWeightGrams: number | null; variations: { id: string; name: string }[] }[]
-  steps: { id: string; name: string; order: number; notes: string | null }[]
-}
+type Recipe = NewBatchRecipe
 
 type Worker = { id: string; name: string }
 type WorkTeam = { id: string; name: string; members: { workerId: string }[] }
@@ -46,11 +41,11 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showMetrc, setShowMetrc] = useState(false)
-  const [addingProduct, setAddingProduct] = useState(false)
-  const [newProductName, setNewProductName] = useState('')
-  const [newProductBrand, setNewProductBrand] = useState('')
-  const [newProductUnitsPerCase, setNewProductUnitsPerCase] = useState('')
-  const [productSaving, setProductSaving] = useState(false)
+  const [setupMode, setSetupMode] = useState<'existing' | 'new' | null>(null)
+  const [productQuery, setProductQuery] = useState('')
+  const [addingVariation, setAddingVariation] = useState(false)
+  const [newVariationName, setNewVariationName] = useState('')
+  const [variationSaving, setVariationSaving] = useState(false)
   const [knownBrands, setKnownBrands] = useState<string[]>([])
   const router = useRouter()
 
@@ -63,6 +58,9 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
 
   const selected = recipeOptions.find((r) => r.id === selectedId)
   const selectedProduct = selected?.products.find(product => product.id === productId)
+  const productOptions = recipeOptions.flatMap(recipe => recipe.products.map(product => ({ recipe, product })))
+    .filter(({ product }) => `${product.brand || ''} ${product.name}`.toLowerCase().includes(productQuery.trim().toLowerCase()))
+    .sort((a, b) => `${a.product.brand || ''} ${a.product.name}`.localeCompare(`${b.product.brand || ''} ${b.product.name}`))
   const fixedTargetInvalid = batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)
   const targetUnit = selected?.units.find(unit => unit.id === targetMode)
   const targetInputNumber = parseFloat(targetInput)
@@ -82,33 +80,32 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
     setTargetMode('base')
     setTargetInput('')
     setTargetQuantity('')
-    setProductId('')
-    setVariationId('')
-    setName('')
-    setAddingProduct(false)
-    setNewProductName('')
-    setNewProductBrand('')
-    setNewProductUnitsPerCase('')
   }, [selectedId])
 
-  const addProduct = async () => {
-    if (!selected || !newProductName.trim()) return
-    setProductSaving(true); setError('')
+  const chooseProduct = (recipe: Recipe, product: Recipe['products'][number]) => {
+    setSelectedId(recipe.id)
+    setProductId(product.id)
+    setVariationId('')
+    setStrain('')
+    setName(product.name)
+    setProductQuery('')
+    haptic('light')
+  }
+
+  const addVariation = async () => {
+    if (!selectedProduct || !newVariationName.trim()) return
+    setVariationSaving(true); setError('')
     try {
-      const res = await fetch(`/api/recipes/${selected.id}/products`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProductName, brand: newProductBrand, unitsPerCase: newProductUnitsPerCase || null }),
+      const res = await fetch(`/api/products/${selectedProduct.id}/variations`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newVariationName }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) { setError(data.error || 'Unable to add item'); return }
-      const addedProduct = { ...data.product, materialWeightGrams: data.product.materialWeightGrams ?? null, variations: data.product.variations || [] }
-      setRecipeOptions((current) => current.map((recipe) => recipe.id === selected.id
-        ? { ...recipe, products: [...recipe.products.filter((product) => product.id !== data.product.id), addedProduct].sort((a, b) => a.name.localeCompare(b.name)) }
-        : recipe))
-      setKnownBrands((current) => [...new Set([...current, data.product.brand].filter(Boolean))].sort())
-      setProductId(data.product.id); setName(data.product.name); setNewProductName(''); setNewProductBrand(''); setNewProductUnitsPerCase(''); setAddingProduct(false)
+      if (!res.ok) { setError(data.error || 'Unable to add variation'); return }
+      setRecipeOptions(current => current.map(recipe => recipe.id !== selectedId ? recipe : { ...recipe, products: recipe.products.map(product => product.id !== selectedProduct.id ? product : { ...product, variations: [...product.variations.filter(variation => variation.id !== data.variation.id), data.variation].sort((a, b) => a.name.localeCompare(b.name)) }) }))
+      setVariationId(data.variation.id); setStrain(data.variation.name); setName(`${selectedProduct.name} · ${data.variation.name}`); setNewVariationName(''); setAddingVariation(false)
       haptic('medium')
     } catch { setError('Connection error') }
-    finally { setProductSaving(false) }
+    finally { setVariationSaving(false) }
   }
 
   useEffect(() => {
@@ -131,8 +128,9 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   }
 
   const handleSubmit = async () => {
-    if (!selectedId) { setError('Pick a recipe'); return }
+    if (!selectedId) { setError('Pick a product'); return }
     if (selected?.products.length && !productId) { setError('Pick the finished product'); return }
+    if (selectedProduct && !variationId) { setError('Pick or add a variation'); return }
     if (!name.trim()) { setError('Give this batch a name'); return }
     if (batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)) { setError('Enter a quantity'); return }
 
@@ -167,68 +165,47 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   return (
     <div className={`space-y-8 ${selected ? 'pb-28 sm:pb-0' : ''}`}>
 
-      {/* ── Recipe Selection ── */}
-      <div>
-        <p className="text-sm text-muted-foreground mb-3">Pick a recipe to get started</p>
-        <div className="grid gap-2">
-          {recipes.map((r) => {
-            const isSelected = selectedId === r.id
-            return (
-              <button
-                key={r.id}
-                onClick={() => { haptic('light'); setSelectedId(r.id) }}
-                  disabled={loading}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-150 active:bg-muted/40 ${
-                    isSelected
-                    ? 'bg-emerald-500/10 border-2 border-emerald-500'
-                    : 'bg-card border border-border hover:border-foreground/20'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className={`text-sm font-semibold ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{r.name}</p>
-                    {r.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.description}</p>}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-muted-foreground">{r.steps.length} steps</span>
-                    {isSelected && <CheckCircleIcon className="w-5 h-5 text-emerald-500" />}
-                  </div>
-                </div>
-              </button>
-            )
-          })}
+      {/* ── Product path ── */}
+      {!setupMode && <div>
+        <p className="mb-3 text-sm text-muted-foreground">What are you making?</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button type="button" onClick={() => setSetupMode('existing')} className="rounded-2xl border-2 border-border bg-card p-5 text-left transition-colors hover:border-emerald-500/50 active:bg-muted/40"><p className="text-base font-semibold text-foreground">Use existing product</p><p className="mt-1 text-sm text-muted-foreground">Pick a product and strain or flavor.</p></button>
+          <button type="button" onClick={() => setSetupMode('new')} className="rounded-2xl border-2 border-border bg-card p-5 text-left transition-colors hover:border-emerald-500/50 active:bg-muted/40"><p className="text-base font-semibold text-foreground">Create new product</p><p className="mt-1 text-sm text-muted-foreground">Set its normal steps, then start the batch.</p></button>
         </div>
-      </div>
+      </div>}
+
+      {setupMode === 'new' && !selected && <NewProductWizard recipes={recipeOptions} knownBrands={knownBrands} onCancel={() => setSetupMode(null)} onCreated={(recipe, nextProductId, nextVariationId) => {
+        setRecipeOptions(current => [...current, recipe])
+        setSelectedId(recipe.id)
+        setProductId(nextProductId)
+        setVariationId(nextVariationId)
+        const product = recipe.products.find(item => item.id === nextProductId)!
+        const variation = product.variations.find(item => item.id === nextVariationId)!
+        setStrain(variation.name)
+        setName(`${product.name} · ${variation.name}`)
+        setKnownBrands(current => [...new Set([...current, product.brand].filter(Boolean) as string[])].sort())
+      }} />}
+
+      {setupMode === 'existing' && !selected && <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-semibold text-foreground">Select a product</h2><p className="text-xs text-muted-foreground">Its saved steps will be copied into this batch.</p></div><button type="button" onClick={() => setSetupMode(null)} className="bf-btn bf-btn-ghost bf-btn-sm">Back</button></div>
+        <input autoFocus value={productQuery} onChange={event => setProductQuery(event.target.value)} placeholder="Search product or brand" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
+        <div className="grid gap-2">{productOptions.map(({ recipe, product }) => <button key={product.id} type="button" onClick={() => chooseProduct(recipe, product)} className="flex min-h-[58px] items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:border-emerald-500/50"><span className="min-w-0"><span className="block truncate text-sm font-semibold text-foreground">{product.brand ? `${product.brand} · ` : ''}{product.name}</span><span className="block truncate text-xs text-muted-foreground">{product.variations.length} variation{product.variations.length === 1 ? '' : 's'} · {recipe.steps.length} steps</span></span><span className="text-muted-foreground">›</span></button>)}</div>
+        {productOptions.length === 0 && <p className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No matching products.</p>}
+      </section>}
 
       {/* ── Details (shown after recipe selection) ── */}
       {selected && (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Finished product</label>
-              <button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button>
-            </div>
-            {addingProduct && (
-              <div className="mb-3 space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
-                <input autoFocus value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} placeholder="New item name" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
-                <input value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value.slice(0, 100))} list="new-batch-brand-options" placeholder="Choose or add a brand" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
-                <datalist id="new-batch-brand-options">{knownBrands.map((brand) => <option key={brand} value={brand} />)}</datalist>
-                <div className="flex gap-2">
-                  <input type="number" inputMode="numeric" min="1" step="1" value={newProductUnitsPerCase} onChange={(e) => setNewProductUnitsPerCase(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder={`Units per case (optional)`} aria-label={`Units per case`} className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base text-foreground" />
-                  <button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim() || !newProductBrand.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button>
-                </div>
-                <p className="text-xs text-muted-foreground">How many {selected.baseUnit.toLowerCase()} go in one case. Leave blank if this item is not packed in cases.</p>
-              </div>
-            )}
-            {selected.products.length > 0 ? <ProductPicker products={selected.products} value={productId} baseUnit={selected.baseUnit} disabled={loading} onChange={(product) => { haptic('light'); setProductId(product.id); setVariationId(''); setStrain(''); setName(product.name) }} /> : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
-          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{selectedProduct?.brand ? `${selectedProduct.brand} · ` : ''}{selectedProduct?.name}</p><p className="text-xs text-muted-foreground">{selected.steps.length} saved steps</p></div><button type="button" onClick={() => { setSelectedId(''); setProductId(''); setVariationId(''); setSetupMode(null); setName(''); setStrain('') }} className="bf-btn bf-btn-ghost bf-btn-sm">Change</button></div>
 
-          {selectedProduct && selectedProduct.variations.length > 0 && (
+          {selectedProduct && (
             <div>
-              <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Variation / strain</label>
+              <div className="mb-2 flex items-center justify-between gap-3"><label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Variation / strain</label><button type="button" onClick={() => setAddingVariation(current => !current)} className="bf-btn bf-btn-ghost bf-btn-sm"><PlusIcon className="h-4 w-4" /> New</button></div>
               <div className="grid grid-cols-2 gap-2">
                 {selectedProduct.variations.map(variation => <button type="button" key={variation.id} onClick={() => { setVariationId(variation.id); setStrain(variation.name); setName(`${selectedProduct.name} · ${variation.name}`) }} className={`bf-select-btn justify-center ${variationId === variation.id ? 'bf-select-btn-active' : ''}`}>{variation.name}</button>)}
               </div>
+              {addingVariation && <div className="mt-2 flex gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-2"><input autoFocus value={newVariationName} onChange={event => setNewVariationName(event.target.value.slice(0, 120))} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addVariation() } }} placeholder="New strain or flavor" className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base text-foreground" /><button type="button" onClick={addVariation} disabled={variationSaving || !newVariationName.trim()} className="bf-btn bf-btn-success">{variationSaving ? 'Adding…' : 'Add'}</button></div>}
+              {selectedProduct.variations.length === 0 && !addingVariation && <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">Add the first strain, flavor, or variation for this product.</p>}
             </div>
           )}
 

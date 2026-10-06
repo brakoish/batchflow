@@ -27,7 +27,7 @@ export default async function NewBatchPage() {
         category: true,
         products: { where: { archivedAt: null }, orderBy: { name: 'asc' }, select: { id: true, name: true, brand: true, unitsPerCase: true, materialWeightGrams: true, variations: { where: { archivedAt: null }, select: { id: true, name: true }, orderBy: { name: 'asc' } } } },
         units: { orderBy: { order: 'asc' }, select: { id: true, name: true, ratio: true } },
-        steps: { orderBy: { order: 'asc' }, select: { id: true, name: true, order: true, notes: true } },
+        steps: { orderBy: { order: 'asc' }, select: { id: true, name: true, order: true, notes: true, type: true, entryUnit: true, unit: { select: { name: true } }, materials: { select: { name: true, quantityPerUnit: true, unit: true } } } },
       },
       orderBy: { name: 'asc' },
     }),
