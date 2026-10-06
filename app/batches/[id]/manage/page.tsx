@@ -53,6 +53,14 @@ export default async function ManageBatchPage({
 
   if (!batch) redirect('/batches')
 
+  // Archived catalog items stay attached to existing batches for history and stock.
+  // Keep the current item visible while managing that batch, even though it is no
+  // longer offered when starting new work.
+  if (batch.product && !batch.recipe.products.some(product => product.id === batch.product?.id)) {
+    batch.recipe.products.push(batch.product)
+    batch.recipe.products.sort((a, b) => a.name.localeCompare(b.name))
+  }
+
   return (
     <ManageBatchClient
       initialBatch={JSON.parse(JSON.stringify(batch))}
