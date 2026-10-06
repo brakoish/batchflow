@@ -25,6 +25,7 @@ import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
 import { getProducedBaseUnits, getRemovedQuantity } from '@/lib/inventory'
 import { formatMaterialQuantity, getMaterialReconciliation } from '@/lib/materialReconciliation'
+import { formatWeightConversion } from '@/lib/materialUnits'
 import {
   formatShortRelativeTime,
   getActiveStations,
@@ -919,7 +920,8 @@ export default function BatchDetailClient({
       }),
     }))
     setSelectedStep(null); setQuantity(''); setNote(''); setShowNoteInput(false); setError('')
-    showToast(stepBeingLogged.type === 'ENTRY' ? `Recorded ${qty} ${stepBeingLogged.unitLabel}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`)
+    const pounds = stepBeingLogged.type === 'ENTRY' ? formatWeightConversion(qty, stepBeingLogged.unitLabel) : null
+    showToast(stepBeingLogged.type === 'ENTRY' ? `Recorded ${qty} ${stepBeingLogged.unitLabel}${pounds ? ` · ${pounds}` : ''}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`)
 
     try {
       const res = await fetch(`/api/batches/${batch.id}/steps/${stepBeingLogged.id}/log`, {
@@ -1598,7 +1600,7 @@ export default function BatchDetailClient({
                         </p>
                       )}
                       {step.type === 'ENTRY' && step.progressLogs[0] && (
-                        <p className="text-xs text-foreground tabular-nums mt-0.5">Recorded {step.progressLogs[0].quantity.toLocaleString()} {step.unitLabel}</p>
+                        <p className="text-xs text-foreground tabular-nums mt-0.5">Recorded {step.progressLogs[0].quantity.toLocaleString()} {step.unitLabel}{formatWeightConversion(step.progressLogs[0].quantity, step.unitLabel) ? ` · ${formatWeightConversion(step.progressLogs[0].quantity, step.unitLabel)}` : ''}</p>
                       )}
                       {!isSkipped && stationState?.latestLog && (
                         <p className="text-[10px] text-muted-foreground/70 mt-0.5">
@@ -2211,6 +2213,11 @@ export default function BatchDetailClient({
                       {customTooHigh && safeRemaining !== null && (
                         <p className="mt-2 text-center text-xs font-medium text-red-600 dark:text-red-400">
                           Max right now: {safeRemaining.toLocaleString()} {selectedStep.unitLabel}
+                        </p>
+                      )}
+                      {selectedStep.type === 'ENTRY' && customQuantity > 0 && formatWeightConversion(customQuantity, selectedStep.unitLabel) && (
+                        <p className="mt-2 text-center text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-300">
+                          = {formatWeightConversion(customQuantity, selectedStep.unitLabel)}
                         </p>
                       )}
                       <div className="grid grid-cols-3 gap-2 mt-3">
