@@ -165,7 +165,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   }
 
   return (
-    <div className="space-y-8">
+    <div className={`space-y-8 ${selected ? 'pb-28 sm:pb-0' : ''}`}>
 
       {/* ── Recipe Selection ── */}
       <div>
@@ -712,7 +712,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           <button
             onClick={handleSubmit}
             disabled={loading || !selectedId || !name.trim() || fixedTargetInvalid}
-            className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
+            className="bf-btn bf-btn-success bf-btn-lg bf-btn-full hidden sm:inline-flex"
           >
             {loading ? (
               <>
@@ -723,6 +723,32 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
               <>Create Batch &rarr;</>
             )}
           </button>
+        </div>
+      )}
+
+      {selected && (
+        <div
+          className="fixed inset-x-0 z-30 border-t border-border bg-background/95 px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] backdrop-blur-xl sm:hidden"
+          style={{ bottom: 'calc(4rem + max(env(safe-area-inset-bottom, 0px), 1rem))' }}
+        >
+          <div className="mx-auto max-w-lg">
+            {error && <p className="mb-2 truncate text-center text-xs font-medium text-red-500">{error}</p>}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading || !selectedId || !name.trim() || fixedTargetInvalid}
+              className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
+            >
+              {loading ? (
+                <>
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Creating...
+                </>
+              ) : (
+                <>Create Batch &rarr;</>
+              )}
+            </button>
+          </div>
         </div>
       )}
     </div>
