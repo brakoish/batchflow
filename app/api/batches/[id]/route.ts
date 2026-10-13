@@ -121,7 +121,7 @@ export async function PATCH(
       if (status === 'COMPLETED' && existingBatch.status !== 'ACTIVE') return NextResponse.json({ error: 'Only an active batch can be finished' }, { status: 409 })
       const completedAt = status === 'COMPLETED' ? new Date() : null
       const reportInput = body.completionReport || {}
-      if (status === 'COMPLETED' && !body.completionReport) {
+      if (status === 'COMPLETED' && !body.completionReport && !existingBatch.completionReport) {
         return NextResponse.json({ error: 'Finish this job from the batch page to complete its report' }, { status: 400 })
       }
       const parseNonNegative = (value: unknown, fallback = 0) => {
