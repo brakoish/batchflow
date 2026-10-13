@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { translateUi } from '@/lib/uiLocale'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -14,6 +15,7 @@ import {
   WrenchScrewdriverIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline'
+import { useDialogFocus } from './useDialogFocus'
 import ThemeToggle from './ThemeToggle'
 import { haptic } from '@/lib/haptic'
 import type { Session } from '@/lib/session'
@@ -55,16 +57,6 @@ export default function MoreMenu({ session, open, onClose }: Props) {
     const t = setTimeout(() => setConfirmingClockOut(false), 4000)
     return () => clearTimeout(t)
   }, [confirmingClockOut])
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
 
   const handleClockIn = async () => {
     if (clockLoading) return
@@ -117,6 +109,8 @@ export default function MoreMenu({ session, open, onClose }: Props) {
     ? []
     : session.role === 'SUPERVISOR'
       ? [
+          { href: '/stock', label: 'Stock', Icon: ClockIcon },
+          { href: '/products', label: 'Products', Icon: WrenchScrewdriverIcon },
           { href: '/history', label: 'Batch history', Icon: ClockIcon },
           { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
           { href: '/announcements', label: 'Announcements', Icon: MegaphoneIcon },
@@ -125,6 +119,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
           { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },
         ]
       : [
+        { href: '/stock', label: 'Stock', Icon: ClockIcon },
         { href: '/tools', label: 'Tools', Icon: WrenchScrewdriverIcon },
         { href: '/workers/me/timesheet', label: 'My timesheet', Icon: ClockIcon },
         { href: '/workers/me', label: 'My Day', Icon: ChartBarIcon },
@@ -132,17 +127,24 @@ export default function MoreMenu({ session, open, onClose }: Props) {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
+  const panelRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  const closePanel = useCallback(() => closeRef.current(), [])
+  useDialogFocus(panelRef, open, closePanel, clockLoading)
+
   if (!open) return null
 
   return (
     <div
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
-      onClick={onClose}
+      onClick={() => { if (!clockLoading) onClose() }}
       role="dialog"
       aria-modal="true"
       aria-label="More options"
     >
       <div
+        ref={panelRef}
         className="w-full max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl safe-bottom max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
@@ -158,7 +160,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
             <p className="text-[11px] text-muted-foreground">{isOwner ? 'Owner' : session.role === 'SUPERVISOR' ? 'Supervisor' : 'Team member'}</p>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => { if (!clockLoading) onClose() }}
             aria-label="Close"
             className="bf-icon-btn"
           >
@@ -219,7 +221,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={onClose}
+                onClick={() => { if (!clockLoading) onClose() }}
                 className={`flex items-center gap-3 min-h-[48px] px-3 rounded-xl transition-colors ${
                   active
                     ? 'bg-muted text-foreground'
@@ -227,7 +229,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                 }`}
               >
                 <item.Icon className="w-5 h-5 text-muted-foreground" />
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className="text-sm font-medium">{translateUi(item.label, session.preferredLanguage)}</span>
               </Link>
             )
           })}

@@ -1,5 +1,6 @@
 'use client'
 
+import { translateUi } from '@/lib/uiLocale'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -17,7 +18,7 @@ type WorkerStats = {
   streak: number
 }
 
-export default function ShiftScreen({ worker }: { worker: { id: string; name: string; role: string } }) {
+export default function ShiftScreen({ worker, language = 'en' }: { language?: string; worker: { id: string; name: string; role: string } }) {
   const [checking, setChecking] = useState(true)
   const [clockError, setClockError] = useState('')
   const [shift, setShift] = useState<Shift | null>(null)
@@ -100,7 +101,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
 
   const handleClockOut = async () => {
     haptic('medium')
-    if (!confirm('End your shift?')) return
+    if (!confirm(translateUi('End your shift?', language))) return
     setLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
@@ -127,7 +128,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
 
         {/* Status Text */}
         <h1 className={`text-3xl font-bold mb-2 ${shift ? 'text-success' : 'text-muted-foreground'}`}>
-          {shift ? 'ON SHIFT' : 'OFF SHIFT'}
+          {translateUi(shift ? 'ON SHIFT' : 'OFF SHIFT', language)}
         </h1>
 
         {/* Welcome */}
@@ -200,7 +201,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
               disabled={loading || checking}
               className="bf-btn bf-btn-soft-danger bf-btn-lg bf-btn-full"
             >
-              <StopIcon className="w-5 h-5" /> Clock Out
+              <StopIcon className="w-5 h-5" /> {translateUi('Clock Out', language)}
             </button>
           </>
         ) : (
@@ -210,7 +211,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
               disabled={loading || checking}
               className="bf-btn bf-btn-success bf-btn-lg bf-btn-full py-5 text-xl"
             >
-              <PlayIcon className="w-6 h-6" /> Clock In
+              <PlayIcon className="w-6 h-6" /> {translateUi('Clock In', language)}
             </button>
             <Link
               href="/batches"

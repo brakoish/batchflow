@@ -1,5 +1,7 @@
 'use client'
 
+import MoreMenu from './MoreMenu'
+import { translateUi } from '@/lib/uiLocale'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -22,6 +24,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
   const [checking, setChecking] = useState(true)
   const [clockBusy, setClockBusy] = useState(false)
   const [clockError, setClockError] = useState('')
+  const [moreOpen, setMoreOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const isOwner = session.role === 'OWNER'
@@ -50,7 +53,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
 
   const clock = async (method: 'POST' | 'PATCH') => {
     if (clockBusy) return
-    if (method === 'PATCH' && !confirm('End your shift?')) return
+    if (method === 'PATCH' && !confirm(translateUi('End your shift?', session.preferredLanguage))) return
     setClockBusy(true)
     setClockError('')
     try {
@@ -123,17 +126,20 @@ export default function Header({ session, organizationName }: HeaderProps) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive(item.href) ? 'page' : undefined}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150 ${
                 isActive(item.href)
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
             >
-              {item.label}
+              {translateUi(item.label, session.preferredLanguage)}
             </Link>
           ))}
         </nav>
 
+        <button type="button" className="hidden sm:block bf-btn bf-btn-ghost" onClick={() => setMoreOpen(true)}>{translateUi('More', session.preferredLanguage)}</button>
+        <MoreMenu session={session} open={moreOpen} onClose={() => setMoreOpen(false)} />
         {/* Right side */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -144,14 +150,14 @@ export default function Header({ session, organizationName }: HeaderProps) {
                 disabled={clockBusy || checking} onClick={handleClockOut}
                 className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] border border-destructive/25 bg-destructive-subtle px-3 text-sm font-semibold text-destructive transition-all hover:bg-destructive hover:text-destructive-foreground active:scale-[0.975]"
               >
-                <StopIcon className="w-4 h-4" /> Clock Out
+                <StopIcon className="w-4 h-4" /> {translateUi('Clock Out', session.preferredLanguage)}
               </button>
             ) : (
               <button
                 disabled={clockBusy || checking} onClick={handleClockIn}
                 className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 active:bg-emerald-800"
               >
-                <PlayIcon className="w-4 h-4" /> Clock In
+                <PlayIcon className="w-4 h-4" /> {translateUi('Clock In', session.preferredLanguage)}
               </button>
             )
           )}
@@ -159,7 +165,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
           <span className="hidden sm:block text-sm text-muted-foreground">{session.name}</span>
           
           <button
-            onClick={handleLogout}
+            aria-label={translateUi('Sign Out', session.preferredLanguage)} onClick={handleLogout}
             className="hidden sm:inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-[10px] text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.96]"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />

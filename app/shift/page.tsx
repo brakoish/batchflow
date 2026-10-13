@@ -9,5 +9,5 @@ export default async function ShiftPage() {
   // Owners go straight to dashboard
   if (session.role === 'OWNER') redirect('/batches')
 
-  return <ShiftScreen worker={{ id: session.workerId || session.id, name: session.name || '', role: session.role }} />
+  return <ShiftScreen language={session.preferredLanguage} worker={{ id: session.workerId || session.id, name: session.name || '', role: session.role }} />
 }

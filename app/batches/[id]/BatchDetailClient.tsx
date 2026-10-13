@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { translateUi } from '@/lib/uiLocale'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import AppShell from '@/app/components/AppShell'
+import { useDialogFocus } from '@/app/components/useDialogFocus'
 import ConfirmModal from '@/app/components/ConfirmModal'
 import MeasurementUnitPicker from '@/app/components/MeasurementUnitPicker'
 import {
@@ -923,6 +925,10 @@ export default function BatchDetailClient({
     canWorkOnBatch && batch.status === 'ACTIVE' && !isSkippedStep(step) && step.type === 'ENTRY' && step.status !== 'COMPLETED'
   )
 
+  const recordingDialogRef = useRef<HTMLDivElement>(null)
+  const closeRecording = useCallback(() => setSelectedStep(null), [])
+  useDialogFocus(recordingDialogRef, !!selectedStep, closeRecording, loading)
+
   const submitLog = async (stepBeingLogged: BatchStep, qty: number, noteBeingLogged?: string) => {
     if (loading) return
     if (!stepBeingLogged || !Number.isFinite(qty) || qty < 0 || (stepBeingLogged.type !== 'ENTRY' && qty === 0)) {
@@ -952,7 +958,7 @@ export default function BatchDetailClient({
 
       const data = await res.json()
       setSelectedStep(null); setQuantity(''); setNote(''); setShowNoteInput(false)
-      showToast(stepBeingLogged.type === 'ENTRY' ? `Recorded ${qty} ${stepBeingLogged.unitLabel}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`)
+      showToast(translateUi(stepBeingLogged.type === 'ENTRY' ? `Recorded ${qty} ${stepBeingLogged.unitLabel}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`, session.preferredLanguage))
       const refreshed = await fetch(`/api/batches/${batch.id}`, { cache: 'no-store' }).catch(() => null)
       if (refreshed?.ok) { const latest = await refreshed.json().catch(() => null); if (latest?.batch) setBatch(latest.batch) }
       lastSaveTsRef.current = Date.now()
@@ -964,7 +970,7 @@ export default function BatchDetailClient({
     } catch (err) {
       // Network failure: rollback and warn
       haptic('heavy')
-      setError('Connection error — save not confirmed. Your draft is retained. Check recent logs before retrying.')
+      setError(translateUi('Connection error — save not confirmed. Your draft is retained. Check recent logs before retrying.', session.preferredLanguage))
     } finally {
       setLoading(false)
     }
@@ -1275,7 +1281,7 @@ export default function BatchDetailClient({
                         : 'bg-muted text-muted-foreground'
                     }`}>
                       {station.step.type === 'ENTRY'
-                        ? canRecordEntryStep(station.step as BatchStep) ? 'Enter' : 'Done'
+                        ? canRecordEntryStep(station.step as BatchStep) ? translateUi('Enter', session.preferredLanguage) : translateUi('Done', session.preferredLanguage)
                         : station.step.type === 'COUNT'
                         ? canLogCountStep(station.step as BatchStep) ? 'Log' : 'Wait'
                         : `${station.step.completedQuantity}${station.step.targetQuantity ? `/${station.step.targetQuantity}` : ''}`}
@@ -1660,12 +1666,12 @@ export default function BatchDetailClient({
                       disabled={loading}
                       className="bf-btn bf-btn-success min-w-[92px] shrink-0"
                     >
-                      <CheckIcon className="w-4 h-4" />Confirm
+                      <CheckIcon className="w-4 h-4" />{translateUi('Confirm', session.preferredLanguage)}
                     </button>
                   )}
                   {!isCompleted && !isSkipped && step.type === 'ENTRY' && canRecordEntryStep(step) && (
                     <button onClick={() => openLogForStep(step)} className="bf-btn bf-btn-success min-w-[92px] shrink-0">
-                      <PencilSquareIcon className="w-4 h-4" />Enter
+                      <PencilSquareIcon className="w-4 h-4" />{translateUi('Enter', session.preferredLanguage)}
                     </button>
                   )}
                 </div>
@@ -1921,7 +1927,7 @@ export default function BatchDetailClient({
                   className="bf-btn bf-btn-success bf-btn-lg px-5 text-sm"
                 >
                   {primaryStation.type === 'ENTRY' ? <PencilSquareIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
-                  {primaryStation.type === 'ENTRY' ? 'Enter' : 'Log'}
+                  {primaryStation.type === 'ENTRY' ? translateUi('Enter', session.preferredLanguage) : translateUi('Log', session.preferredLanguage)}
                 </button>
               ) : (
                 <button
@@ -1952,6 +1958,7 @@ export default function BatchDetailClient({
       {showAddStepModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
+            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2054,6 +2061,7 @@ export default function BatchDetailClient({
       {editingStep && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
+            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2159,7 +2167,7 @@ export default function BatchDetailClient({
                 disabled={savingStep || !editStepName.trim()}
                 className="bf-btn bf-btn-success bf-btn-full mt-5"
               >
-                {savingStep ? 'Saving...' : 'Save Step'}
+                {savingStep ? translateUi('Saving...', session.preferredLanguage) : 'Save Step'}
               </button>
             </div>
           </div>
@@ -2170,6 +2178,7 @@ export default function BatchDetailClient({
       {selectedStep && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
+            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2179,10 +2188,11 @@ export default function BatchDetailClient({
                 <div>
                   <p className="text-sm font-semibold text-foreground">{displayStepName(selectedStep)}</p>
                   <p className="text-xs text-foreground tabular-nums mt-0.5">
-                    {selectedStep.type === 'ENTRY' ? `Record measurement in ${selectedStep.unitLabel}` : <>{selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}</>}
+                    {selectedStep.type === 'ENTRY' ? translateUi(`Record measurement in ${selectedStep.unitLabel}`, session.preferredLanguage) : <>{selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}</>}
                   </p>
                 </div>
                 <button
+                  aria-label={translateUi('Close', session.preferredLanguage)} disabled={loading}
                   onClick={() => {
                     setSelectedStep(null)
                     setQuantity('')
@@ -2209,7 +2219,7 @@ export default function BatchDetailClient({
                   <>
                     {safeRemaining !== null && (
                       <div className="mb-4 rounded-xl border border-border bg-muted/35 px-3 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Safe to log</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{translateUi('Safe to log', session.preferredLanguage)}</p>
                         <p className="text-sm font-semibold text-foreground tabular-nums">
                           {safeRemaining.toLocaleString()} {selectedStep.unitLabel}
                         </p>
@@ -2224,7 +2234,7 @@ export default function BatchDetailClient({
                     />}
 
                     <div className="mt-4">
-                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Enter amount</p>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{translateUi('Enter amount', session.preferredLanguage)}</p>
                       <input
                         ref={quantityRef}
                         type="text"
@@ -2288,7 +2298,7 @@ export default function BatchDetailClient({
                           onClick={() => { haptic('light'); setShowNoteInput(true) }}
                           className="bf-btn bf-btn-secondary bf-btn-sm border-dashed"
                         >
-                          Add note
+                          {translateUi('Add note', session.preferredLanguage)}
                         </button>
                       )}
                     </div>
@@ -2305,12 +2315,12 @@ export default function BatchDetailClient({
                 className="bf-btn bf-btn-success bf-btn-lg bf-btn-full mt-4"
               >
                 {loading
-                  ? 'Saving...'
+                  ? translateUi('Saving...', session.preferredLanguage)
                   : quantity !== '' && Number(quantity) >= 0
                     ? (getSafeRemaining(selectedStep) !== null && Number(quantity) > getSafeRemaining(selectedStep)!
                       ? `Max ${getSafeRemaining(selectedStep)!.toLocaleString()} ${selectedStep.unitLabel}`
-                      : `${selectedStep.type === 'ENTRY' ? 'Record' : 'Log'} ${Number(quantity).toLocaleString()} ${selectedStep.unitLabel}`)
-                    : 'Enter amount'}
+                      : `${translateUi(selectedStep.type === 'ENTRY' ? 'Record' : 'Log', session.preferredLanguage)} ${Number(quantity).toLocaleString()} ${selectedStep.unitLabel}`)
+                    : translateUi('Enter amount', session.preferredLanguage)}
               </button>
             </div>
           </div>
@@ -2321,6 +2331,7 @@ export default function BatchDetailClient({
       {editingLog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
+            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2370,7 +2381,7 @@ export default function BatchDetailClient({
                   disabled={loading || editQuantity === '' || Number(editQuantity) < 0 || (batch.steps.find(step => step.id === (editingLog as any).stepId)?.type !== 'ENTRY' && Number(editQuantity) === 0)}
                   className="bf-btn bf-btn-success bf-btn-full"
                 >
-                  {loading ? 'Saving...' : 'Save Changes'}
+                  {loading ? translateUi('Saving...', session.preferredLanguage) : 'Save Changes'}
                 </button>
 
                 <button
@@ -2414,6 +2425,7 @@ export default function BatchDetailClient({
       {showRemovalModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
+            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2500,7 +2512,7 @@ export default function BatchDetailClient({
                   className="bf-btn bf-btn-success bf-btn-full"
                 >
                   {savingRemoval
-                    ? 'Saving...'
+                    ? translateUi('Saving...', session.preferredLanguage)
                     : removalQuantity && parseInt(removalQuantity) > availableQuantity
                       ? `Max ${availableQuantity.toLocaleString()} ${batch.baseUnit}`
                       : 'Record Removal'}
@@ -2531,6 +2543,7 @@ export default function BatchDetailClient({
       {showDuplicateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
+            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >

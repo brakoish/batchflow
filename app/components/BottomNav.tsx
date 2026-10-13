@@ -1,5 +1,6 @@
 'use client'
 
+import { translateUi } from '@/lib/uiLocale'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -103,7 +104,7 @@ export default function BottomNav({ session }: Props) {
                 }`}
               >
                 <Icon className="w-6 h-6" />
-                <span className="text-[11px] leading-none font-medium">{item.label}</span>
+                <span className="text-[11px] leading-none font-medium">{translateUi(item.label, session.preferredLanguage)}</span>
               </Link>
             )
           })}
@@ -132,7 +133,7 @@ export default function BottomNav({ session }: Props) {
                 </span>
               )}
             </span>
-            <span className="text-[11px] leading-none font-medium">More</span>
+            <span className="text-[11px] leading-none font-medium">{translateUi('More', session.preferredLanguage)}</span>
           </button>
         </div>
       </nav>

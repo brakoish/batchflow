@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { withOperationalLock } from '@/lib/operationalLock'
 import { requireSupervisorOrOwner } from '@/lib/auth'
 import { parseMaterialQuantity, validateMaterialCloseout } from '@/lib/materialValidation'
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const action = String(body.action || '').toUpperCase()
     if (!['ADDITION', 'RECONCILE'].includes(action)) return NextResponse.json({ error: 'Invalid material action' }, { status: 400 })
 
-    const result = await prisma.$transaction(async tx => {
+    const result = await withOperationalLock(session.user.organizationId, async tx => {
       // Serialize material mutations for this batch so retries and simultaneous close/add actions cannot interleave.
       await tx.$queryRaw`SELECT "id" FROM "Batch" WHERE "id" = ${id} FOR UPDATE`
       const batch = await tx.batch.findFirst({

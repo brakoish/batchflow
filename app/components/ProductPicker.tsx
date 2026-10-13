@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 
 export type PickableProduct = {
   id: string
@@ -16,6 +16,9 @@ export default function ProductPicker({ products, value, baseUnit, onChange, dis
   onChange: (product: PickableProduct) => void
   disabled?: boolean
 }) {
+  const listId = useId()
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const rootRef = useRef<HTMLDivElement>(null)
@@ -34,6 +37,10 @@ export default function ProductPicker({ products, value, baseUnit, onChange, dis
       .map(([brand, items]) => ({ brand, items: items.sort((a, b) => a.name.localeCompare(b.name)) }))
   }, [products, query])
 
+  const options = groups.flatMap(group => group.items)
+  const closePicker = () => { setOpen(false); setQuery(''); triggerRef.current?.focus() }
+  const choose = (product: PickableProduct) => { onChange(product); closePicker() }
+  useEffect(() => { setActiveIndex(0) }, [query])
   useEffect(() => {
     if (!open) return
     searchRef.current?.focus()
@@ -49,6 +56,8 @@ export default function ProductPicker({ products, value, baseUnit, onChange, dis
       <button
         type="button"
         disabled={disabled}
+        ref={triggerRef}
+        aria-controls={listId}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={selected ? `Finished product: ${selected.name}` : 'Select a finished product'}
@@ -69,13 +78,19 @@ export default function ProductPicker({ products, value, baseUnit, onChange, dis
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => { if (event.key === 'Escape') { setOpen(false); setQuery('') } }}
+              role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={listId}
+              aria-activedescendant={options[activeIndex] ? `${listId}-${options[activeIndex].id}` : undefined}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') { event.preventDefault(); closePicker() }
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex(index => Math.max(0, Math.min(options.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)))) }
+                if (event.key === 'Enter' && options[activeIndex]) { event.preventDefault(); choose(options[activeIndex]) }
+              }}
               placeholder="Search items or brands"
               aria-label="Search finished products"
               className="min-h-[44px] w-full rounded-lg border border-input bg-muted px-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
             />
           </div>
-          <div role="listbox" aria-label="Finished products" className="max-h-72 overflow-y-auto p-2">
+          <div id={listId} role="listbox" aria-label="Finished products" className="max-h-72 overflow-y-auto p-2">
             {groups.map(({ brand, items }) => (
               <div key={brand} className="mb-2 last:mb-0">
                 <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{brand}</p>
@@ -83,10 +98,13 @@ export default function ProductPicker({ products, value, baseUnit, onChange, dis
                   <button
                     key={product.id}
                     type="button"
+                    id={`${listId}-${product.id}`}
                     role="option"
+                    tabIndex={-1}
+                    onMouseEnter={() => setActiveIndex(options.findIndex(option => option.id === product.id))}
                     aria-selected={product.id === value}
-                    onClick={() => { onChange(product); setOpen(false); setQuery('') }}
-                    className={`flex min-h-[48px] w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left ${product.id === value ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-foreground hover:bg-muted'}`}
+                    onClick={() => choose(product)}
+                    className={`flex min-h-[48px] w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left ${product.id === value || options[activeIndex]?.id === product.id ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-foreground hover:bg-muted'}`}
                   >
                     <span className="min-w-0"><span className="block truncate text-sm font-medium">{product.name}</span>{product.unitsPerCase && <span className="block text-[11px] text-muted-foreground">{product.unitsPerCase} {baseUnit.toLowerCase()} per case</span>}</span>
                     {product.id === value && <span aria-hidden="true" className="shrink-0">✓</span>}
