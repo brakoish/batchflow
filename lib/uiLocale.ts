@@ -31,4 +31,3 @@ export function translateUi(value: string, language = 'en') {
   if (/^(Recorded|Logged) /.test(value)) return value.replace(/^(Recorded|Logged) /, '已记录 ')
   return value
 }
-
