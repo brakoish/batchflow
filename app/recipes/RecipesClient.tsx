@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, DocumentDuplicateIcon, HashtagIcon, PencilIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/solid'
 import RecipeBuilder from './RecipeBuilder'
@@ -26,6 +26,7 @@ type ConfirmAction = {
 
 export default function RecipesClient({ initialRecipes, availableProducts }: { initialRecipes: Recipe[]; availableProducts: AvailableProduct[] }) {
   const [recipes, setRecipes] = useState(initialRecipes)
+  useEffect(() => setRecipes(initialRecipes), [initialRecipes])
   const [editId, setEditId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [duplicating, setDuplicating] = useState<string | null>(null)

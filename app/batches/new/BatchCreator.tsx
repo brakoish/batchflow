@@ -50,7 +50,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   const router = useRouter()
 
   useEffect(() => {
-    fetch('/api/brands', { cache: 'no-store' }).then((response) => response.ok ? response.json() : { brands: [] }).then((data) => setKnownBrands(Array.isArray(data.brands) ? data.brands : []))
+    fetch('/api/brands', { cache: 'no-store' }).then((response) => response.ok ? response.json() : { brands: [] }).then((data) => setKnownBrands(Array.isArray(data.brands) ? data.brands : [])).catch(() => setKnownBrands([]))
   }, [])
 
   const nameRef = useRef<HTMLInputElement>(null)
@@ -120,6 +120,10 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
     }
   }, [selectedId])
 
+  useEffect(() => {
+    if (leadWorkerId && !selectedWorkers.includes(leadWorkerId)) setLeadWorkerId('')
+  }, [selectedWorkers, leadWorkerId])
+
   const toggleWorker = (id: string) => {
     haptic('light')
     setSelectedWorkers(prev =>
@@ -128,6 +132,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   }
 
   const handleSubmit = async () => {
+    if (loading) return
     if (!selectedId) { setError('Pick a product'); return }
     if (selected?.products.length && !productId) { setError('Pick the finished product'); return }
     if (selectedProduct && !variationId) { setError('Pick or add a variation'); return }

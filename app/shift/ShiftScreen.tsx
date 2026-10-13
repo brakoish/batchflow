@@ -18,6 +18,8 @@ type WorkerStats = {
 }
 
 export default function ShiftScreen({ worker }: { worker: { id: string; name: string; role: string } }) {
+  const [checking, setChecking] = useState(true)
+  const [clockError, setClockError] = useState('')
   const [shift, setShift] = useState<Shift | null>(null)
   const [elapsed, setElapsed] = useState('0h 00m')
   const [loading, setLoading] = useState(false)
@@ -38,7 +40,8 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
           updateElapsed(d.activeShift.startedAt)
         }
       })
-      .catch(() => {})
+      .catch(() => setClockError('Unable to check shift. Reload to retry.'))
+      .finally(() => setChecking(false))
 
     // Fetch today's stats
     fetch('/api/workers/activity')
@@ -78,16 +81,20 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
   }
 
   const handleClockIn = async () => {
+    if (loading) return
+    setClockError('')
     haptic('medium')
     setLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'POST' })
+      if (!res.ok) throw new Error((await res.json()).error || 'Shift change failed')
+      window.dispatchEvent(new Event('shift-changed'))
       if (res.ok) {
         const data = await res.json()
         setShift(data.shift)
         updateElapsed(data.shift.startedAt)
       }
-    } catch {}
+    } catch (e) { setClockError(e instanceof Error ? e.message : 'Connection error. Try again.') }
     setLoading(false)
   }
 
@@ -97,8 +104,10 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
     setLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
+      if (!res.ok) throw new Error((await res.json()).error || 'Shift change failed')
+      window.dispatchEvent(new Event('shift-changed'))
       if (res.ok) setShift(null)
-    } catch {}
+    } catch (e) { setClockError(e instanceof Error ? e.message : 'Connection error. Try again.') }
     setLoading(false)
   }
 
@@ -110,6 +119,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
+      {clockError && <p role="alert">{clockError}</p>}
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         {/* Status Indicator */}
@@ -187,7 +197,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
             </Link>
             <button
               onClick={handleClockOut}
-              disabled={loading}
+              disabled={loading || checking}
               className="bf-btn bf-btn-soft-danger bf-btn-lg bf-btn-full"
             >
               <StopIcon className="w-5 h-5" /> Clock Out
@@ -197,7 +207,7 @@ export default function ShiftScreen({ worker }: { worker: { id: string; name: st
           <>
             <button
               onClick={handleClockIn}
-              disabled={loading}
+              disabled={loading || checking}
               className="bf-btn bf-btn-success bf-btn-lg bf-btn-full py-5 text-xl"
             >
               <PlayIcon className="w-6 h-6" /> Clock In

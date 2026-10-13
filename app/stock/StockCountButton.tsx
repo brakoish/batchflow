@@ -17,8 +17,10 @@ export default function StockCountButton({ recipeId, productId, productName, bas
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const save = async (countedQuantity = Number(quantity)) => {
-    if (!Number.isInteger(countedQuantity) || countedQuantity < 0) {
+  const save = async (explicitCount?: number) => {
+    const countedQuantity = explicitCount ?? Number(quantity)
+    if (saving) return
+    if ((explicitCount === undefined && !quantity.trim()) || !Number.isInteger(countedQuantity) || countedQuantity < 0) {
       setError('Enter a whole number of 0 or more')
       return
     }
@@ -47,7 +49,7 @@ export default function StockCountButton({ recipeId, productId, productName, bas
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/55 p-3 sm:items-center sm:justify-center" onClick={() => !saving && setOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-lg font-bold text-foreground">Count {productName}</h2>
             <p className="mt-1 text-sm text-muted-foreground">Enter the physical quantity on hand. This records a correction without deleting batch history.</p>
             <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{baseUnit} on hand</label>
@@ -59,7 +61,7 @@ export default function StockCountButton({ recipeId, productId, productName, bas
               <button type="button" disabled={saving} onClick={() => save()} className="bf-btn bf-btn-primary">{saving ? 'Saving…' : 'Save Count'}</button>
               <button type="button" disabled={saving} onClick={() => setOpen(false)} className="bf-btn bf-btn-secondary">Cancel</button>
             </div>
-            <button type="button" disabled={saving} onClick={() => save(0)} className="bf-btn bf-btn-danger mt-2 w-full">Clear to 0</button>
+            <button type="button" disabled={saving} onClick={() => { if (window.confirm(`Clear ${productName} from ${currentQuantity} ${baseUnit} to 0? Correction: ${-currentQuantity} ${baseUnit}. Batch history is preserved.`)) { setQuantity('0'); save(0) } }} className="bf-btn bf-btn-danger mt-2 w-full">Clear to 0</button>
           </div>
         </div>
       )}

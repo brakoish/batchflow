@@ -212,7 +212,11 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
     if (res.ok) { const data = await res.json(); setBatch(data.batch) }
   }
 
+  const [mutationPending, setMutationPending] = useState(false)
   const stepAction = async (step: Step, action: string) => {
+    if (mutationPending) return
+    setMutationPending(true); setError('')
+    try {
     setError('')
     const res = await fetch(`/api/batches/${batch.id}/steps/${step.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
@@ -220,6 +224,8 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return setError(data.error || 'Failed to update step')
     await refreshBatch(); emitBatchChanged(batch.id, 'step-edit'); notify('Workflow updated')
+    } catch { setError('Connection error. Save not confirmed; review and retry.') }
+    finally { setMutationPending(false) }
   }
 
   const openStepEditor = (step: Step) => {
@@ -235,6 +241,9 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
   }
 
   const saveStep = async (step: Step) => {
+    if (mutationPending) return
+    setMutationPending(true); setError('')
+    try {
     const res = await fetch(`/api/batches/${batch.id}/steps/${step.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: stepDraft.name, type: stepDraft.type, targetQuantity: stepDraft.type === 'CHECK' || stepDraft.type === 'ENTRY' ? 1 : stepDraft.target || null, unitLabel: stepDraft.unitLabel, unitRatio: Number(stepDraft.unitRatio) }),
@@ -242,9 +251,14 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return setError(data.error || 'Failed to update step')
     setEditingStep(null); await refreshBatch(); emitBatchChanged(batch.id, 'step-edit'); notify('Step saved')
+    } catch { setError('Connection error. Save not confirmed; review and retry.') }
+    finally { setMutationPending(false) }
   }
 
   const addStep = async () => {
+    if (mutationPending) return
+    setMutationPending(true); setError('')
+    try {
     const res = await fetch(`/api/batches/${batch.id}/steps`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: stepDraft.name, type: stepDraft.type, targetQuantity: stepDraft.type === 'CHECK' || stepDraft.type === 'ENTRY' ? 1 : stepDraft.target || null, unitLabel: stepDraft.unitLabel, unitRatio: Number(stepDraft.unitRatio) }),
@@ -253,22 +267,34 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
     if (!res.ok) return setError(data.error || 'Failed to add step')
     setAddingStep(false); setStepDraft({ name: '', type: 'COUNT', target: '', unitLabel: batch.recipe.baseUnit, unitRatio: '1' })
     await refreshBatch(); emitBatchChanged(batch.id, 'step-edit'); notify('Step added')
+    } catch { setError('Connection error. Save not confirmed; review and retry.') }
+    finally { setMutationPending(false) }
   }
 
   const lifecycle = async (status: string) => {
+    if (mutationPending) return
+    setMutationPending(true); setError('')
+    try {
     const res = await fetch(`/api/batches/${batch.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return setError(data.error || 'Failed to update batch')
     emitBatchChanged(batch.id, 'status'); router.push(`/batches/${batch.id}`); router.refresh()
+    } catch { setError('Connection error. Save not confirmed; review and retry.') }
+    finally { setMutationPending(false) }
   }
 
   const deleteBatch = async () => {
+    if (mutationPending) return
+    setMutationPending(true); setError('')
+    try {
     const res = await fetch(`/api/batches/${batch.id}`, { method: 'DELETE' })
     if (!res.ok) { const data = await res.json().catch(() => ({})); return setError(data.error || 'Failed to delete batch') }
     emitBatchChanged(batch.id, 'delete'); router.push('/batches'); router.refresh()
+    } catch { setError('Connection error. Save not confirmed; review and retry.') }
+    finally { setMutationPending(false) }
   }
 
-  const summaryTarget = openEnded ? 'Open-ended' : `${target || 0} ${batch.recipe.name}`
+  const summaryTarget = openEnded ? 'Open-ended' : `${target || 0} ${batch.recipe.baseUnit}`
   return (
     <AppShell session={session}>
       <main className="mx-auto max-w-2xl px-4 py-5 pb-36">

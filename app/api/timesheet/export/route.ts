@@ -80,25 +80,26 @@ function buildCsv(rows: any[], headers: string[]): string {
 
 function buildFormattedSheet(rows: any[], headers: string[], month: string): string {
   const totalHours = rows.reduce((sum, row) => sum + (row['Hours Decimal'] || 0), 0)
-  const totalUnits = rows.reduce((sum, row) => sum + (row['Total Units'] || 0), 0)
-  const summaryHeaders = ['Worker', 'Week', 'Shifts', 'Hours', 'Total Units', 'Batches / Steps Worked', 'Notes']
+  const totalUnits = rows.reduce((sum, row) => sum + (row['Production Log Count'] || 0), 0)
+  const summaryHeaders = ['Worker ID', 'Worker', 'Week', 'Shifts', 'Hours', 'Production Log Count', 'Batches / Steps Worked', 'Notes']
   const workerWeekMap = new Map<string, any>()
 
   for (const row of rows) {
-    const key = `${row.Worker}__${row.Week}`
+    const key = `${row['Worker ID']}__${row.Week}`
     const existing = workerWeekMap.get(key) || {
+      'Worker ID': row['Worker ID'],
       Worker: row.Worker,
       Week: row.Week,
       Shifts: 0,
       Hours: 0,
-      'Total Units': 0,
+      'Production Log Count': 0,
       'Batches / Steps Worked': new Set<string>(),
       Notes: new Set<string>(),
     }
 
     existing.Shifts += 1
     existing.Hours += row['Hours Decimal'] || 0
-    existing['Total Units'] += row['Total Units'] || 0
+    existing['Production Log Count'] += row['Production Log Count'] || 0
     if (row['Work Summary'] && row['Work Summary'] !== 'No production logs during shift') {
       row['Work Summary'].split('; ').forEach((item: string) => existing['Batches / Steps Worked'].add(item))
     }
@@ -124,7 +125,7 @@ function buildFormattedSheet(rows: any[], headers: string[], month: string): str
     'Clock Out': 80,
     Hours: 75,
     'Hours Decimal': 90,
-    'Total Units': 80,
+    'Production Log Count': 80,
     'Work Summary': 300,
     Notes: 180,
     Shifts: 60,
@@ -196,8 +197,8 @@ function buildFormattedSheet(rows: any[], headers: string[], month: string): str
       <Interior ss:Color="#ECFDF5" ss:Pattern="Solid"/>
     </Style>
   </Styles>
-  ${worksheet('Weekly Detail', headers, rows, ['Monthly Total', '', '', '', '', '', '', totalHours.toFixed(2), totalUnits, '', ''])}
-  ${worksheet('Worker Summary', summaryHeaders, summaryRows, ['Monthly Total', '', rows.length, totalHours.toFixed(2), totalUnits, '', ''])}
+  ${worksheet('Weekly Detail', headers, rows, ['Monthly Total', '', '', '', '', '', '', '', totalHours.toFixed(2), totalUnits, '', ''])}
+  ${worksheet('Worker Summary', summaryHeaders, summaryRows, ['Monthly Total', '', '', rows.length, totalHours.toFixed(2), totalUnits, '', ''])}
 </Workbook>`
 }
 
@@ -263,6 +264,7 @@ export async function GET(request: NextRequest) {
           select: {
             name: true,
             unitLabel: true,
+            type: true,
             batch: { select: { name: true } },
           },
         },
@@ -277,13 +279,14 @@ export async function GET(request: NextRequest) {
         log.createdAt >= shift.startedAt &&
         log.createdAt <= endedAt
       ))
-      const totalUnits = shiftLogs.reduce((sum, log) => sum + log.quantity, 0)
+      const totalUnits = shiftLogs.length
       const rawHours = shift.endedAt
         ? (shift.endedAt.getTime() - shift.startedAt.getTime()) / (1000 * 60 * 60)
         : 0
       const workSummary = shiftLogs.length > 0
         ? shiftLogs.map((log) => {
             const unit = log.batchStep.unitLabel || 'units'
+            if (log.batchStep.type === 'CHECK') return `${log.batchStep.batch.name} - ${log.batchStep.name}: confirmed`
             return `${log.batchStep.batch.name} - ${log.batchStep.name}: ${log.quantity} ${unit}`
           }).join('; ')
         : 'No production logs during shift'
@@ -291,28 +294,30 @@ export async function GET(request: NextRequest) {
       return {
         Month: month,
         Week: formatWeekLabel(shift.startedAt, timezone),
+        'Worker ID': shift.worker.id,
         Worker: shift.worker.name,
         Date: formatDateInTz(shift.startedAt, timezone),
         'Clock In': formatTimeInTz(shift.startedAt, timezone),
         'Clock Out': shift.endedAt ? formatTimeInTz(shift.endedAt, timezone) : 'Active',
         Hours: shift.endedAt ? formatDuration(rawHours) : 'Active',
         'Hours Decimal': shift.endedAt ? Math.round(rawHours * 100) / 100 : 0,
-        'Total Units': totalUnits,
+        'Production Log Count': totalUnits,
         'Work Summary': workSummary,
-        Notes: shift.notes || '',
+        Notes: [shift.notes, 'Whole shifts attributed to organization-local start date/month; production logs are not interchangeable units.'].filter(Boolean).join('; '),
       }
     })
 
     const headers = [
       'Month',
       'Week',
+      'Worker ID',
       'Worker',
       'Date',
       'Clock In',
       'Clock Out',
       'Hours',
       'Hours Decimal',
-      'Total Units',
+      'Production Log Count',
       'Work Summary',
       'Notes',
     ]

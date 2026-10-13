@@ -1,3 +1,4 @@
+import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
@@ -8,7 +9,7 @@ function withoutSkippedPrefix(name: string) {
   return name.startsWith(SKIPPED_PREFIX) ? name.slice(SKIPPED_PREFIX.length) : name
 }
 
-async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSupervisorOrOwner>>) {
+async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSupervisorOrOwner>>, prisma: import('@prisma/client').Prisma.TransactionClient) {
   if (session.user.workerId) return session.user.workerId
 
   const worker = await prisma.worker.findFirst({
@@ -28,6 +29,7 @@ export async function PATCH(
 ) {
   try {
     const session = await requireSupervisorOrOwner()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id, stepId } = await params
     const body = await request.json()
 
@@ -54,6 +56,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Step not found' }, { status: 404 })
     }
 
+    if (step.batch.status !== 'ACTIVE') return NextResponse.json({ error: 'Reopen this batch before changing workflow' }, { status: 409 })
+
+    if (step.progressLogs.length && (body.type !== undefined || body.unitRatio !== undefined || body.unitLabel !== undefined)) return NextResponse.json({ error: 'Recorded steps cannot change type or units' }, { status: 409 })
+    const removed = await prisma.batchRemoval.count({ where: { batchId: id } })
+    if (removed && (['skip', 'unskip', 'move-up', 'move-down'].includes(body.action) || body.type !== undefined || body.unitRatio !== undefined)) return NextResponse.json({ error: 'Output workflow cannot change after inventory removal' }, { status: 409 })
     const updateData: any = {}
     let activityAction = ''
     let activityOldQuantity: number | null = null
@@ -83,7 +90,7 @@ export async function PATCH(
         return NextResponse.json({ step }, { status: 200 })
       }
 
-      await prisma.$transaction([
+      await Promise.all([
         prisma.batchStep.update({ where: { id: step.id }, data: { order: otherStep.order } }),
         prisma.batchStep.update({ where: { id: otherStep.id }, data: { order: step.order } }),
       ])
@@ -99,7 +106,7 @@ export async function PATCH(
         },
       })
 
-      const activityWorkerId = await getActivityWorkerId(session)
+      const activityWorkerId = await getActivityWorkerId(session, prisma)
       if (activityWorkerId) {
         await prisma.logAudit.create({
           data: {
@@ -132,6 +139,9 @@ export async function PATCH(
           return NextResponse.json({ error: 'Invalid step type' }, { status: 400 })
         }
         updateData.type = body.type
+        updateData.completedQuantity = 0
+        updateData.status = 'IN_PROGRESS'
+        if (body.type === 'ENTRY' || body.type === 'CHECK') updateData.targetQuantity = 1
       }
 
       if (body.unitLabel !== undefined) {
@@ -158,6 +168,7 @@ export async function PATCH(
           return NextResponse.json({ error: 'Target must be a whole number greater than 0' }, { status: 400 })
         }
 
+        if (step.type === 'COUNT' && targetQuantity != null && targetQuantity < step.completedQuantity) return NextResponse.json({ error: 'Target cannot be less than recorded production' }, { status: 409 })
         updateData.targetQuantity = targetQuantity
         if (targetQuantity !== null && step.completedQuantity >= targetQuantity) {
           updateData.status = 'COMPLETED'
@@ -198,7 +209,7 @@ export async function PATCH(
       },
     })
 
-    const activityWorkerId = await getActivityWorkerId(session)
+    const activityWorkerId = await getActivityWorkerId(session, prisma)
     if (activityWorkerId && activityAction) {
       await prisma.logAudit.create({
         data: {
@@ -214,6 +225,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({ step: updatedStep })
+    })
   } catch (error) {
     console.error('Update batch step error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

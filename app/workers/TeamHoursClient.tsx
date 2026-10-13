@@ -54,7 +54,7 @@ export default function TeamHoursClient({
         <WorkerManager workers={workers} initialTeams={teams} />
       ) : (
         <TimesheetClient
-          workers={workers.filter((worker) => worker.role === 'WORKER')}
+          workers={workers.filter((worker) => worker.role === 'WORKER' || worker.role === 'SUPERVISOR')}
           teams={teams}
         />
       )}

@@ -104,9 +104,13 @@ export async function DELETE(
     const session = await requireOwner()
     const { id } = await params
 
-    const deleted = await prisma.worker.deleteMany({
-      where: { id, organizationId: session.user.organizationId },
+    const deleted = await prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`
+      const payroll = await tx.shift.count({ where: { workerId: id, worker: { organizationId: session.user.organizationId } } })
+      if (payroll) return null
+      return tx.worker.deleteMany({ where: { id, organizationId: session.user.organizationId } })
     })
+    if (!deleted) return NextResponse.json({ error: 'Employee has payroll history and cannot be deleted. Archival requires a retention-capable schema.' }, { status: 409 })
 
     if (deleted.count === 0) {
       return NextResponse.json({ error: 'Worker not found' }, { status: 404 })

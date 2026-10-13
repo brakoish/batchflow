@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
+import { fromDateTimeLocalString } from '@/lib/timezone'
 
 // Worker-safe timesheet feed. Scoped to the current session's worker id,
 // so PIN-authenticated workers can see their own shifts without needing
@@ -23,14 +24,21 @@ export async function GET(request: Request) {
       select: { timezone: true },
     })
 
+    const timezone = organization?.timezone || 'America/New_York'
+    const boundary = (value: string, end = false) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(value)
+      const day = new Date(`${value}T12:00:00Z`)
+      if (end) day.setUTCDate(day.getUTCDate() + 1)
+      return fromDateTimeLocalString(`${day.toISOString().slice(0, 10)}T00:00`, timezone)
+    }
     const where: any = {
       workerId,
       worker: { organizationId: session.user.organizationId },
     }
     if (dateFrom || dateTo) {
       where.startedAt = {}
-      if (dateFrom) where.startedAt.gte = new Date(dateFrom)
-      if (dateTo) where.startedAt.lte = new Date(dateTo)
+      if (dateFrom) where.startedAt.gte = boundary(dateFrom)
+      if (dateTo) where.startedAt.lt = boundary(dateTo, true)
     }
 
     const shifts = await prisma.shift.findMany({

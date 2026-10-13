@@ -19,6 +19,9 @@ type HeaderProps = {
 
 export default function Header({ session, organizationName }: HeaderProps) {
   const [onShift, setOnShift] = useState(false)
+  const [checking, setChecking] = useState(true)
+  const [clockBusy, setClockBusy] = useState(false)
+  const [clockError, setClockError] = useState('')
   const pathname = usePathname()
   const router = useRouter()
   const isOwner = session.role === 'OWNER'
@@ -30,7 +33,8 @@ export default function Header({ session, organizationName }: HeaderProps) {
       fetch('/api/shifts')
         .then(r => r.json())
         .then(d => setOnShift(!!d.activeShift))
-        .catch(() => {})
+        .catch(() => setClockError('Unable to check shift. Reload to retry.'))
+        .finally(() => setChecking(false))
     }
     checkShift()
     // Listen for clock-in/out events from other components
@@ -44,19 +48,21 @@ export default function Header({ session, organizationName }: HeaderProps) {
     window.location.href = '/'
   }
 
-  const handleClockOut = async () => {
-    haptic('medium')
-    await fetch('/api/shifts', { method: 'PATCH' })
-    setOnShift(false)
-    window.location.reload()
+  const clock = async (method: 'POST' | 'PATCH') => {
+    if (clockBusy) return
+    if (method === 'PATCH' && !confirm('End your shift?')) return
+    setClockBusy(true)
+    setClockError('')
+    try {
+      const res = await fetch('/api/shifts', { method })
+      if (!res.ok) throw new Error((await res.json()).error || 'Shift change failed')
+      setOnShift(method === 'POST')
+      window.dispatchEvent(new Event('shift-changed'))
+    } catch (e) { setClockError(e instanceof Error ? e.message : 'Connection error. Try again.') }
+    finally { setClockBusy(false) }
   }
-
-  const handleClockIn = async () => {
-    haptic('medium')
-    await fetch('/api/shifts', { method: 'POST' })
-    setOnShift(true)
-    window.location.reload()
-  }
+  const handleClockOut = () => clock('PATCH')
+  const handleClockIn = () => clock('POST')
 
   const ownerNavItems = [
     { href: '/batches', label: 'Work' },
@@ -93,6 +99,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
 
   return (
     <header className="bg-background border-b border-border">
+      {clockError && <p role="alert" className="text-destructive text-center">{clockError}</p>}
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link href="/batches" className="flex items-center gap-2">
@@ -134,14 +141,14 @@ export default function Header({ session, organizationName }: HeaderProps) {
           {!isOwner && (
             onShift ? (
               <button
-                onClick={handleClockOut}
+                disabled={clockBusy || checking} onClick={handleClockOut}
                 className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] border border-destructive/25 bg-destructive-subtle px-3 text-sm font-semibold text-destructive transition-all hover:bg-destructive hover:text-destructive-foreground active:scale-[0.975]"
               >
                 <StopIcon className="w-4 h-4" /> Clock Out
               </button>
             ) : (
               <button
-                onClick={handleClockIn}
+                disabled={clockBusy || checking} onClick={handleClockIn}
                 className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 active:bg-emerald-800"
               >
                 <PlayIcon className="w-4 h-4" /> Clock In

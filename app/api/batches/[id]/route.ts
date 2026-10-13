@@ -1,3 +1,4 @@
+import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isRecordedStepComplete } from '@/lib/stepRecording'
@@ -82,6 +83,7 @@ export async function PATCH(
 ) {
   try {
     const session = await requireSupervisorOrOwner()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
     const body = await request.json()
 
@@ -114,6 +116,9 @@ export async function PATCH(
         return NextResponse.json({ error: 'Owner access required for this status change' }, { status: 403 })
       }
 
+      if (status === existingBatch.status) return NextResponse.json({ error: 'Batch already has this status' }, { status: 409 })
+      // Finishing short/open-ended runs remains a supported supervisor decision.
+      if (status === 'COMPLETED' && existingBatch.status !== 'ACTIVE') return NextResponse.json({ error: 'Only an active batch can be finished' }, { status: 409 })
       const completedAt = status === 'COMPLETED' ? new Date() : null
       const reportInput = body.completionReport || {}
       if (status === 'COMPLETED' && !body.completionReport) {
@@ -143,14 +148,12 @@ export async function PATCH(
       const producedUnits = getProducedBaseUnits(existingBatch.steps)
       const gramsPerUnit = existingBatch.product?.materialWeightGrams ?? null
 
-      await prisma.$transaction(async tx => {
+      await (async (tx) => {
         await tx.batch.update({
           where: { id },
           data: { status, completedDate: completedAt },
         })
-        if (status === 'ACTIVE' && existingBatch.completionReport) {
-          await tx.batchCompletionReport.delete({ where: { batchId: id } })
-        }
+        // Reopening retains the original immutable closeout evidence.
         if (status === 'COMPLETED' && completedAt && !existingBatch.completionReport) {
           await tx.batchCompletionReport.create({
             data: {
@@ -171,7 +174,7 @@ export async function PATCH(
             },
           })
         }
-      })
+      })(prisma)
       const batch = await prisma.batch.findUnique({
         where: { id },
         include: {
@@ -205,6 +208,8 @@ export async function PATCH(
       return NextResponse.json({ batch })
     }
     
+    if (existingBatch.status !== 'ACTIVE') return NextResponse.json({ error: 'Reopen this batch before editing' }, { status: 409 })
+
     // Handle full batch edits
     const { name, productId, targetQuantity, dueDate, workerIds, leadWorkerId, metrcBatchId, lotNumber, strain, packageTag, notes, priority } = body
 
@@ -289,6 +294,7 @@ export async function PATCH(
         } else {
           nextTarget = Math.max(1, Math.ceil(targetQuantity / (step.unitRatio || 1)))
         }
+        if (step.type === 'COUNT' && nextTarget != null && nextTarget < step.completedQuantity) return NextResponse.json({ error: 'Target cannot be less than recorded production' }, { status: 409 })
         const nextStatus = step.name.startsWith('[Skipped] ')
           ? step.status
           : step.type === 'CHECK'
@@ -310,6 +316,7 @@ export async function PATCH(
           return NextResponse.json({ error: 'Case size cannot change after cases have been logged' }, { status: 400 })
         }
         const nextTarget = batchTarget == null ? null : Math.max(1, Math.ceil(batchTarget / selectedProductCaseSize))
+        if (step.type === 'COUNT' && nextTarget != null && nextTarget < step.completedQuantity) return NextResponse.json({ error: 'Target cannot be less than recorded production' }, { status: 409 })
         const nextStatus = step.name.startsWith('[Skipped] ') ? step.status : 'IN_PROGRESS'
         const pending = stepUpdates.find(update => update.id === step.id)
         if (pending) Object.assign(pending, { targetQuantity: nextTarget, status: nextStatus, unitRatio: selectedProductCaseSize })
@@ -317,7 +324,7 @@ export async function PATCH(
       }
     }
 
-    await prisma.$transaction(async (tx) => {
+    await (async (tx) => {
       await tx.batch.update({ where: { id }, data: updateData })
       for (const step of stepUpdates) {
         await tx.batchStep.update({
@@ -333,7 +340,7 @@ export async function PATCH(
           })
         }
       }
-    })
+    })(prisma)
 
     const batch = await prisma.batch.findUnique({
       where: { id },
@@ -377,6 +384,7 @@ export async function PATCH(
     })
 
     return NextResponse.json({ batch })
+    })
   } catch (error) {
     console.error('Update batch error:', error)
     return NextResponse.json(
@@ -392,6 +400,7 @@ export async function DELETE(
 ) {
   try {
     const session = await requireOwner()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
 
     // Only truly empty batches can be removed. Once work or inventory activity
@@ -408,23 +417,26 @@ export async function DELETE(
       )
     }
 
-    await prisma.$transaction(async (tx) => {
-      const [progressLogs, removals, materialEvents, messages] = await Promise.all([
+    await (async (tx) => {
+      const [progressLogs, removals, materialEvents, messages, audits, reports] = await Promise.all([
         tx.progressLog.count({ where: { batchStep: { batchId: id } } }),
         tx.batchRemoval.count({ where: { batchId: id } }),
         tx.batchMaterialEvent.count({ where: { batchId: id } }),
         tx.batchMessage.count({ where: { batchId: id } }),
+        tx.logAudit.count({ where: { batchStep: { batchId: id } } }),
+        tx.batchCompletionReport.count({ where: { batchId: id } }),
       ])
 
-      if (progressLogs + removals + materialEvents + messages > 0) {
+      if (progressLogs + removals + materialEvents + messages + audits + reports > 0) {
         throw new Error('BATCH_HAS_RECORDED_WORK')
       }
 
       // Steps, assignments, audits, and other setup-only rows cascade.
       await tx.batch.delete({ where: { id } })
-    })
+    })(prisma)
 
     return NextResponse.json({ success: true })
+    })
   } catch (error) {
     if (error instanceof Error && error.message === 'BATCH_HAS_RECORDED_WORK') {
       return NextResponse.json(

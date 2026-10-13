@@ -9,7 +9,7 @@ export default function OfflinePage() {
           <h1 className="text-2xl font-semibold">You're offline</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             BatchFlow needs a connection to sync your progress.
-            Your last loaded data is still available in batches you've already opened.
+            Reconnect before recording work. Unsaved entries are not queued for automatic upload.
           </p>
         </div>
         <button
@@ -19,7 +19,7 @@ export default function OfflinePage() {
           Try Again
         </button>
         <p className="text-xs text-muted-foreground">
-          Tip: log shifts and progress when you regain signal — nothing is lost.
+          Wait for a saved confirmation before leaving a recording screen.
         </p>
       </div>
     </div>

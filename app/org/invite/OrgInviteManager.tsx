@@ -24,18 +24,25 @@ export default function OrgInviteManager({
   organization: Organization
 }) {
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState('')
 
   const inviteUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/join/${organization.slug}`
 
-  const copyInviteLink = () => {
-    navigator.clipboard.writeText(inviteUrl)
-    haptic('light')
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const copyInviteLink = async () => {
+    setCopyError('')
+    try {
+      await navigator.clipboard.writeText(inviteUrl)
+      haptic('light')
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopyError('Could not copy. Select the invite link and copy it manually.')
+    }
   }
 
   return (
     <div className="space-y-6">
+      {copyError && <p role="alert" className="text-sm text-destructive">{copyError}</p>}
       {/* Invite Link */}
       <div className="bg-muted p-4 rounded-lg border border-border">
         <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">

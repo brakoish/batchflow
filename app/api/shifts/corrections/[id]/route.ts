@@ -25,12 +25,17 @@ export async function PATCH(
   })
 
   if (!correctionReq) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (correctionReq.status !== 'PENDING') {
-    return NextResponse.json({ error: 'Request already reviewed' }, { status: 409 })
-  }
-
-  // Run in a transaction: update the request + apply shift change if approved
   const updated = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${correctionReq.workerId}))`
+    const current = await tx.shiftCorrectionRequest.findUniqueOrThrow({ where: { id: params.id } })
+    if (current.status !== 'PENDING') return null
+    if (action === 'APPROVED') {
+      const start = current.requestedStart
+      const end = current.requestedEnd
+      if (!Number.isFinite(start.getTime()) || (end && (!Number.isFinite(end.getTime()) || end <= start))) throw new Error('Invalid shift interval')
+      const overlap = await tx.shift.findFirst({ where: { workerId: current.workerId, id: { not: current.shiftId }, ...(end ? { startedAt: { lt: end } } : {}), OR: [{ endedAt: null }, { endedAt: { gt: start } }] } })
+      if (overlap) throw new Error('Corrected interval overlaps another shift')
+    }
     const updatedReq = await tx.shiftCorrectionRequest.update({
       where: { id: params.id },
       data: {
@@ -45,16 +50,18 @@ export async function PATCH(
       await tx.shift.update({
         where: { id: correctionReq.shiftId },
         data: {
-          startedAt: correctionReq.requestedStart,
-          endedAt: correctionReq.requestedEnd ?? undefined,
+          startedAt: current.requestedStart,
+          endedAt: current.requestedEnd,
           // If they had an open shift and we're setting an end time, mark completed
-          ...(correctionReq.requestedEnd ? { status: 'COMPLETED' } : {}),
+          status: current.requestedEnd ? 'COMPLETED' : 'ACTIVE',
         },
       })
     }
 
     return updatedReq
-  })
+  }).catch((error: Error) => ({ error: error.message }))
+  if (!updated) return NextResponse.json({ error: 'Request already reviewed' }, { status: 409 })
+  if ('error' in updated) return NextResponse.json(updated, { status: 409 })
 
   return NextResponse.json({ request: updated })
 }

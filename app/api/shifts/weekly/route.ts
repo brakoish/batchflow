@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
+import { localDateKey } from '@/lib/timezone'
 
 export async function GET(request: Request) {
   try {
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
     // Collect all unique days in range
     const daySet = new Set<string>()
     shifts.forEach((shift) => {
-      daySet.add(shift.startedAt.toISOString().split('T')[0])
+      daySet.add(localDateKey(shift.startedAt, organization?.timezone || 'America/New_York'))
     })
     const allDays = Array.from(daySet).sort()
 
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
     shifts.forEach((shift) => {
       if (!shift.endedAt) return // Skip active shifts
 
-      const dayKey = shift.startedAt.toISOString().split('T')[0]
+      const dayKey = localDateKey(shift.startedAt, organization?.timezone || 'America/New_York')
       const hours = Math.round(
         ((new Date(shift.endedAt).getTime() - new Date(shift.startedAt).getTime()) / 1000 / 60 / 60) * 100
       ) / 100

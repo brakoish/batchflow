@@ -190,7 +190,8 @@ export default function BatchDetailClient({
 }) {
   const searchParams = useSearchParams()
   const [batch, setBatch] = useState(initialBatch)
-  const [selectedStep, setSelectedStep] = useState<BatchStep | null>(null)
+  const [selectedStepSnapshot, setSelectedStep] = useState<BatchStep | null>(null)
+  const selectedStep = selectedStepSnapshot ? batch.steps.find(step => step.id === selectedStepSnapshot.id) || null : null
   const [quantity, setQuantity] = useState('')
   const [note, setNote] = useState('')
   const [showNoteInput, setShowNoteInput] = useState(false)
@@ -368,6 +369,9 @@ export default function BatchDetailClient({
   }
 
   const performStatusChange = async (status: string, completionReport?: { shakeGrams: number; wasteGrams: number; missingLabels: number; issues: string }) => {
+    if (loading) return
+    if (completionReport && Object.values(completionReport).some(value => typeof value === 'number' && (!Number.isFinite(value) || value < 0))) { setError('Enter finite, nonnegative report values'); return }
+    setLoading(true)
     const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
     setConfirmAction(null)
     setError('')
@@ -391,7 +395,7 @@ export default function BatchDetailClient({
       showToast(productionResult ? `Completed at ${productionResult.pct}% · ${productionResult.label}` : `Batch ${labels[status]}d`)
     } catch (err) { 
       setError('Network error. Please check your connection.')
-    }
+    } finally { setLoading(false) }
   }
 
   const handleDeleteBatch = async () => {
@@ -920,29 +924,17 @@ export default function BatchDetailClient({
   )
 
   const submitLog = async (stepBeingLogged: BatchStep, qty: number, noteBeingLogged?: string) => {
-    if (!stepBeingLogged || qty < 0 || (stepBeingLogged.type !== 'ENTRY' && qty === 0)) {
+    if (loading) return
+    if (!stepBeingLogged || !Number.isFinite(qty) || qty < 0 || (stepBeingLogged.type !== 'ENTRY' && qty === 0)) {
       setError('Enter a valid quantity'); return
     }
     haptic('medium')
     setLoading(true)
 
-    // Optimistic update: close modal + apply to UI immediately so workers
-    // get instant feedback even on flaky warehouse wifi.
-    const snapshot = batch
-    setBatch(prev => ({
-      ...prev,
-      steps: prev.steps.map((s) => {
-        if (s.id === stepBeingLogged.id) {
-          const newQty = s.type === 'ENTRY' ? 1 : s.completedQuantity + qty
-          return { ...s, completedQuantity: newQty, status: s.type === 'ENTRY' || s.targetQuantity != null && newQty >= s.targetQuantity ? 'COMPLETED' : s.status }
-        }
-        if (s.order === stepBeingLogged.order + 1 && s.status === 'LOCKED') return { ...s, status: 'IN_PROGRESS' }
-        return s
-      }),
-    }))
-    setSelectedStep(null); setQuantity(''); setNote(''); setShowNoteInput(false); setError('')
-    const pounds = stepBeingLogged.type === 'ENTRY' ? formatWeightConversion(qty, stepBeingLogged.unitLabel) : null
-    showToast(stepBeingLogged.type === 'ENTRY' ? `Recorded ${qty} ${stepBeingLogged.unitLabel}${pounds ? ` · ${pounds}` : ''}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`)
+    setError('')
+    setSelectedStep(stepBeingLogged)
+    setQuantity(String(qty))
+    setNote(noteBeingLogged || '')
 
     try {
       const res = await fetch(`/api/batches/${batch.id}/steps/${stepBeingLogged.id}/log`, {
@@ -953,13 +945,16 @@ export default function BatchDetailClient({
       if (!res.ok) {
         // Rollback on server rejection
         haptic('heavy')
-        setBatch(snapshot)
         const errMsg = (await res.json().catch(() => ({}))).error || 'Failed to log progress'
-        showToast(errMsg, 'warning')
+        setError(`${errMsg}. Your draft is retained; review and retry.`)
         return
       }
 
       const data = await res.json()
+      setSelectedStep(null); setQuantity(''); setNote(''); setShowNoteInput(false)
+      showToast(stepBeingLogged.type === 'ENTRY' ? `Recorded ${qty} ${stepBeingLogged.unitLabel}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`)
+      const refreshed = await fetch(`/api/batches/${batch.id}`, { cache: 'no-store' }).catch(() => null)
+      if (refreshed?.ok) { const latest = await refreshed.json().catch(() => null); if (latest?.batch) setBatch(latest.batch) }
       lastSaveTsRef.current = Date.now()
       setLastLogAmounts(prev => ({ ...prev, [stepBeingLogged.id]: qty }))
       emitBatchChanged(batch.id, 'log-add')
@@ -969,8 +964,7 @@ export default function BatchDetailClient({
     } catch (err) {
       // Network failure: rollback and warn
       haptic('heavy')
-      setBatch(snapshot)
-      showToast('Network error — progress not saved. Try again.', 'warning')
+      setError('Connection error — save not confirmed. Your draft is retained. Check recent logs before retrying.')
     } finally {
       setLoading(false)
     }
@@ -1958,7 +1952,7 @@ export default function BatchDetailClient({
       {showAddStepModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2060,7 +2054,7 @@ export default function BatchDetailClient({
       {editingStep && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2176,7 +2170,7 @@ export default function BatchDetailClient({
       {selectedStep && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2234,8 +2228,11 @@ export default function BatchDetailClient({
                       <input
                         ref={quantityRef}
                         type="text"
-                        inputMode="none"
-                        readOnly
+                        inputMode={selectedStep.type === 'ENTRY' ? 'decimal' : 'numeric'}
+                        aria-label="Quantity"
+                        disabled={loading}
+                        onChange={(event) => { if (/^\d*\.?\d*$/.test(event.target.value) && (selectedStep.type === 'ENTRY' || !event.target.value.includes('.'))) setQuantity(event.target.value) }}
+                        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); handleSubmit() } if (event.key === 'Escape' && !loading) setSelectedStep(null) }}
                         value={quantity}
                         placeholder="0"
                         className={`w-full px-4 py-3.5 rounded-xl border text-3xl font-bold text-center tabular-nums placeholder:text-muted-foreground/45 focus:outline-none transition-all ${
@@ -2324,7 +2321,7 @@ export default function BatchDetailClient({
       {editingLog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2417,7 +2414,7 @@ export default function BatchDetailClient({
       {showRemovalModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2534,7 +2531,7 @@ export default function BatchDetailClient({
       {showDuplicateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            className="w-full max-w-md bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">

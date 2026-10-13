@@ -1,3 +1,4 @@
+import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
@@ -6,6 +7,7 @@ import { getProducedBaseUnits, getRemovedQuantity } from '@/lib/inventory'
 export async function POST(request: NextRequest) {
   try {
     const session = await requireSupervisorOrOwner()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const body = await request.json()
     const recipeId = String(body.recipeId || '')
     const productId = body.productId ? String(body.productId) : null
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ adjustment, onHand: countedQuantity }, { status: 201 })
+    })
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

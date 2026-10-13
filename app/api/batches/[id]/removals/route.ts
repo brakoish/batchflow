@@ -1,8 +1,10 @@
+import { getProducedBaseUnits } from '@/lib/inventory'
+import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
 
-async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSupervisorOrOwner>>) {
+async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSupervisorOrOwner>>, prisma: import('@prisma/client').Prisma.TransactionClient) {
   if (session.user.workerId) return session.user.workerId
 
   const worker = await prisma.worker.findFirst({
@@ -16,23 +18,13 @@ async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSup
   return worker?.id || null
 }
 
-function getProducedBaseUnits(batch: {
-  steps: { type: string; name: string; completedQuantity: number; unitRatio: number | null }[]
-}) {
-  const countSteps = batch.steps.filter(step => step.type === 'COUNT' && !step.name.startsWith('[Skipped] '))
-  if (!countSteps.length) return 0
-
-  return Math.max(
-    ...countSteps.map(step => Math.floor(step.completedQuantity * (step.unitRatio || 1)))
-  )
-}
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireSupervisorOrOwner()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
     const body = await request.json()
 
@@ -47,7 +39,7 @@ export async function POST(
     const batch = await prisma.batch.findFirst({
       where: { id, organizationId: session.user.organizationId },
       include: {
-        steps: { select: { type: true, name: true, completedQuantity: true, unitRatio: true } },
+        steps: { select: { order: true, type: true, name: true, completedQuantity: true, unitRatio: true } },
         removals: { select: { quantity: true } },
       },
     })
@@ -56,7 +48,9 @@ export async function POST(
       return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
-    const produced = getProducedBaseUnits(batch)
+    if (batch.status === 'CANCELLED') return NextResponse.json({ error: 'Cancelled batches cannot supply inventory' }, { status: 409 })
+
+    const produced = getProducedBaseUnits(batch.steps)
     const removed = batch.removals.reduce((sum, removal) => sum + removal.quantity, 0)
     const available = Math.max(0, produced - removed)
 
@@ -67,7 +61,7 @@ export async function POST(
       )
     }
 
-    const workerId = await getActivityWorkerId(session)
+    const workerId = await getActivityWorkerId(session, prisma)
     if (!workerId) {
       return NextResponse.json({ error: 'No worker record available for activity' }, { status: 400 })
     }
@@ -86,6 +80,7 @@ export async function POST(
     })
 
     return NextResponse.json({ removal })
+    })
   } catch (error) {
     console.error('Create batch removal error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

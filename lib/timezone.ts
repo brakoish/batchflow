@@ -72,7 +72,7 @@ export function toDateTimeLocalString(date: string | Date, timezone: string): st
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
+    hourCycle: 'h23',
   });
 
   const parts = formatter.formatToParts(d);
@@ -93,46 +93,21 @@ export function toDateTimeLocalString(date: string | Date, timezone: string): st
  * @returns Date object in UTC
  */
 export function fromDateTimeLocalString(dateTimeLocal: string, timezone: string): Date {
-  // Parse the datetime-local string
-  const [datePart, timePart] = dateTimeLocal.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hour, minute] = timePart.split(':').map(Number);
-
-  // Create a date string in the target timezone
-  // We use en-US format that includes timezone offset
-  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
-
-  // Get the timezone offset at this specific date/time
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZoneName: 'longOffset'
-  });
-
-  // Create a date in the target timezone and parse the offset
-  const testDate = new Date(`${dateStr}Z`); // Start with UTC
-  const formatted = formatter.format(testDate);
-
-  // Extract offset from formatted string (e.g., "GMT-04:00" or "GMT+05:30")
-  const offsetMatch = formatted.match(/GMT([+-]\d{2}):(\d{2})/);
-
-  if (!offsetMatch) {
-    // Fallback: construct date assuming no DST
-    // This is a simplified approach and may not be perfectly accurate
-    return new Date(`${dateStr}Z`);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dateTimeLocal)) throw new Error('Invalid local date/time')
+  const naive = Date.parse(`${dateTimeLocal}:00Z`)
+  if (!Number.isFinite(naive) || new Date(naive).toISOString().slice(0, 16) !== dateTimeLocal) throw new Error('Invalid local date/time')
+  // Probe both sides of a transition, then round-trip candidates. Reject gaps
+  // and folds rather than silently changing a requested payroll instant.
+  const offsets = new Set<number>()
+  for (const delta of [-36, -12, 0, 12, 36]) {
+    const probe = new Date(naive + delta * 3600000)
+    offsets.add(Date.parse(`${toDateTimeLocalString(probe, timezone)}:00Z`) - Math.floor(probe.getTime() / 60000) * 60000)
   }
+  const candidates = [...offsets].map(offset => new Date(naive - offset)).filter(d => toDateTimeLocalString(d, timezone) === dateTimeLocal)
+  if (candidates.length !== 1) throw new Error(candidates.length ? 'Ambiguous local time during daylight saving transition; choose an unambiguous time' : 'Local time does not exist during daylight saving transition')
+  return candidates[0]
+}
 
-  const offsetHours = parseInt(offsetMatch[1], 10);
-  const offsetMinutes = parseInt(offsetMatch[2], 10) * (offsetHours < 0 ? -1 : 1);
-  const totalOffsetMinutes = offsetHours * 60 + offsetMinutes;
-
-  // Create a date in the specified timezone by adjusting for the offset
-  const utcTime = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
-  return new Date(utcTime - totalOffsetMinutes * 60 * 1000);
+export function localDateKey(date: string | Date, timezone: string): string {
+  return toDateTimeLocalString(date, timezone).slice(0, 10)
 }

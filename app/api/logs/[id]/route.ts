@@ -1,3 +1,5 @@
+import { getProducedBaseUnits } from '@/lib/inventory'
+import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
@@ -9,37 +11,11 @@ function isSkippedStep(step: { name: string }) {
   return step.name.startsWith(SKIPPED_PREFIX)
 }
 
-function getStepCeilingFromPrevious(
-  previousStep: { completedQuantity: number; unitRatio: number | null },
-  step: { unitRatio: number | null }
-) {
-  return Math.floor(
-    (previousStep.completedQuantity * (previousStep.unitRatio || 1)) / (step.unitRatio || 1)
-  )
-}
-
-function isCountStepComplete(
-  step: {
-    completedQuantity: number
-    targetQuantity: number | null
-    type: string
-    name: string
-    status: string
-    unitRatio: number | null
-  },
-  previousStep?: {
-    completedQuantity: number
-    status: string
-    unitRatio: number | null
-  } | null
-) {
+function isCountStepComplete(step: { name: string; type: string; completedQuantity: number; targetQuantity: number | null }, _previousStep?: unknown) {
   if (isSkippedStep(step)) return true
-  if (step.type === 'CHECK' || step.type === 'ENTRY') return isRecordedStepComplete(step)
-  if (step.targetQuantity != null && step.completedQuantity >= step.targetQuantity) return true
-  if (!previousStep || previousStep.status !== 'COMPLETED') return false
-
-  const ceiling = getStepCeilingFromPrevious(previousStep, step)
-  return step.completedQuantity >= ceiling
+  if (step.type === 'ENTRY') return step.completedQuantity > 0
+  if (step.type === 'CHECK') return step.targetQuantity != null && step.completedQuantity >= step.targetQuantity
+  return step.targetQuantity != null && step.completedQuantity >= step.targetQuantity
 }
 
 export async function PATCH(
@@ -48,6 +24,7 @@ export async function PATCH(
 ) {
   try {
     const session = await requireSession()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
     const { quantity, note } = await request.json()
 
@@ -87,6 +64,17 @@ export async function PATCH(
     // At least one field must differ
     if (nextQuantity === log.quantity && note === log.note) {
       return NextResponse.json({ error: 'No changes detected' }, { status: 400 })
+    }
+
+    const aggregate = await prisma.progressLog.aggregate({ where: { batchStepId: log.batchStepId }, _sum: { quantity: true } })
+    const proposedTotal = log.batchStep.type === 'ENTRY' ? 1 : (aggregate._sum.quantity || 0) + (nextQuantity - log.quantity)
+    if (log.batchStep.type !== 'ENTRY' && log.batchStep.targetQuantity != null && proposedTotal > log.batchStep.targetQuantity) {
+      return NextResponse.json({ error: 'Correction exceeds the station target' }, { status: 400 })
+    }
+    const removals = await prisma.batchRemoval.aggregate({ where: { batchId: log.batchStep.batchId }, _sum: { quantity: true } })
+    const proposedOutput = getProducedBaseUnits(log.batchStep.batch.steps.map(step => step.id === log.batchStepId ? { ...step, completedQuantity: proposedTotal } : step))
+    if (proposedOutput < (removals._sum.quantity || 0)) {
+      return NextResponse.json({ error: 'Output cannot be reduced below inventory already removed' }, { status: 409 })
     }
 
     // Create audit log
@@ -146,32 +134,8 @@ export async function PATCH(
       },
     })
 
-    // If batch was COMPLETED and step is no longer complete, revert to ACTIVE
-    const batch = await prisma.batch.findUnique({
-      where: { id: step.batchId },
-      include: { steps: true },
-    })
-
-    if (batch && batch.status === 'COMPLETED') {
-      const allDone = batch.steps.every((s) => {
-        if (isSkippedStep(s)) return true
-        const candidate = s.id === step.id
-          ? { ...s, completedQuantity: newTotal, status: shouldCompleteStep ? 'COMPLETED' : s.status }
-          : s
-        const previousCountStep = [...batch.steps]
-          .reverse()
-          .find((p) => p.order < s.order && p.type === 'COUNT' && !isSkippedStep(p))
-        return isCountStepComplete(candidate, previousCountStep)
-      })
-      if (!allDone) {
-        await prisma.batch.update({
-          where: { id: batch.id },
-          data: { status: 'ACTIVE', completedDate: null },
-        })
-      }
-    }
-
     return NextResponse.json({ log: updatedLog, step: updatedStep })
+    })
   } catch (error) {
     console.error('Edit log error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -184,6 +148,7 @@ export async function DELETE(
 ) {
   try {
     const session = await requireSession()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
 
     const log = await prisma.progressLog.findUnique({
@@ -212,6 +177,17 @@ export async function DELETE(
     // Only the worker who made it or an owner can delete
     if (log.workerId !== session.user.workerId && session.user.role !== 'OWNER') {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+    }
+
+    const aggregate = await prisma.progressLog.aggregate({ where: { batchStepId: log.batchStepId }, _sum: { quantity: true } })
+    const proposedTotal = log.batchStep.type === 'ENTRY' ? 0 : (aggregate._sum.quantity || 0) + (-log.quantity)
+    if (log.batchStep.type !== 'ENTRY' && log.batchStep.targetQuantity != null && proposedTotal > log.batchStep.targetQuantity) {
+      return NextResponse.json({ error: 'Correction exceeds the station target' }, { status: 400 })
+    }
+    const removals = await prisma.batchRemoval.aggregate({ where: { batchId: log.batchStep.batchId }, _sum: { quantity: true } })
+    const proposedOutput = getProducedBaseUnits(log.batchStep.batch.steps.map(step => step.id === log.batchStepId ? { ...step, completedQuantity: proposedTotal } : step))
+    if (proposedOutput < (removals._sum.quantity || 0)) {
+      return NextResponse.json({ error: 'Output cannot be reduced below inventory already removed' }, { status: 409 })
     }
 
     // Create audit log before deletion
@@ -254,32 +230,8 @@ export async function DELETE(
       },
     })
 
-    // If batch was COMPLETED, revert to ACTIVE
-    const batch = await prisma.batch.findUnique({
-      where: { id: step.batchId },
-      include: { steps: true },
-    })
-
-    if (batch && batch.status === 'COMPLETED') {
-      const allDone = batch.steps.every((s) => {
-        if (isSkippedStep(s)) return true
-        const candidate = s.id === step.id
-          ? { ...s, completedQuantity: newTotal, status: shouldCompleteStep ? 'COMPLETED' : s.status }
-          : s
-        const previousCountStep = [...batch.steps]
-          .reverse()
-          .find((p) => p.order < s.order && p.type === 'COUNT' && !isSkippedStep(p))
-        return isCountStepComplete(candidate, previousCountStep)
-      })
-      if (!allDone) {
-        await prisma.batch.update({
-          where: { id: batch.id },
-          data: { status: 'ACTIVE', completedDate: null },
-        })
-      }
-    }
-
     return NextResponse.json({ success: true, newTotal })
+    })
   } catch (error) {
     console.error('Delete log error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

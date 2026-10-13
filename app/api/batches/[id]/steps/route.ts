@@ -1,10 +1,11 @@
+import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
 
 const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
 
-async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSupervisorOrOwner>>) {
+async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSupervisorOrOwner>>, prisma: import('@prisma/client').Prisma.TransactionClient) {
   if (session.user.workerId) return session.user.workerId
 
   const worker = await prisma.worker.findFirst({
@@ -24,6 +25,7 @@ export async function POST(
 ) {
   try {
     const session = await requireSupervisorOrOwner()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
     const body = await request.json()
 
@@ -58,6 +60,9 @@ export async function POST(
       return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
+    if (batch.status !== 'ACTIVE') return NextResponse.json({ error: 'Reopen this batch before changing workflow' }, { status: 409 })
+
+    if (await prisma.batchRemoval.count({ where: { batchId: id } })) return NextResponse.json({ error: 'Workflow cannot change after inventory removal' }, { status: 409 })
     const nextOrder = Math.max(0, ...batch.steps.map((step) => step.order)) + 1
 
     const overrideRecipe = await prisma.recipe.upsert({
@@ -119,7 +124,7 @@ export async function POST(
       },
     })
 
-    const activityWorkerId = await getActivityWorkerId(session)
+    const activityWorkerId = await getActivityWorkerId(session, prisma)
     if (activityWorkerId) {
       await prisma.logAudit.create({
         data: {
@@ -133,6 +138,7 @@ export async function POST(
     }
 
     return NextResponse.json({ step })
+    })
   } catch (error) {
     console.error('Create batch step error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

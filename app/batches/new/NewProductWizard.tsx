@@ -27,7 +27,9 @@ function suggestedBaseUnit(category: ProcessingCategory) {
 }
 
 function categorySteps(category: ProcessingCategory): StepDraft[] {
-  return baseStepsForCategory(category).map(step => ({
+  const defaults = baseStepsForCategory(category)
+  if (!defaults.length) return [{ name: '', notes: '', type: 'COUNT', entryUnit: 'g', unitName: '', materials: [] }]
+  return defaults.map(step => ({
     name: step.name,
     notes: step.notes,
     type: step.type,
@@ -51,7 +53,7 @@ export default function NewProductWizard({ recipes, knownBrands, onCancel, onCre
   const [materialWeightGrams, setMaterialWeightGrams] = useState('')
   const [source, setSource] = useState<'category' | 'copy' | 'blank'>('category')
   const [copyRecipeId, setCopyRecipeId] = useState('')
-  const [steps, setSteps] = useState<StepDraft[]>([])
+  const [steps, setSteps] = useState<StepDraft[]>(categorySteps('OTHER'))
   const [units, setUnits] = useState<{ name: string; ratio: number }[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -60,6 +62,7 @@ export default function NewProductWizard({ recipes, knownBrands, onCancel, onCre
     .sort((a, b) => `${a.product.brand || ''} ${a.product.name}`.localeCompare(`${b.product.brand || ''} ${b.product.name}`)), [recipes])
 
   const chooseCategory = (next: ProcessingCategory) => {
+    if (steps.some(step => step.name.trim()) && !window.confirm('Replace the current workflow steps with category defaults?')) return
     setCategory(next)
     setBaseUnit(suggestedBaseUnit(next))
     setSource('category')
@@ -70,7 +73,9 @@ export default function NewProductWizard({ recipes, knownBrands, onCancel, onCre
   }
 
   const chooseSource = (next: 'category' | 'copy' | 'blank') => {
+    if (steps.some(step => step.name.trim()) && !window.confirm('Replace the current workflow? Existing step edits will be discarded.')) return
     setSource(next)
+    if (next === 'copy') { setCopyRecipeId(''); setSteps([]); setUnits([]) }
     if (next === 'category') {
       setCopyRecipeId('')
       setUnits([])
@@ -105,6 +110,8 @@ export default function NewProductWizard({ recipes, knownBrands, onCancel, onCre
   }
 
   const save = async () => {
+    if (saving) return
+    if (source === 'copy' && !copyRecipeId) { setError('Select a workflow to copy'); return }
     const cleanSteps = steps.filter(step => step.name.trim())
     if (!brand.trim() || !productName.trim()) { setError('Add the brand and product name'); return }
     if (!variationName.trim()) { setError('Add the first strain, flavor, or variation'); return }

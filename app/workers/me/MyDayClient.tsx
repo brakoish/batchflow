@@ -6,6 +6,7 @@ import AppShell from '@/app/components/AppShell'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { ClockIcon, CubeIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid'
 import { formatDuration } from '@/lib/format'
+import { localDateKey } from '@/lib/timezone'
 import { haptic } from '@/lib/haptic'
 import type { Session } from '@/lib/session'
 type Shift = { id: string; startedAt: string; endedAt: string | null; hours: number }
@@ -29,11 +30,19 @@ export default function MyDayClient({ session }: { session: Session }) {
   const [clockingIn, setClockingIn] = useState(false)
   const [languageSaving, setLanguageSaving] = useState(false)
 
+  const [error, setError] = useState('')
+  const [timezone, setTimezone] = useState('America/New_York')
+
   const changeLanguage = async (preferredLanguage: string) => {
+    if (languageSaving) return
     setLanguageSaving(true)
-    const res = await fetch('/api/workers/me/preferences', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preferredLanguage }) })
-    if (res.ok) window.location.reload()
-    else setLanguageSaving(false)
+    setError('')
+    try {
+      const res = await fetch('/api/workers/me/preferences', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preferredLanguage }) })
+      if (!res.ok) throw new Error('Language was not saved. Try again.')
+      window.location.reload()
+    } catch (error) { setError(error instanceof Error ? error.message : 'Connection error. Try again.') }
+    finally { setLanguageSaving(false) }
   }
 
   useEffect(() => {
@@ -64,14 +73,8 @@ export default function MyDayClient({ session }: { session: Session }) {
       if (shiftRes.ok) {
         const shiftData = await shiftRes.json()
         setActiveShift(shiftData.activeShift || null)
-      }
-
-      // Fetch today's shifts (worker-scoped, works for PIN users too)
-      const today = new Date().toISOString().split('T')[0]
-      const shiftsRes = await fetch(`/api/shifts/my?from=${today}&to=${today}`, { cache: "no-store" })
-      if (shiftsRes.ok) {
-        const shiftsData = await shiftsRes.json()
-        setTodayShifts(shiftsData.shifts || [])
+        setTimezone(shiftData.timezone)
+        setTodayShifts((shiftData.todayShifts || []).filter((s: Shift) => s.endedAt).map((s: Shift) => ({ ...s, hours: (new Date(s.endedAt!).getTime() - new Date(s.startedAt).getTime()) / 3600000 })))
       }
 
       // Fetch worker stats (this gives us week data)
@@ -83,10 +86,10 @@ export default function MyDayClient({ session }: { session: Session }) {
         // Extract today's batches from recent logs
         if (statsData.stats?.recentLogs) {
           const batchMap = new Map<string, number>()
-          const today = new Date().toISOString().split('T')[0]
+          const today = localDateKey(new Date(), timezone)
 
           statsData.stats.recentLogs.forEach((log: any) => {
-            const logDate = new Date(log.createdAt).toISOString().split('T')[0]
+            const logDate = localDateKey(log.createdAt, timezone)
             if (logDate === today && log.batchStep?.batch?.name) {
               const name = log.batchStep.batch.name
               batchMap.set(name, (batchMap.get(name) || 0) + log.quantity)
@@ -118,12 +121,13 @@ export default function MyDayClient({ session }: { session: Session }) {
     setClockingIn(true)
     try {
       const res = await fetch('/api/shifts', { method: 'POST' })
+      if (!res.ok) throw new Error((await res.json()).error || 'Clock-in failed')
       if (res.ok) {
         const data = await res.json()
         setActiveShift(data.shift)
         window.dispatchEvent(new Event('shift-changed'))
       }
-    } catch {}
+    } catch (e) { setError(e instanceof Error ? e.message : 'Connection error. Try again.') }
     setClockingIn(false)
   }
 
@@ -140,6 +144,7 @@ export default function MyDayClient({ session }: { session: Session }) {
           </div>
         )}
 
+        {error && <p role="alert" className="text-destructive">{error}</p>}
         {/* Greeting */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Hey {(session.name || '').split(' ')[0]}!</h1>

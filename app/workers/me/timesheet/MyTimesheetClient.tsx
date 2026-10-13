@@ -5,7 +5,7 @@ import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import { ChevronLeftIcon, ClockIcon, ArrowDownTrayIcon, ShareIcon, PencilSquareIcon, XMarkIcon } from '@heroicons/react/24/solid'
 import { formatDuration } from '@/lib/format'
-import { formatDateInTz, formatTimeInTz } from '@/lib/timezone'
+import { formatDateInTz, formatTimeInTz, toDateTimeLocalString, fromDateTimeLocalString, localDateKey } from '@/lib/timezone'
 import { haptic } from '@/lib/haptic'
 import type { Session } from '@/lib/session'
 
@@ -19,12 +19,10 @@ type Shift = {
 }
 
 // Get the Monday of the week containing the given date, anchored to org timezone.
-function mondayOfWeek(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = day === 0 ? -6 : 1 - day // Sunday rolls back to Monday
-  d.setDate(d.getDate() + diff)
-  d.setHours(0, 0, 0, 0)
+function mondayOfWeek(date: Date, timezone = 'America/New_York'): Date {
+  const d = new Date(`${localDateKey(date, timezone)}T12:00:00Z`)
+  const day = d.getUTCDay()
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day))
   return d
 }
 
@@ -35,6 +33,7 @@ function sanitizeFilename(s: string): string {
 export default function MyTimesheetClient({ session, organizationName }: { session: Session; organizationName: string }) {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [timezone, setTimezone] = useState('America/New_York')
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOfWeek(new Date()))
   const [sharing, setSharing] = useState(false)
@@ -49,17 +48,19 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
   const [corrMsg, setCorrMsg] = useState<string | null>(null)
 
   const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekStart.getDate() + 7)
+  weekEnd.setUTCDate(weekStart.getUTCDate() + 7)
 
   const fetchShifts = async () => {
     setLoading(true)
+    setLoadError('')
     try {
-      const from = weekStart.toISOString()
-      const to = weekEnd.toISOString()
+      const from = fromDateTimeLocalString(`${weekStart.toISOString().slice(0, 10)}T00:00`, timezone).toISOString()
+      const to = fromDateTimeLocalString(`${weekEnd.toISOString().slice(0, 10)}T00:00`, timezone).toISOString()
       const [shiftsRes, corrRes] = await Promise.all([
         fetch(`/api/shifts/my?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { cache: 'no-store' }),
         fetch('/api/shifts/corrections', { cache: 'no-store' }),
       ])
+      if (!shiftsRes.ok) throw new Error('Unable to load hours')
       if (shiftsRes.ok) {
         const data = await shiftsRes.json()
         const corrData = corrRes.ok ? await corrRes.json() : { requests: [] }
@@ -73,17 +74,13 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
         setShifts(allShifts)
         setTimezone(data.timezone || 'America/New_York')
       }
-    } catch {}
+    } catch { setLoadError('Unable to load hours. Try changing weeks to retry.') }
     setLoading(false)
   }
 
   const openCorrectionModal = (shift: Shift) => {
     haptic('light')
-    const toLocalInput = (iso: string) => {
-      const d = new Date(iso)
-      const pad = (n: number) => String(n).padStart(2, '0')
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-    }
+    const toLocalInput = (iso: string) => toDateTimeLocalString(iso, timezone)
     setCorrectionShift(shift)
     setCorrStart(toLocalInput(shift.startedAt))
     setCorrEnd(shift.endedAt ? toLocalInput(shift.endedAt) : '')
@@ -101,14 +98,14 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shiftId: correctionShift.id,
-          requestedStart: new Date(corrStart).toISOString(),
-          requestedEnd: corrEnd ? new Date(corrEnd).toISOString() : null,
+          requestedStart: fromDateTimeLocalString(corrStart, timezone).toISOString(),
+          requestedEnd: corrEnd ? fromDateTimeLocalString(corrEnd, timezone).toISOString() : null,
           reason: corrReason || null,
         }),
       })
       if (res.ok) {
         haptic('medium')
-        setCorrMsg('✓ Request submitted — your supervisor will review it.')
+        setCorrMsg('✓ Request submitted — your owner/manager will review it.')
         setShifts((prev) =>
           prev.map((s) => (s.id === correctionShift.id ? { ...s, hasPendingCorrection: true } : s))
         )
@@ -120,7 +117,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
       }
     } catch {
       haptic('heavy')
-      setCorrMsg('Connection error. Try again.')
+      setCorrMsg('Invalid or ambiguous local time, or connection error. Check times and try again.')
     } finally {
       setCorrSubmitting(false)
     }
@@ -128,7 +125,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
 
   useEffect(() => {
     fetchShifts()
-  }, [weekStart])
+  }, [weekStart, timezone])
 
   const shiftHours = shifts.filter((s) => s.endedAt).reduce((sum, s) => sum + s.hours, 0)
   const completedCount = shifts.filter((s) => s.endedAt).length
@@ -145,23 +142,24 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
 
   const prevWeek = () => {
     const d = new Date(weekStart)
-    d.setDate(d.getDate() - 7)
+    d.setUTCDate(d.getUTCDate() - 7)
     setWeekStart(d)
   }
   const nextWeek = () => {
     const d = new Date(weekStart)
-    d.setDate(d.getDate() + 7)
+    d.setUTCDate(d.getUTCDate() + 7)
     setWeekStart(d)
   }
-  const isThisWeek = mondayOfWeek(new Date()).getTime() === weekStart.getTime()
+  const isThisWeek = mondayOfWeek(new Date(), timezone).getTime() === weekStart.getTime()
 
   const weekRangeLabel = (() => {
     const endInclusive = new Date(weekStart)
-    endInclusive.setDate(weekStart.getDate() + 6)
-    const start = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    endInclusive.setUTCDate(weekStart.getUTCDate() + 6)
+    const start = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
     const end = endInclusive.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
+      timeZone: 'UTC',
       year: endInclusive.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
     })
     return `${start} – ${end}`
@@ -285,6 +283,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
           <h1 className="text-lg font-semibold tracking-tight text-foreground">My Timesheet</h1>
         </div>
 
+        {loadError && <p role="alert">{loadError}</p>}
         {/* Week selector */}
         <div className="flex items-center justify-between gap-2 mb-4">
           <button
@@ -444,7 +443,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
                 </button>
               </div>
               <p className="text-sm text-muted-foreground -mt-1">
-                Original: {formatTimeInTz(correctionShift.startedAt, timezone)}
+                Times in {timezone}. Original: {formatTimeInTz(correctionShift.startedAt, timezone)}
                 {correctionShift.endedAt
                   ? ` → ${formatTimeInTz(correctionShift.endedAt, timezone)}`
                   : ' (no clock-out)'}

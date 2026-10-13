@@ -27,6 +27,8 @@ type Props = {
 export default function MoreMenu({ session, open, onClose }: Props) {
   const pathname = usePathname()
   const isOwner = session.role === 'OWNER'
+  const [checking, setChecking] = useState(true)
+  const [clockError, setClockError] = useState('')
   const [onShift, setOnShift] = useState(false)
   const [clockLoading, setClockLoading] = useState(false)
   const [confirmingClockOut, setConfirmingClockOut] = useState(false)
@@ -38,7 +40,8 @@ export default function MoreMenu({ session, open, onClose }: Props) {
       fetch('/api/shifts')
         .then((r) => r.json())
         .then((d) => setOnShift(!!d.activeShift))
-        .catch(() => {})
+        .catch(() => setClockError('Unable to check shift. Reopen to retry.'))
+        .finally(() => setChecking(false))
     }
     check()
     const onChange = () => check()
@@ -64,31 +67,39 @@ export default function MoreMenu({ session, open, onClose }: Props) {
   }, [open, onClose])
 
   const handleClockIn = async () => {
+    if (clockLoading) return
+    setClockError('')
     haptic('medium')
     setClockLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'POST' })
+      if (!res.ok) throw new Error((await res.json()).error || 'Shift change failed')
+      window.dispatchEvent(new Event('shift-changed'))
       if (res.ok) {
         setOnShift(true)
         window.dispatchEvent(new Event('shift-changed'))
         onClose()
       }
-    } catch {}
+    } catch (e) { setClockError(e instanceof Error ? e.message : 'Connection error. Try again.') }
     setClockLoading(false)
   }
 
   const handleClockOutConfirm = async () => {
+    if (clockLoading) return
+    setClockError('')
     haptic('medium')
     setClockLoading(true)
     try {
       const res = await fetch('/api/shifts', { method: 'PATCH' })
+      if (!res.ok) throw new Error((await res.json()).error || 'Shift change failed')
+      window.dispatchEvent(new Event('shift-changed'))
       if (res.ok) {
         setOnShift(false)
         setConfirmingClockOut(false)
         window.dispatchEvent(new Event('shift-changed'))
         onClose()
       }
-    } catch {}
+    } catch (e) { setClockError(e instanceof Error ? e.message : 'Connection error. Try again.') }
     setClockLoading(false)
   }
 
@@ -169,7 +180,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                   </button>
                   <button
                     onClick={handleClockOutConfirm}
-                    disabled={clockLoading}
+                    disabled={clockLoading || checking}
                     autoFocus
                     className="bf-btn bf-btn-danger bf-btn-lg"
                   >
@@ -189,7 +200,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
             ) : (
               <button
                 onClick={handleClockIn}
-                disabled={clockLoading}
+                disabled={clockLoading || checking}
                 className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
               >
                 <PlayIcon className="w-4 h-4" />
@@ -226,7 +237,8 @@ export default function MoreMenu({ session, open, onClose }: Props) {
         <div className="px-4 pb-4 pt-1 border-t border-border flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Appearance</span>
-            <ThemeToggle />
+            {clockError && <p role="alert">{clockError}</p>}
+              <ThemeToggle />
           </div>
           <button
             onClick={handleLogout}

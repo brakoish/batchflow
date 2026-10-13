@@ -38,6 +38,7 @@ export default function BatchListClient({
   const [clockingIn, setClockingIn] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(!initialBatches.length)
+  const [fetchError, setFetchError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [brandFilter, setBrandFilter] = useState('all')
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'dueDate' | 'progress'>('priority')
@@ -58,6 +59,8 @@ export default function BatchListClient({
         fetch('/api/batches', { cache: "no-store" }),
         fetch('/api/shifts', { cache: "no-store" }),
       ])
+      if (!bRes.ok) throw new Error('Unable to refresh batches. Your last loaded data is shown.')
+      setFetchError('')
       if (bRes.ok) {
         const data = await bRes.json()
         if (data.batches) {
@@ -70,8 +73,8 @@ export default function BatchListClient({
         setOnShift(!!data.activeShift)
         setShiftChecked(true)
       }
-    } catch {}
-    if (showLoading) setRefreshing(false)
+    } catch (err) { setFetchError(err instanceof Error ? err.message : 'Connection error. Refresh to retry.') }
+    finally { setLoading(false); if (showLoading) setRefreshing(false) }
   }
 
   useEffect(() => {
@@ -245,6 +248,7 @@ export default function BatchListClient({
         </div>
 
         {/* Batch Cards */}
+        {fetchError && <div role="alert" className="mb-4 rounded-xl border border-border p-3 text-sm">{fetchError} <button className="bf-btn bf-btn-secondary" onClick={() => fetchData(true)}>Retry</button></div>}
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (

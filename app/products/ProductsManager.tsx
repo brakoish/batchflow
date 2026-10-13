@@ -8,7 +8,7 @@ type Product = { id: string; name: string; brand: string | null; archivedAt: str
 type Brand = { id: string; name: string }
 
 const categoryLabels: Record<string, string> = {
-  FLOWER: 'Flower', PRE_ROLL: 'Pre-roll', PRE_ROLL_PACK: 'Pre-roll pack', VAPES: 'Vapes', EDIBLES: 'Edibles', OTHER: 'Other',
+  FLOWER: 'Flower', PRE_ROLL: 'Pre-roll', PRE_ROLL_PACK: 'Pre-roll pack', VAPE: 'Vapes', EDIBLE: 'Edibles', CONCENTRATE: 'Concentrate', OTHER: 'Other',
 }
 
 export default function ProductsManager({ initialProducts, initialBrands }: { initialProducts: Product[]; initialBrands: Brand[] }) {
@@ -26,6 +26,8 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
   const addBrand = async () => {
     const name = brandName.trim()
     if (!name) return
+    if (busy) return
+    try {
     setBusy('brand'); setError('')
     const response = await fetch('/api/brands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
     const data = await response.json().catch(() => ({}))
@@ -33,21 +35,27 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
       setBrands((current) => [...current.filter((brand) => brand.id !== data.brand.id), data.brand].sort((a, b) => a.name.localeCompare(b.name)))
       setBrandName('')
     } else setError(data.error || 'Unable to add brand')
-    setBusy('')
+    } catch { setError('Connection error. Your changes were not confirmed; retry.') }
+    finally { setBusy('') }
   }
 
   const toggleArchive = async (product: Product) => {
+    if (busy) return
+    try {
     setBusy(product.id); setError('')
     const response = await fetch(`/api/products/${product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: !product.archivedAt }) })
     const data = await response.json().catch(() => ({}))
     if (response.ok) setProducts((current) => current.map((item) => item.id === product.id ? { ...item, archivedAt: data.product.archivedAt } : item))
     else setError(data.error || 'Unable to update product')
-    setBusy('')
+    } catch { setError('Connection error. Your changes were not confirmed; retry.') }
+    finally { setBusy('') }
   }
 
   const renameProduct = async (product: Product) => {
     const name = editingName.trim()
     if (!name || name === product.name) { setEditingId(''); return }
+    if (busy) return
+    try {
     setBusy(product.id); setError('')
     const response = await fetch(`/api/products/${product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
     const data = await response.json().catch(() => ({}))
@@ -55,12 +63,15 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
       setProducts((current) => current.map((item) => item.id === product.id ? { ...item, name: data.product.name } : item))
       setEditingId(''); setEditingName('')
     } else setError(data.error || 'Unable to rename product')
-    setBusy('')
+    } catch { setError('Connection error. Your changes were not confirmed; retry.') }
+    finally { setBusy('') }
   }
 
   const addVariation = async (product: Product) => {
     const name = (variationNames[product.id] || '').trim()
     if (!name) return
+    if (busy) return
+    try {
     setBusy(`add-${product.id}`); setError('')
     const response = await fetch(`/api/products/${product.id}/variations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
     const data = await response.json().catch(() => ({}))
@@ -68,16 +79,20 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
       setProducts((current) => current.map((item) => item.id === product.id ? { ...item, variations: [...item.variations.filter((variation) => variation.id !== data.variation.id), data.variation].sort((a, b) => a.name.localeCompare(b.name)) } : item))
       setVariationNames((current) => ({ ...current, [product.id]: '' }))
     } else setError(data.error || 'Unable to add variation')
-    setBusy('')
+    } catch { setError('Connection error. Your changes were not confirmed; retry.') }
+    finally { setBusy('') }
   }
 
   const toggleVariationArchive = async (product: Product, variation: Variation) => {
+    if (busy) return
+    try {
     setBusy(`variation-${variation.id}`); setError('')
     const response = await fetch(`/api/products/${product.id}/variations/${variation.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: !variation.archivedAt }) })
     const data = await response.json().catch(() => ({}))
     if (response.ok) setProducts((current) => current.map((item) => item.id === product.id ? { ...item, variations: item.variations.map((value) => value.id === variation.id ? data.variation : value) } : item))
     else setError(data.error || 'Unable to update variation')
-    setBusy('')
+    } catch { setError('Connection error. Your changes were not confirmed; retry.') }
+    finally { setBusy('') }
   }
 
   const visible = products.filter((product) => showArchived ? Boolean(product.archivedAt) : !product.archivedAt)

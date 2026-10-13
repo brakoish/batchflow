@@ -1,3 +1,4 @@
+import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
@@ -31,6 +32,7 @@ export async function POST(
 ) {
   try {
     const session = await requireSession()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id: batchId, stepId } = await params
     const body = await request.json()
     const requestedQuantity = body.quantity
@@ -172,23 +174,7 @@ export async function POST(
         },
       })
 
-      // Notify assigned workers about the unlocked step
-      const assignments = await prisma.batchAssignment.findMany({
-        where: { batchId: step.batchId },
-      })
 
-      assignments.forEach((assignment) => {
-        fetch(`${request.nextUrl.origin}/api/notifications/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') || '' },
-          body: JSON.stringify({
-            workerId: assignment.workerId,
-            title: `Your turn: ${step.batch.name}`,
-            body: `${nextStep.name} is ready for you`,
-            url: `/batches/${step.batchId}`,
-          }),
-        }).catch((error) => console.error('Failed to send notification:', error))
-      })
     }
 
     // Completing the workflow leaves the batch ready for owner/supervisor
@@ -198,6 +184,7 @@ export async function POST(
     return NextResponse.json({
       progressLog,
       step: updatedStep,
+    })
     })
   } catch (error) {
     console.error('Log progress error:', error)

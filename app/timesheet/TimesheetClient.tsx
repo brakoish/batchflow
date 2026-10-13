@@ -56,6 +56,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   // Correction requests
   const [corrections, setCorrections] = useState<any[]>([])
   const [corrLoading, setCorrLoading] = useState(false)
+  const [reviewingCorrection, setReviewingCorrection] = useState<string | null>(null)
 
   const fetchCorrections = async () => {
     setCorrLoading(true)
@@ -70,13 +71,20 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   }
 
   const handleReviewCorrection = async (id: string, action: 'APPROVED' | 'REJECTED') => {
+    if (reviewingCorrection) return
     haptic('medium')
+    setReviewingCorrection(id)
+    setError('')
     try {
       const res = await fetch(`/api/shifts/corrections/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Unable to review correction')
+      }
       if (res.ok) {
         setCorrections((prev) => prev.filter((c) => c.id !== id))
         if (action === 'APPROVED') {
@@ -85,7 +93,9 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
           setTimeout(() => setSuccess(''), 3000)
         }
       }
-    } catch {}
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Connection error. Try again.')
+    } finally { setReviewingCorrection(null) }
   }
 
   // Weekly summary state

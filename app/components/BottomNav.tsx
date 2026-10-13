@@ -97,6 +97,7 @@ export default function BottomNav({ session }: Props) {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
                   active ? 'text-emerald-500' : 'text-muted-foreground'
                 }`}

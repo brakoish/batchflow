@@ -23,6 +23,7 @@ export default function VerifyPage() {
             Click the link in your email to sign in. The link will expire in 24 hours.
           </p>
         </div>
+        <a href="/login" className="bf-btn bf-btn-secondary mt-6">Change email or resend link</a>
       </div>
     </div>
   )

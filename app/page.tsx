@@ -21,6 +21,7 @@ export default function LandingPage() {
   // Send returning workers straight back to their org PIN pad.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    try {
 
     if (params.get('switchOrg') === '1') {
       localStorage.removeItem(LAST_ORG_KEY)
@@ -36,6 +37,7 @@ export default function LandingPage() {
     }
 
     setCheckingLastOrg(false)
+    } catch { setCheckingLastOrg(false) }
   }, [router])
 
   // Auto-focus on mount
@@ -47,36 +49,40 @@ export default function LandingPage() {
   // Search orgs as user types
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
+    const controller = new AbortController()
 
     if (!query.trim()) {
       setResults([])
       setNoResults(false)
+      setSearching(false)
       return
     }
 
     debounceRef.current = setTimeout(async () => {
       setSearching(true)
       try {
-        const res = await fetch(`/api/organizations/search?q=${encodeURIComponent(query.trim())}`)
-        if (res.ok) {
+        const res = await fetch(`/api/organizations/search?q=${encodeURIComponent(query.trim())}`, { signal: controller.signal, cache: 'no-store' })
+        if (res.ok && !controller.signal.aborted) {
           const data = await res.json()
+          if (controller.signal.aborted) return
           setResults(data.organizations || [])
           setNoResults((data.organizations || []).length === 0)
         }
       } catch {
-        setResults([])
+        if (!controller.signal.aborted) setResults([])
       }
-      setSearching(false)
+      if (!controller.signal.aborted) setSearching(false)
     }, 300)
 
     return () => {
+      controller.abort()
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [query])
 
   const handleOrgSelect = (slug: string) => {
     haptic('medium')
-    localStorage.setItem(LAST_ORG_KEY, slug)
+    try { localStorage.setItem(LAST_ORG_KEY, slug) } catch {}
     router.push(`/o/${slug}`)
   }
 
@@ -87,7 +93,7 @@ export default function LandingPage() {
     } else if (query.trim()) {
       // Try direct slug navigation
       const slug = query.trim().toLowerCase().replace(/\s+/g, '-')
-      localStorage.setItem(LAST_ORG_KEY, slug)
+      try { localStorage.setItem(LAST_ORG_KEY, slug) } catch {}
       router.push(`/o/${slug}`)
     }
   }
