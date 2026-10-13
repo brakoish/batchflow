@@ -81,7 +81,8 @@ export default function ProductPicker({ products, value, baseUnit, onChange, dis
               role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={listId}
               aria-activedescendant={options[activeIndex] ? `${listId}-${options[activeIndex].id}` : undefined}
               onKeyDown={(event) => {
-                if (event.key === 'Escape') { event.preventDefault(); closePicker() }
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closePicker() }
+                if (event.key === 'Tab') { setOpen(false); setQuery('') }
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex(index => Math.max(0, Math.min(options.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)))) }
                 if (event.key === 'Enter' && options[activeIndex]) { event.preventDefault(); choose(options[activeIndex]) }
               }}

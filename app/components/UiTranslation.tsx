@@ -1,4 +1,4 @@
- 'use client'
+'use client'
 import { useEffect } from 'react'
 export default function UiTranslation({ language }: { language: string }) {
   useEffect(() => {

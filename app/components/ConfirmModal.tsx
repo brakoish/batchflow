@@ -1,9 +1,11 @@
 'use client'
 
+import { translateUi } from '@/lib/uiLocale'
 import { useEffect, useRef } from 'react'
 import { haptic } from '@/lib/haptic'
 
 type ConfirmModalProps = {
+  language?: string
   open: boolean
   title: string
   message?: string
@@ -14,7 +16,7 @@ type ConfirmModalProps = {
 }
 
 export default function ConfirmModal({
-  open, title, message, confirmLabel = 'Confirm', confirmStyle = 'danger', onConfirm, onCancel,
+  language = 'en', open, title, message, confirmLabel = 'Confirm', confirmStyle = 'danger', onConfirm, onCancel,
 }: ConfirmModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -55,7 +57,7 @@ export default function ConfirmModal({
               onClick={() => { haptic('light'); onCancel() }}
               className="flex-1 py-3.5 min-h-[44px] rounded-xl bg-muted hover:bg-muted/80 text-foreground font-semibold text-sm transition-all active:scale-[0.98]"
             >
-              Cancel
+              {translateUi('Cancel', language)}
             </button>
             <button
               onClick={() => { haptic('medium'); onConfirm() }}
@@ -65,7 +67,7 @@ export default function ConfirmModal({
                   : 'bg-emerald-600 hover:bg-emerald-500 text-white'
               }`}
             >
-              {confirmLabel}
+              {translateUi(confirmLabel, language)}
             </button>
           </div>
         </div>

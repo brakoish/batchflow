@@ -1945,6 +1945,7 @@ export default function BatchDetailClient({
       )}
 
       <ConfirmModal
+        language={session.preferredLanguage}
         open={!!confirmAction}
         title={confirmAction?.title || ''}
         message={confirmAction?.message}
@@ -1958,7 +1959,7 @@ export default function BatchDetailClient({
       {showAddStepModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
+            role="dialog" aria-modal="true" aria-label="Batch settings"
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2061,7 +2062,7 @@ export default function BatchDetailClient({
       {editingStep && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
+            role="dialog" aria-modal="true" aria-label="Batch settings"
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2331,7 +2332,7 @@ export default function BatchDetailClient({
       {editingLog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
+            role="dialog" aria-modal="true" aria-label="Batch settings"
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2425,7 +2426,7 @@ export default function BatchDetailClient({
       {showRemovalModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
+            role="dialog" aria-modal="true" aria-label="Batch settings"
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2543,7 +2544,7 @@ export default function BatchDetailClient({
       {showDuplicateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
+            role="dialog" aria-modal="true" aria-label="Batch settings"
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >

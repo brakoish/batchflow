@@ -24,3 +24,9 @@ test('combobox and recording dialogs expose keyboard semantics', () => {
   for (const token of ['aria-activedescendant', 'ArrowDown', 'ArrowUp', 'closePicker', 'role="combobox"']) assert.ok(picker.includes(token))
   assert.match(source('app/batches/[id]/BatchDetailClient.tsx'), /useDialogFocus\(recordingDialogRef/)
 })
+
+test('recording focus ref belongs only to the recording panel and busy state does not restart focus', () => {
+  assert.equal(source('app/batches/[id]/BatchDetailClient.tsx').split('ref={recordingDialogRef}').length - 1, 1)
+  assert.match(source('app/components/useDialogFocus.ts'), /busyRef.current/)
+  assert.doesNotMatch(source('app/components/useDialogFocus.ts'), /\[ref, open, onClose, busy\]/)
+})

@@ -1,5 +1,6 @@
 'use client'
 
+import { translateUi } from '@/lib/uiLocale'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
@@ -151,7 +152,7 @@ export default function MyDayClient({ session }: { session: Session }) {
           <p className="text-muted-foreground mt-1">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
-          {session.workerId && <label className="mt-4 block max-w-xs text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preferred language<select value={session.preferredLanguage} disabled={languageSaving} onChange={(e) => changeLanguage(e.target.value)} className="mt-1 min-h-[46px] w-full rounded-xl border border-input bg-card px-3 text-base font-normal normal-case text-foreground"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label>}
+          {session.workerId && <label className="mt-4 block max-w-xs text-xs font-semibold uppercase tracking-wider text-muted-foreground">{translateUi('Preferred language', session.preferredLanguage)}<select value={session.preferredLanguage} disabled={languageSaving} onChange={(e) => changeLanguage(e.target.value)} className="mt-1 min-h-[46px] w-full rounded-xl border border-input bg-card px-3 text-base font-normal normal-case text-foreground"><option value="en">{translateUi('English', session.preferredLanguage)}</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label>}
         </div>
 
         {loading ? (
@@ -182,14 +183,14 @@ export default function MyDayClient({ session }: { session: Session }) {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Clock in to start tracking your time
+                    {translateUi('Clock in to start tracking your time', session.preferredLanguage)}
                   </p>
                   <button
                     onClick={handleClockIn}
                     disabled={clockingIn}
                     className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
                   >
-                    {clockingIn ? 'Starting...' : 'Clock In'}
+                    {clockingIn ? translateUi('Starting...', session.preferredLanguage) : translateUi('Clock In', session.preferredLanguage)}
                   </button>
                 </div>
               )}
@@ -201,7 +202,7 @@ export default function MyDayClient({ session }: { session: Session }) {
               <div className="bg-card border border-border rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <CubeIcon className="w-5 h-5 text-primary" />
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Units Today</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase">{translateUi('Units Today', session.preferredLanguage)}</span>
                 </div>
                 <p className="text-3xl font-bold text-foreground tabular-nums">{todayUnits}</p>
               </div>
@@ -210,7 +211,7 @@ export default function MyDayClient({ session }: { session: Session }) {
               <div className="bg-card border border-border rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <ClockIcon className="w-5 h-5 text-emerald-500" />
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Hours Today</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase">{translateUi('Hours Today', session.preferredLanguage)}</span>
                 </div>
                 <p className="text-3xl font-bold text-foreground tabular-nums">
                   {formatDuration(todayHours + currentShiftDuration)}
@@ -221,7 +222,7 @@ export default function MyDayClient({ session }: { session: Session }) {
             {/* Today's Batches */}
             {todayBatches.length > 0 && (
               <div className="bg-card border border-border rounded-xl p-5">
-                <h3 className="text-base font-semibold text-foreground mb-4">Batches Worked Today</h3>
+                <h3 className="text-base font-semibold text-foreground mb-4">{translateUi('Batches Worked Today', session.preferredLanguage)}</h3>
                 <div className="space-y-3">
                   {todayBatches.map((batch, idx) => (
                     <div key={idx} className="flex items-center justify-between">
@@ -239,33 +240,33 @@ export default function MyDayClient({ session }: { session: Session }) {
             {weekStats && (
               <div className="bg-card border border-border rounded-xl p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-semibold text-foreground">This Week</h3>
+                  <h3 className="text-base font-semibold text-foreground">{translateUi('This Week', session.preferredLanguage)}</h3>
                   <Link
                     href="/workers/me/timesheet"
                     className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center"
                   >
-                    Timesheet →
+                    {translateUi('Timesheet →', session.preferredLanguage)}
                   </Link>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <CubeIcon className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Total Units</span>
+                      <span className="text-xs text-muted-foreground">{translateUi('Total Units', session.preferredLanguage)}</span>
                     </div>
                     <p className="text-2xl font-bold text-foreground tabular-nums">{weekStats.totalUnits}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Units/Hour</span>
+                      <span className="text-xs text-muted-foreground">{translateUi('Units/Hour', session.preferredLanguage)}</span>
                     </div>
                     <p className="text-2xl font-bold text-foreground tabular-nums">{weekStats.unitsPerHour}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <ClockIcon className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Hours</span>
+                      <span className="text-xs text-muted-foreground">{translateUi('Hours', session.preferredLanguage)}</span>
                     </div>
                     <p className="text-2xl font-bold text-foreground tabular-nums">
                       {formatDuration(weekStats.totalHours)}
@@ -274,7 +275,7 @@ export default function MyDayClient({ session }: { session: Session }) {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <FireIcon className="w-4 h-4 text-success" />
-                      <span className="text-xs text-muted-foreground">Day Streak</span>
+                      <span className="text-xs text-muted-foreground">{translateUi('Day Streak', session.preferredLanguage)}</span>
                     </div>
                     <p className="text-2xl font-bold text-success tabular-nums">{weekStats.streak}</p>
                   </div>
@@ -286,8 +287,8 @@ export default function MyDayClient({ session }: { session: Session }) {
             {!loading && todayUnits === 0 && todayBatches.length === 0 && (
               <div className="text-center py-12">
                 <CubeIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                <p className="text-muted-foreground">No activity logged today yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Start working on batches to see your stats</p>
+                <p className="text-muted-foreground">{translateUi('No activity logged today yet', session.preferredLanguage)}</p>
+                <p className="text-sm text-muted-foreground mt-1">{translateUi('Start working on batches to see your stats', session.preferredLanguage)}</p>
               </div>
             )}
           </div>

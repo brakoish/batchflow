@@ -141,7 +141,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
       onClick={() => { if (!clockLoading) onClose() }}
       role="dialog"
       aria-modal="true"
-      aria-label="More options"
+      aria-label={translateUi('More', session.preferredLanguage)}
     >
       <div
         ref={panelRef}
@@ -157,11 +157,11 @@ export default function MoreMenu({ session, open, onClose }: Props) {
         <div className="flex items-center justify-between px-5 pt-2 pb-3 border-b border-border">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">{session.name || 'Account'}</p>
-            <p className="text-[11px] text-muted-foreground">{isOwner ? 'Owner' : session.role === 'SUPERVISOR' ? 'Supervisor' : 'Team member'}</p>
+            <p className="text-[11px] text-muted-foreground">{translateUi(isOwner ? 'Owner' : session.role === 'SUPERVISOR' ? 'Supervisor' : 'Team member', session.preferredLanguage)}</p>
           </div>
           <button
             onClick={() => { if (!clockLoading) onClose() }}
-            aria-label="Close"
+            aria-label={translateUi('Close', session.preferredLanguage)}
             className="bf-icon-btn"
           >
             <XMarkIcon className="w-5 h-5" />
@@ -178,7 +178,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                     onClick={() => { haptic('light'); setConfirmingClockOut(false) }}
                     className="bf-btn bf-btn-secondary bf-btn-lg"
                   >
-                    Cancel
+                    {translateUi('Cancel', session.preferredLanguage)}
                   </button>
                   <button
                     onClick={handleClockOutConfirm}
@@ -187,7 +187,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                     className="bf-btn bf-btn-danger bf-btn-lg"
                   >
                     <StopIcon className="w-4 h-4" />
-                    {clockLoading ? 'Clocking out…' : 'Confirm'}
+                    {translateUi(clockLoading ? 'Clocking out…' : 'Confirm', session.preferredLanguage)}
                   </button>
                 </div>
               ) : (
@@ -196,7 +196,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                   className="bf-btn bf-btn-soft-danger bf-btn-lg bf-btn-full"
                 >
                   <StopIcon className="w-4 h-4" />
-                  Clock Out
+                  {translateUi('Clock Out', session.preferredLanguage)}
                 </button>
               )
             ) : (
@@ -206,7 +206,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                 className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
               >
                 <PlayIcon className="w-4 h-4" />
-                {clockLoading ? 'Starting…' : 'Clock In'}
+                {translateUi(clockLoading ? 'Starting…' : 'Clock In', session.preferredLanguage)}
               </button>
             )}
           </div>
@@ -247,7 +247,7 @@ export default function MoreMenu({ session, open, onClose }: Props) {
             className="bf-btn bf-btn-ghost bf-btn-sm"
           >
             <ArrowRightOnRectangleIcon className="w-4 h-4" />
-            Log out
+            {translateUi('Sign Out', session.preferredLanguage)}
           </button>
         </div>
       </div>

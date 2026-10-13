@@ -1,8 +1,10 @@
 'use client'
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 // Apply to the dialog panel, not its backdrop. Keep callbacks stable in callers.
 export function useDialogFocus(ref: RefObject<HTMLElement | null>, open: boolean, onClose: () => void, busy = false) {
+  const busyRef = useRef(busy)
+  busyRef.current = busy
   useEffect(() => {
     if (!open) return
     const previous = document.activeElement as HTMLElement | null
@@ -12,7 +14,7 @@ export function useDialogFocus(ref: RefObject<HTMLElement | null>, open: boolean
     panel.tabIndex = -1
     ;(focusable()[0] || panel).focus()
     const key = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) { event.preventDefault(); onClose() }
+      if (event.key === 'Escape' && !busyRef.current) { event.preventDefault(); onClose() }
       if (event.key !== 'Tab') return
       const items = focusable(), first = items[0], last = items[items.length - 1]
       if (!first) { event.preventDefault(); panel.focus(); return }
@@ -21,5 +23,5 @@ export function useDialogFocus(ref: RefObject<HTMLElement | null>, open: boolean
     }
     document.addEventListener('keydown', key)
     return () => { document.removeEventListener('keydown', key); if (previous?.isConnected) previous.focus() }
-  }, [ref, open, onClose, busy])
+  }, [ref, open, onClose])
 }

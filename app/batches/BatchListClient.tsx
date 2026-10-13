@@ -1,5 +1,6 @@
 'use client'
 
+import { translateUi } from '@/lib/uiLocale'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
@@ -152,7 +153,7 @@ export default function BatchListClient({
                 disabled={clockingIn}
                 className="bf-btn bf-btn-success"
               >
-                {clockingIn ? 'Starting...' : 'Clock In'}
+                {clockingIn ? translateUi('Starting...', session.preferredLanguage) : translateUi('Clock In', session.preferredLanguage)}
               </button>
               <button
                 onClick={() => { haptic('light'); setNudgeDismissed(true) }}
@@ -169,8 +170,8 @@ export default function BatchListClient({
         {/* Header */}
         <div className="mb-6">
           <div className="mb-5 grid grid-cols-2 rounded-xl bg-muted p-1">
-            <span className="min-h-[44px] rounded-lg bg-card px-3 py-2.5 text-center text-sm font-semibold text-foreground shadow-sm">In Progress</span>
-            <Link href="/stock" className="min-h-[44px] rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-muted-foreground">Current Stock</Link>
+            <span className="min-h-[44px] rounded-lg bg-card px-3 py-2.5 text-center text-sm font-semibold text-foreground shadow-sm">{translateUi('In Progress', session.preferredLanguage)}</span>
+            <Link href="/stock" className="min-h-[44px] rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-muted-foreground">{translateUi('Current Stock', session.preferredLanguage)}</Link>
           </div>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -203,7 +204,7 @@ export default function BatchListClient({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search batches..."
+              placeholder={translateUi('Search batches...', session.preferredLanguage)}
               className="w-full pl-10 pr-4 py-2.5 min-h-[48px] rounded-xl bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             />
           </div>
@@ -526,9 +527,9 @@ export default function BatchListClient({
                             <div className="h-px flex-1 bg-border" />
                             <span className="text-xs tabular-nums text-muted-foreground">{brandBatches.length}</span>
                           </div>
-                          {isWorker && brandReady.length > 0 && <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Ready to Touch</p>}
+                          {isWorker && brandReady.length > 0 && <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{translateUi('Ready to Touch', session.preferredLanguage)}</p>}
                           {brandReady.map(renderBatch)}
-                          {isWorker && brandWaiting.length > 0 && <p className="pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Waiting on Product</p>}
+                          {isWorker && brandWaiting.length > 0 && <p className="pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{translateUi('Waiting on Product', session.preferredLanguage)}</p>}
                           {brandWaiting.map(renderBatch)}
                         </section>
                       )
