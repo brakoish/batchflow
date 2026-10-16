@@ -123,9 +123,18 @@ export default function LandingPage() {
       </div>
 
       {/* Org Search */}
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm" onFocus={() => setFocused(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false) }} onKeyDown={(event) => {
+        if (event.key === 'Escape') { setFocused(false); inputRef.current?.focus() }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[data-org-result]'))
+          if (!buttons.length) return
+          event.preventDefault()
+          const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
+          buttons[(index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus()
+        }
+      }}>
         <form onSubmit={handleSubmit}>
-          <label className="block text-sm font-medium text-foreground mb-2 text-center">
+          <label htmlFor="organization-search" className="block text-sm font-medium text-foreground mb-2 text-center">
             Find your organization
           </label>
           <div className="relative">
@@ -133,12 +142,12 @@ export default function LandingPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
+              id="organization-search"
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setFocused(true)}
-              onBlur={() => setTimeout(() => setFocused(false), 200)}
               placeholder="Organization name..."
               className="w-full pl-12 pr-4 py-4 rounded-2xl bg-muted text-foreground text-base placeholder:text-muted-foreground/60 border border-border focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground/30 transition-all"
               autoComplete="off"
@@ -156,6 +165,7 @@ export default function LandingPage() {
           <div className="mt-2 bg-card border border-border rounded-2xl overflow-hidden shadow-lg">
             {results.map((org) => (
               <button
+                data-org-result
                 key={org.id}
                 onClick={() => handleOrgSelect(org.slug)}
                 className="w-full px-5 py-4 text-left hover:bg-muted/50 active:bg-muted transition-colors flex items-center justify-between group"

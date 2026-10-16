@@ -13,8 +13,8 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-      aria-label="Toggle theme"
+      className="bf-icon-btn"
+      aria-label={`Switch to ${actualTheme === 'dark' ? 'light' : 'dark'} theme`}
     >
       {actualTheme === 'dark' ? (
         <SunIcon className="w-4 h-4" />

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { ArchiveBoxIcon, ArrowUturnLeftIcon, CheckIcon, PencilIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
@@ -103,16 +104,16 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
   return <div className="space-y-5">
     <div>
       <h1 className="text-xl font-bold text-foreground">Products & variations</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Manage the products and strains or flavors used when starting a batch.</p>
+      <p className="mt-1 text-sm text-muted-foreground">A workflow (recipe) defines production steps. A product is what you make; variations are strains or flavors. A batch tracks one production run.</p>
       <p className="mt-2 text-xs font-medium text-muted-foreground">{activeProductCount} active products · {activeVariationCount} active variations</p>
     </div>
-    {error && <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</p>}
+    {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</p>}
 
     <section className="rounded-xl border border-border bg-card p-4">
       <h2 className="text-sm font-semibold text-foreground">Brands</h2>
       <div className="mt-3 flex flex-wrap gap-2">{brands.map((brand) => <span key={brand.id} className="rounded-full border border-border bg-muted px-3 py-1.5 text-sm">{brand.name}</span>)}</div>
       <div className="mt-3 flex gap-2">
-        <input value={brandName} onChange={(event) => setBrandName(event.target.value.slice(0, 100))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addBrand() } }} placeholder="New brand name" className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" />
+        <label className="block min-w-0 min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Brand name</span><input value={brandName} onChange={(event) => setBrandName(event.target.value.slice(0, 100))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addBrand() } }} placeholder="New brand name" className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
         <button onClick={addBrand} disabled={busy === 'brand' || !brandName.trim()} className="bf-btn bf-btn-success"><PlusIcon className="h-4 w-4" /> Add</button>
       </div>
     </section>
@@ -120,7 +121,7 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
     <section>
       <div className="flex items-start justify-between gap-3">
         <div><h2 className="text-sm font-semibold text-foreground">Catalog</h2><p className="text-xs text-muted-foreground">Archiving hides an item from future batches. Existing history stays intact.</p></div>
-        <button onClick={() => setShowArchived((value) => !value)} className="bf-btn bf-btn-secondary bf-btn-sm shrink-0">{showArchived ? 'Active' : 'Archived'}</button>
+        <button aria-pressed={showArchived} onClick={() => setShowArchived((value) => !value)} className="bf-btn bf-btn-secondary bf-btn-sm shrink-0">{showArchived ? 'Active' : 'Archived'}</button>
       </div>
       <div className="mt-3 space-y-5">
         {brandGroups.map((brand) => <div key={brand}>
@@ -132,7 +133,7 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
             return <article key={product.id} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex min-h-[48px] items-start gap-2">
                 {editingId === product.id ? <>
-                  <input autoFocus value={editingName} onChange={(event) => setEditingName(event.target.value.slice(0, 120))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); renameProduct(product) } else if (event.key === 'Escape') setEditingId('') }} aria-label="Product name" className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" />
+                  <label className="block min-w-0 min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Product name</span><input autoFocus value={editingName} onChange={(event) => setEditingName(event.target.value.slice(0, 120))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); renameProduct(product) } else if (event.key === 'Escape') setEditingId('') }} aria-label="Product name" className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
                   <button onClick={() => renameProduct(product)} disabled={busy === product.id || !editingName.trim()} className="bf-icon-btn text-emerald-600" aria-label={`Save ${product.name} name`}><CheckIcon className="h-5 w-5" /></button>
                   <button onClick={() => setEditingId('')} className="bf-icon-btn" aria-label="Cancel rename"><XMarkIcon className="h-5 w-5" /></button>
                 </> : <>
@@ -144,7 +145,7 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
               <div className="mt-3 border-t border-border pt-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Variations ({activeVariations.length})</p>
-                  {archivedVariations.length > 0 && <button type="button" onClick={() => setShowArchivedVariations((current) => ({ ...current, [product.id]: !current[product.id] }))} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline">{showArchivedVariations[product.id] ? 'Hide archived' : `${archivedVariations.length} archived`}</button>}
+                  {archivedVariations.length > 0 && <button type="button" aria-expanded={!!showArchivedVariations[product.id]} onClick={() => setShowArchivedVariations((current) => ({ ...current, [product.id]: !current[product.id] }))} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline">{showArchivedVariations[product.id] ? 'Hide archived' : `${archivedVariations.length} archived`}</button>}
                 </div>
                 <div className="mt-2 space-y-2">
                   {displayedVariations.map((variation) => <div key={variation.id} className={`flex min-h-[44px] items-center gap-2 rounded-xl border px-3 py-2 ${variation.archivedAt ? 'border-dashed border-border bg-muted/30 text-muted-foreground' : 'border-border bg-muted/50 text-foreground'}`}>
@@ -154,14 +155,14 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
                   {displayedVariations.length === 0 && <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No variations yet.</p>}
                 </div>
                 {!product.archivedAt && <div className="mt-3 flex gap-2">
-                  <input value={variationNames[product.id] || ''} onChange={(event) => setVariationNames((current) => ({ ...current, [product.id]: event.target.value.slice(0, 120) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addVariation(product) } }} placeholder="Add strain or flavor" aria-label={`New variation for ${product.name}`} className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" />
+                  <label className="block min-w-0 min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Add strain or flavor</span><input value={variationNames[product.id] || ''} onChange={(event) => setVariationNames((current) => ({ ...current, [product.id]: event.target.value.slice(0, 120) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addVariation(product) } }} placeholder="Add strain or flavor" aria-label={`New variation for ${product.name}`} className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
                   <button type="button" onClick={() => addVariation(product)} disabled={busy === `add-${product.id}` || !(variationNames[product.id] || '').trim()} className="bf-btn bf-btn-success bf-btn-sm"><PlusIcon className="h-4 w-4" /> Add</button>
                 </div>}
               </div>
             </article>
           })}</div>
         </div>)}
-        {visible.length === 0 && <p className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No {showArchived ? 'archived' : 'active'} products.</p>}
+        {visible.length === 0 && <p className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No {showArchived ? 'archived' : 'active'} products. {showArchived ? <button className="underline" onClick={() => setShowArchived(false)}>View active products</button> : <Link className="underline" href="/batches/new">Set up a product</Link>}</p>}
       </div>
     </section>
   </div>

@@ -27,6 +27,6 @@ test('combobox and recording dialogs expose keyboard semantics', () => {
 
 test('recording focus ref belongs only to the recording panel and busy state does not restart focus', () => {
   assert.equal(source('app/batches/[id]/BatchDetailClient.tsx').split('ref={recordingDialogRef}').length - 1, 1)
-  assert.match(source('app/components/useDialogFocus.ts'), /busyRef.current/)
+  assert.match(source('app/components/useDialogFocus.ts'), /state.current.busy/)
   assert.doesNotMatch(source('app/components/useDialogFocus.ts'), /\[ref, open, onClose, busy\]/)
 })

@@ -171,6 +171,7 @@ export default function OrgLoginPage() {
       </div>
 
       {/* PIN Dots */}
+      <p role="status" className="sr-only">{loading ? 'Checking PIN…' : `${pin.length} of 4 PIN digits entered`}</p>
       <div
         key={error ? `err-${error}` : 'ok'}
         className={`flex justify-center gap-3 mb-8 ${error ? 'animate-shake' : ''}`}
@@ -191,7 +192,7 @@ export default function OrgLoginPage() {
 
       {/* Error */}
       {error && !orgNotFound && (
-        <p className="text-red-500 dark:text-red-400 text-center text-base mb-6 font-medium">
+        <p role="alert" className="text-destructive text-center text-base mb-6 font-medium">
           {error}
         </p>
       )}
@@ -210,6 +211,7 @@ export default function OrgLoginPage() {
         ))}
         <button
           onClick={handleBackspace}
+          aria-label="Backspace PIN"
           disabled={loading || pin.length === 0 || orgNotFound}
           className="h-20 rounded-2xl bg-muted text-muted-foreground hover:bg-muted/80 active:scale-[0.95] transition-all duration-150 disabled:opacity-20 flex items-center justify-center"
         >

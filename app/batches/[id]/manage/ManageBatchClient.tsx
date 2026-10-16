@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, PencilSquareIcon } from '@heroicons/react/24/solid'
@@ -39,16 +39,17 @@ function Section({ title, summary, children, defaultOpen = false }: {
   title: string; summary: string; children: React.ReactNode; defaultOpen?: boolean
 }) {
   const [open, setOpen] = useState(defaultOpen)
+  const contentId = useId()
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card">
-      <button type="button" onClick={() => setOpen(!open)} className="flex min-h-[64px] w-full items-center justify-between gap-3 px-4 py-3 text-left">
+      <button type="button" aria-expanded={open} aria-controls={contentId} onClick={() => setOpen(!open)} className="flex min-h-[64px] w-full items-center justify-between gap-3 px-4 py-3 text-left">
         <span className="min-w-0">
           <span className="block font-semibold text-foreground">{title}</span>
           <span className="block truncate text-sm text-muted-foreground">{summary}</span>
         </span>
         <span className={`text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}>⌄</span>
       </button>
-      {open && <div className="space-y-4 border-t border-border p-4">{children}</div>}
+      {open && <div id={contentId} className="space-y-4 border-t border-border p-4">{children}</div>}
     </section>
   )
 }
@@ -61,17 +62,17 @@ function StepTypePicker({ value, onChange }: { value: Step['type']; onChange: (v
     <div>
       <label className={labelClass}>What does the worker do?</label>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <button type="button" onClick={() => onChange('CHECK')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'CHECK' ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400' : ''}`}>
+        <button type="button" aria-pressed={value === 'CHECK'} onClick={() => onChange('CHECK')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'CHECK' ? 'bf-select-btn-active' : ''}`}>
           <CheckCircleIcon className="h-6 w-6 shrink-0" />
-          <span className="text-left"><span className="block">Checkpoint</span><span className="block text-[11px] font-normal opacity-70">Mark done</span></span>
+          <span className="text-left"><span className="block">Checkpoint</span><span className="block text-xs font-normal ">Mark done</span></span>
         </button>
-        <button type="button" onClick={() => onChange('COUNT')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'COUNT' ? 'bf-select-btn-active' : ''}`}>
+        <button type="button" aria-pressed={value === 'COUNT'} onClick={() => onChange('COUNT')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'COUNT' ? 'bf-select-btn-active' : ''}`}>
           <HashtagIcon className="h-6 w-6 shrink-0" />
-          <span className="text-left"><span className="block">Count</span><span className="block text-[11px] font-normal opacity-70">Log quantities</span></span>
+          <span className="text-left"><span className="block">Count</span><span className="block text-xs font-normal ">Log quantities</span></span>
         </button>
-        <button type="button" onClick={() => onChange('ENTRY')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}>
+        <button type="button" aria-pressed={value === 'ENTRY'} onClick={() => onChange('ENTRY')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'ENTRY' ? 'bf-select-btn-active' : ''}`}>
           <PencilSquareIcon className="h-6 w-6 shrink-0" />
-          <span className="text-left"><span className="block">Entry</span><span className="block text-[11px] font-normal opacity-70">Record a value</span></span>
+          <span className="text-left"><span className="block">Entry</span><span className="block text-xs font-normal ">Record a value</span></span>
         </button>
       </div>
     </div>
@@ -143,6 +144,20 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
     const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault() }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
+  useEffect(() => {
+    const guard = (event: MouseEvent) => {
+      const link = (event.target instanceof Element ? event.target.closest('a[href]') : null) as HTMLAnchorElement | null
+      if (!dirty || !link || link.target === '_blank' || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+      if (link.origin !== window.location.origin || link.href === window.location.href) return
+      if (!window.confirm('Discard unsaved Basics, Team, Tracking and Notes changes? Workflow changes are already saved. Choose Cancel to stay and Save Changes.')) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    }
+    document.addEventListener('click', guard, true)
+    return () => document.removeEventListener('click', guard, true)
   }, [dirty])
 
   const notify = (message: string) => {
@@ -273,6 +288,7 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
 
   const lifecycle = async (status: string) => {
     if (mutationPending) return
+    if (dirty && !window.confirm('Discard unsaved setup changes and continue? Choose Cancel to stay and Save Changes first.')) return
     setMutationPending(true); setError('')
     try {
     const res = await fetch(`/api/batches/${batch.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
@@ -306,66 +322,66 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
           </div>
         </div>
 
-        {toast && <div className="fixed left-1/2 top-4 z-[70] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">{toast}</div>}
-        {error && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>}
+        {toast && <div role="status" className="fixed left-1/2 top-4 z-[70] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">{toast}</div>}
+        {error && <div role="alert" className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>}
         {!duplicate && batch.status !== 'ACTIVE' && <div className="mb-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-sm text-muted-foreground">This {batch.status.toLowerCase()} batch is closed. Owners and supervisors can correct its setup or duplicate it; its recorded production workflow stays locked.</div>}
 
-        <div className="space-y-3">
+        <fieldset disabled={saving || mutationPending || productSaving} aria-busy={saving || mutationPending || productSaving} className="min-w-0 space-y-3">
           <Section title="Basics & Team" summary={`${summaryTarget} · ${workerIds.length} assigned`} defaultOpen>
-            <div><label className={labelClass}>Batch name</label><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} /></div>
+            <div><label htmlFor="manage-name" className={labelClass}>Batch name</label><input className={inputClass} id="manage-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3"><label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Finished product</label><button type="button" onClick={() => setAddingProduct(!addingProduct)} className="bf-btn bf-btn-ghost bf-btn-sm">{addingProduct ? 'Cancel' : '+ Add item'}</button></div>
-              {addingProduct && <div className="mb-2 space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><input autoFocus className={inputClass} value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} placeholder="New item name" /><input className={inputClass} value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value.slice(0, 100))} list="manage-batch-brand-options" placeholder="Choose or add a brand" /><datalist id="manage-batch-brand-options">{knownBrands.map((brand) => <option key={brand} value={brand} />)}</datalist><div className="flex gap-2"><input className={inputClass} type="number" inputMode="numeric" min="1" step="1" value={newProductUnitsPerCase} onChange={(e) => setNewProductUnitsPerCase(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder="Units per case (optional)" aria-label="Units per case" /><button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim() || !newProductBrand.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button></div><p className="text-xs text-muted-foreground">How many {batch.recipe.baseUnit.toLowerCase()} go in one case.</p></div>}
+              {addingProduct && <div className="mb-2 space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><label className="block text-sm">New product name<input autoFocus className={inputClass} aria-label="New product name" value={newProductName} onChange={(e) => setNewProductName(e.target.value.slice(0, 120))} placeholder="New item name" /></label><label className="block text-sm">Product brand<input className={inputClass} aria-label="Product brand" value={newProductBrand} onChange={(e) => setNewProductBrand(e.target.value.slice(0, 100))} list="manage-batch-brand-options" placeholder="Choose or add a brand" /></label><datalist id="manage-batch-brand-options">{knownBrands.map((brand) => <option key={brand} value={brand} />)}</datalist><div className="flex gap-2"><input className={inputClass} type="number" inputMode="numeric" min="1" step="1" aria-label="Units per case" value={newProductUnitsPerCase} onChange={(e) => setNewProductUnitsPerCase(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProduct() } }} placeholder="Units per case (optional)" /><button type="button" onClick={addProduct} disabled={productSaving || !newProductName.trim() || !newProductBrand.trim()} className="bf-btn bf-btn-success">{productSaving ? 'Adding…' : 'Add'}</button></div><p className="text-xs text-muted-foreground">How many {batch.recipe.baseUnit.toLowerCase()} go in one case.</p></div>}
               {products.length > 0 ? <ProductPicker products={products} value={productId} baseUnit={batch.recipe.baseUnit} onChange={(product) => setProductId(product.id)} /> : <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No items yet. Add one for this recipe, or leave it blank.</p>}
             </div>
             <div>
               <label className={labelClass}>Target type</label>
-              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setOpenEnded(false)} className={`bf-select-btn ${!openEnded ? 'bf-select-btn-active' : ''}`}>Fixed target</button><button type="button" onClick={() => setOpenEnded(true)} className={`bf-select-btn ${openEnded ? 'bf-select-btn-active' : ''}`}>Open-ended</button></div>
+              <div className="grid grid-cols-2 gap-2"><button type="button" aria-pressed={!openEnded} onClick={() => setOpenEnded(false)} className={`bf-select-btn ${!openEnded ? 'bf-select-btn-active' : ''}`}>{!openEnded && <span aria-hidden="true">✓</span>}Fixed target</button><button type="button" aria-pressed={openEnded} onClick={() => setOpenEnded(true)} className={`bf-select-btn ${openEnded ? 'bf-select-btn-active' : ''}`}>{openEnded && <span aria-hidden="true">✓</span>}Open-ended</button></div>
             </div>
-            {!openEnded && <div><label className={labelClass}>Target quantity</label><input className={inputClass} type="number" inputMode="numeric" min="1" value={target} onChange={(e) => setTarget(e.target.value)} /></div>}
-            <div><label className={labelClass}>Due date</label><input className={inputClass} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
-            <div><label className={labelClass}>Priority</label><div className="grid grid-cols-4 gap-2">{(['LOW','NORMAL','HIGH','URGENT'] as Priority[]).map((p) => <button key={p} type="button" onClick={() => setPriority(p)} className={`bf-select-btn px-1 text-xs ${priority === p ? 'bf-select-btn-active' : ''}`}>{p[0] + p.slice(1).toLowerCase()}</button>)}</div></div>
+            {!openEnded && <div><label htmlFor="manage-target" className={labelClass}>Target quantity</label><input className={inputClass} type="number" inputMode="numeric" min="1" id="manage-target" value={target} onChange={(e) => setTarget(e.target.value)} /></div>}
+            <div><label htmlFor="manage-dueDate" className={labelClass}>Due date</label><input className={inputClass} type="date" id="manage-dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+            <div><label className={labelClass}>Priority</label><div className="grid grid-cols-4 gap-2">{(['LOW','NORMAL','HIGH','URGENT'] as Priority[]).map((p) => <button key={p} aria-pressed={priority === p} type="button" onClick={() => setPriority(p)} className={`bf-select-btn px-1 text-xs ${priority === p ? 'bf-select-btn-active' : ''}`}>{priority === p && <span aria-hidden="true">✓</span>}{p[0] + p.slice(1).toLowerCase()}</button>)}</div></div>
             <div className="border-t border-border pt-4">
               <p className="text-sm font-semibold text-foreground">Team</p>
               <p className="mt-0.5 text-sm text-muted-foreground">Assign responsibility; everyone can still see active work.</p>
             </div>
-            {teams.length > 0 && <div><label className={labelClass}>Saved teams</label><div className="flex gap-2 overflow-x-auto pb-1">{teams.map(team=><button type="button" key={team.id} onClick={()=>{const ids=team.members.map(m=>m.workerId);setWorkerIds(ids);if(leadWorkerId&&!ids.includes(leadWorkerId))setLeadWorkerId('')}} className="bf-select-btn shrink-0">{team.name}</button>)}</div></div>}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{workers.map((worker) => { const selected = workerIds.includes(worker.id); return <button type="button" key={worker.id} onClick={() => { const next=selected ? workerIds.filter((id) => id !== worker.id) : [...workerIds, worker.id]; setWorkerIds(next); if (selected && leadWorkerId===worker.id) setLeadWorkerId('') }} className={`bf-select-btn justify-start ${selected ? 'bf-select-btn-active' : ''}`}>{selected ? '✓ ' : ''}{worker.name}</button> })}</div>
-            {workerIds.length > 0 && <div><label className={labelClass}>Team lead</label><select className={inputClass} value={leadWorkerId} onChange={e=>setLeadWorkerId(e.target.value)}><option value="">No lead</option>{workers.filter(w=>workerIds.includes(w.id)).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></div>}
+            {teams.length > 0 && <div><label className={labelClass}>Apply saved team (replaces selected people)</label><div className="flex gap-2 overflow-x-auto pb-1">{teams.map(team=><button type="button" key={team.id} onClick={()=>{const ids=team.members.map(m=>m.workerId);setWorkerIds(ids);if(leadWorkerId&&!ids.includes(leadWorkerId))setLeadWorkerId('')}} className="bf-select-btn shrink-0">Apply {team.name}</button>)}</div></div>}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{workers.map((worker) => { const selected = workerIds.includes(worker.id); return <button type="button" key={worker.id} aria-pressed={selected} onClick={() => { const next=selected ? workerIds.filter((id) => id !== worker.id) : [...workerIds, worker.id]; setWorkerIds(next); if (selected && leadWorkerId===worker.id) setLeadWorkerId('') }} className={`bf-select-btn justify-start ${selected ? 'bf-select-btn-active' : ''}`}>{selected && <span aria-hidden="true">✓</span>}{worker.name}</button> })}</div>
+            {workerIds.length > 0 && <div><label htmlFor="manage-leadWorkerId" className={labelClass}>Team lead</label><select className={inputClass} id="manage-leadWorkerId" value={leadWorkerId} onChange={e=>setLeadWorkerId(e.target.value)}><option value="">No lead</option>{workers.filter(w=>workerIds.includes(w.id)).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></div>}
           </Section>
 
           <Section title="Tracking & Notes" summary={strain || lotNumber || metrcBatchId || packageTag || notes ? 'Tracking information added' : 'No tracking information'}>
-            <div><label className={labelClass}>Strain</label><input className={inputClass} value={strain} onChange={(e) => setStrain(e.target.value)} /></div>
-            <div><label className={labelClass}>METRC Batch ID</label><input className={inputClass} value={metrcBatchId} onChange={(e) => setMetrcBatchId(e.target.value)} /></div>
-            <div><label className={labelClass}>Lot number</label><input className={inputClass} value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} /></div>
-            <div><label className={labelClass}>Package tag</label><input className={inputClass} value={packageTag} onChange={(e) => setPackageTag(e.target.value)} /></div>
-            <div><label className={labelClass}>Team notes</label><textarea className={`${inputClass} min-h-[110px]`} maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} /><p className="mt-1 text-right text-xs text-muted-foreground">{notes.length}/2000</p></div>
+            <div><label htmlFor="manage-strain" className={labelClass}>Strain</label><input className={inputClass} id="manage-strain" value={strain} onChange={(e) => setStrain(e.target.value)} /></div>
+            <div><label htmlFor="manage-metrcBatchId" className={labelClass}>METRC Batch ID</label><input className={inputClass} id="manage-metrcBatchId" value={metrcBatchId} onChange={(e) => setMetrcBatchId(e.target.value)} /></div>
+            <div><label htmlFor="manage-lotNumber" className={labelClass}>Lot number</label><input className={inputClass} id="manage-lotNumber" value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} /></div>
+            <div><label htmlFor="manage-packageTag" className={labelClass}>Package tag</label><input className={inputClass} id="manage-packageTag" value={packageTag} onChange={(e) => setPackageTag(e.target.value)} /></div>
+            <div><label htmlFor="manage-notes" className={labelClass}>Team notes</label><textarea className={`${inputClass} min-h-[110px]`} maxLength={2000} id="manage-notes" value={notes} onChange={(e) => setNotes(e.target.value)} /><p className="mt-1 text-right text-xs text-muted-foreground">{notes.length}/2000</p></div>
           </Section>
 
           {!duplicate && batch.status === 'ACTIVE' && <Section title="Workflow" summary={`${batch.steps.filter((s) => !s.name.startsWith(SKIPPED_PREFIX)).length} active steps`}>
             <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-sm text-muted-foreground">
-              This is this batch&apos;s worker flow. Changes here do not alter the original recipe.
+              Workflow changes save immediately, independently of Basics &amp; Team and Tracking &amp; Notes. They do not alter the original workflow (recipe).
             </div>
-            <div className="space-y-2">{batch.steps.map((step, index) => <div key={step.id} className={`overflow-hidden rounded-xl border ${editingStep === step.id ? 'border-emerald-500/40 bg-emerald-500/5' : step.name.startsWith(SKIPPED_PREFIX) ? 'border-amber-500/20 bg-amber-500/5 opacity-70' : 'border-border bg-muted/30'}`}>
+            <div className="space-y-2">{batch.steps.map((step, index) => <div key={step.id} className={`overflow-hidden rounded-xl border ${editingStep === step.id ? 'border-emerald-500/40 bg-emerald-500/5' : step.name.startsWith(SKIPPED_PREFIX) ? 'border-amber-500/20 bg-amber-500/5 ' : 'border-border bg-muted/30'}`}>
               {editingStep === step.id ? <div className="space-y-3 p-3">
                 <div><label className={labelClass}>Step {index + 1}</label>
-                <input className={inputClass} value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" />
+                <input className={inputClass} aria-label="Step name" value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" />
                 </div>
                 <StepTypePicker value={stepDraft.type} onChange={(type) => setStepDraft({ ...stepDraft, type })} />
-                {stepDraft.type === 'COUNT' && <div className="space-y-2"><div><label className={labelClass}>Worker counts</label><select className={inputClass} value={unitKey(stepDraft.unitLabel, stepDraft.unitRatio)} onChange={(e) => selectStepUnit(e.target.value)}>{unitOptions.map((unit) => <option key={unitKey(unit.label, unit.ratio)} value={unitKey(unit.label, unit.ratio)}>{unit.label}{unit.ratio === 1 ? ' · finished unit' : unit.ratio > 1 ? ` · 1 = ${unit.ratio} ${batch.recipe.baseUnit}` : ` · ${Number((1 / unit.ratio).toFixed(4))} per ${batch.recipe.baseUnit}`}</option>)}</select></div><div><label className={labelClass}>Calculated step target</label><input className={inputClass} type="number" inputMode="numeric" min="1" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /><p className="mt-1 text-xs text-muted-foreground">Calculated from the batch target and selected recipe conversion. You can override it for this run.</p></div></div>}
+                {stepDraft.type === 'COUNT' && <div className="space-y-2"><div><label className={labelClass}>Worker counts</label><select className={inputClass} aria-label="Worker counts unit" value={unitKey(stepDraft.unitLabel, stepDraft.unitRatio)} onChange={(e) => selectStepUnit(e.target.value)}>{unitOptions.map((unit) => <option key={unitKey(unit.label, unit.ratio)} value={unitKey(unit.label, unit.ratio)}>{unit.label}{unit.ratio === 1 ? ' · finished unit' : unit.ratio > 1 ? ` · 1 = ${unit.ratio} ${batch.recipe.baseUnit}` : ` · ${Number((1 / unit.ratio).toFixed(4))} per ${batch.recipe.baseUnit}`}</option>)}</select></div><div><label className={labelClass}>Calculated step target</label><input className={inputClass} type="number" inputMode="numeric" min="1" aria-label="Calculated step target" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /><p className="mt-1 text-xs text-muted-foreground">Calculated from the batch target and selected recipe conversion. You can override it for this run.</p></div></div>}
                 {stepDraft.type === 'ENTRY' && <MeasurementUnitPicker value={stepDraft.unitLabel} onChange={(value) => setStepDraft({ ...stepDraft, unitLabel: value, unitRatio: '1', target: '1' })} />}
                 {step.completedQuantity > 0 && <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">This step already has {step.completedQuantity.toLocaleString()} logged. Its production history will be kept.</p>}
                 <div className="flex gap-2"><button type="button" onClick={() => saveStep(step)} className="bf-btn bf-btn-primary flex-1">Save step</button><button type="button" onClick={() => setEditingStep(null)} className="bf-btn bf-btn-secondary">Cancel</button></div>
               </div> : <>
                 <button type="button" onClick={() => openStepEditor(step)} className="flex min-h-[62px] w-full items-center gap-3 px-3 py-2 text-left">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card text-xs font-bold text-muted-foreground">{index + 1}</span>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-foreground">{cleanStepName(step.name)}</span><span className="block text-[11px] text-muted-foreground">{step.type === 'CHECK' ? 'Checkpoint · mark done' : step.type === 'ENTRY' ? `Entry · record ${step.unitLabel}` : step.targetQuantity == null ? `Count · ${step.unitLabel} · open target` : `Count · ${step.targetQuantity} ${step.unitLabel}`}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-foreground">{cleanStepName(step.name)}</span><span className="block text-xs text-muted-foreground">{step.type === 'CHECK' ? 'Checkpoint · mark done' : step.type === 'ENTRY' ? `Entry · record ${step.unitLabel}` : step.targetQuantity == null ? `Count · ${step.unitLabel} · open target` : `Count · ${step.targetQuantity} ${step.unitLabel}`}</span></span>
                   <span className="text-xs font-medium text-muted-foreground">Edit</span>
                 </button>
                 <div className="flex gap-2 border-t border-border/70 px-3 py-2"><button type="button" disabled={index === 0} onClick={() => stepAction(step, 'move-up')} className="bf-icon-btn" aria-label="Move step up">↑</button><button type="button" disabled={index === batch.steps.length - 1} onClick={() => stepAction(step, 'move-down')} className="bf-icon-btn" aria-label="Move step down">↓</button><button type="button" onClick={() => stepAction(step, step.name.startsWith(SKIPPED_PREFIX) ? 'unskip' : 'skip')} className="bf-btn bf-btn-ghost bf-btn-sm ml-auto">{step.name.startsWith(SKIPPED_PREFIX) ? 'Restore' : 'Skip'}</button></div>
               </>}
             </div>)}</div>
-            {addingStep ? <div className="space-y-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3"><div><label className={labelClass}>New one-off step</label><input className={inputClass} value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" /></div><StepTypePicker value={stepDraft.type} onChange={(type) => setStepDraft({ ...stepDraft, type })} />{stepDraft.type === 'COUNT' && <div className="space-y-2"><div><label className={labelClass}>Worker counts</label><select className={inputClass} value={unitKey(stepDraft.unitLabel, stepDraft.unitRatio)} onChange={(e) => selectStepUnit(e.target.value)}>{unitOptions.map((unit) => <option key={unitKey(unit.label, unit.ratio)} value={unitKey(unit.label, unit.ratio)}>{unit.label}{unit.ratio === 1 ? ' · finished unit' : unit.ratio > 1 ? ` · 1 = ${unit.ratio} ${batch.recipe.baseUnit}` : ` · ${Number((1 / unit.ratio).toFixed(4))} per ${batch.recipe.baseUnit}`}</option>)}</select></div><div><label className={labelClass}>Calculated step target</label><input className={inputClass} type="number" inputMode="numeric" min="1" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /></div></div>}{stepDraft.type === 'ENTRY' && <MeasurementUnitPicker value={stepDraft.unitLabel} onChange={(value) => setStepDraft({ ...stepDraft, unitLabel: value, unitRatio: '1', target: '1' })} />}<div className="flex gap-2"><button type="button" onClick={addStep} className="bf-btn bf-btn-primary flex-1">Add step</button><button type="button" onClick={() => setAddingStep(false)} className="bf-btn bf-btn-secondary">Cancel</button></div></div> : <button type="button" onClick={() => { setAddingStep(true); setStepDraft({ name: '', type: 'COUNT', target: batch.targetQuantity?.toString() || '', unitLabel: batch.recipe.baseUnit, unitRatio: '1' }) }} className="bf-btn bf-btn-secondary w-full">+ Add one-off step</button>}
+            {addingStep ? <div className="space-y-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3"><div><label className={labelClass}>New one-off step</label><input className={inputClass} aria-label="Step name" value={stepDraft.name} onChange={(e) => setStepDraft({ ...stepDraft, name: e.target.value })} placeholder="Step name" /></div><StepTypePicker value={stepDraft.type} onChange={(type) => setStepDraft({ ...stepDraft, type })} />{stepDraft.type === 'COUNT' && <div className="space-y-2"><div><label className={labelClass}>Worker counts</label><select className={inputClass} aria-label="Worker counts unit" value={unitKey(stepDraft.unitLabel, stepDraft.unitRatio)} onChange={(e) => selectStepUnit(e.target.value)}>{unitOptions.map((unit) => <option key={unitKey(unit.label, unit.ratio)} value={unitKey(unit.label, unit.ratio)}>{unit.label}{unit.ratio === 1 ? ' · finished unit' : unit.ratio > 1 ? ` · 1 = ${unit.ratio} ${batch.recipe.baseUnit}` : ` · ${Number((1 / unit.ratio).toFixed(4))} per ${batch.recipe.baseUnit}`}</option>)}</select></div><div><label className={labelClass}>Calculated step target</label><input className={inputClass} type="number" inputMode="numeric" min="1" aria-label="Calculated step target" value={stepDraft.target} onChange={(e) => setStepDraft({ ...stepDraft, target: e.target.value })} placeholder="Open" /></div></div>}{stepDraft.type === 'ENTRY' && <MeasurementUnitPicker value={stepDraft.unitLabel} onChange={(value) => setStepDraft({ ...stepDraft, unitLabel: value, unitRatio: '1', target: '1' })} />}<div className="flex gap-2"><button type="button" onClick={addStep} className="bf-btn bf-btn-primary flex-1">Add step</button><button type="button" onClick={() => setAddingStep(false)} className="bf-btn bf-btn-secondary">Cancel</button></div></div> : <button type="button" onClick={() => { setAddingStep(true); setStepDraft({ name: '', type: 'COUNT', target: batch.targetQuantity?.toString() || '', unitLabel: batch.recipe.baseUnit, unitRatio: '1' }) }} className="bf-btn bf-btn-secondary w-full">+ Add one-off step</button>}
           </Section>}
 
           {duplicate && <Section title="Workflow" summary={`${batch.steps.filter((s) => !s.name.startsWith(SKIPPED_PREFIX)).length} steps will be copied`}>
@@ -381,10 +397,10 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
             {session.role === 'OWNER' && !hasRecordedWork && <button type="button" onClick={() => setConfirm({ title: 'Delete mistaken batch?', message: 'No work has been recorded. This permanently removes the batch and cannot be undone.', label: 'Delete Batch', action: deleteBatch })} className="bf-btn bf-btn-soft-danger w-full">Delete Mistaken Batch</button>}
             {session.role === 'OWNER' && hasRecordedWork && <p className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">This batch has recorded activity, so it cannot be deleted. Cancel it to stop production while keeping the history accurate.</p>}
           </Section>}
-        </div>
+        </fieldset>
 
         <div className="fixed inset-x-0 bottom-[calc(4rem+max(env(safe-area-inset-bottom,0px),1rem))] z-40 border-t border-border bg-background/95 p-3 backdrop-blur sm:bottom-0 sm:left-1/2 sm:max-w-2xl sm:-translate-x-1/2">
-          <button type="button" onClick={save} disabled={saving || (!dirty && !duplicate)} className="bf-btn bf-btn-primary min-h-[52px] w-full">{saving ? 'Saving…' : duplicate ? 'Create Duplicate' : dirty ? 'Save Changes' : 'All Changes Saved'}</button>
+          <button type="button" onClick={save} disabled={saving || mutationPending || productSaving || (!dirty && !duplicate)} className="bf-btn bf-btn-primary min-h-[52px] w-full">{saving ? 'Saving…' : duplicate ? 'Create Duplicate' : dirty ? 'Save Changes' : 'All Changes Saved'}</button>
         </div>
       </main>
       <ConfirmModal open={!!confirm} title={confirm?.title || ''} message={confirm?.message} confirmLabel={confirm?.label} confirmStyle="danger" onCancel={() => setConfirm(null)} onConfirm={() => { const action = confirm?.action; setConfirm(null); action?.() }} />

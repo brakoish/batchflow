@@ -14,11 +14,12 @@ export default function AnnouncementManager({ initialAnnouncement }: { initialAn
   const [message, setMessage] = useState(initialAnnouncement?.message ?? '')
   const [active, setActive] = useState(initialAnnouncement?.active ?? true)
   const [saving, setSaving] = useState(false)
-  const [feedback, setFeedback] = useState('')
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
 
   const save = async () => {
+    if (saving) return
     setSaving(true)
-    setFeedback('')
+    setFeedback(null)
     try {
       const response = await fetch('/api/announcement', {
         method: 'PUT',
@@ -27,38 +28,39 @@ export default function AnnouncementManager({ initialAnnouncement }: { initialAn
       })
       const data = await response.json()
       if (!response.ok) {
-        setFeedback(data.error || 'Could not save the announcement.')
+        setFeedback({ kind: 'error', message: data.error || 'Could not save the announcement.' })
         return
       }
       haptic('medium')
-      setFeedback(active ? 'Announcement is live.' : 'Draft saved. The bar is off.')
+      setFeedback({ kind: 'success', message: active ? 'Announcement is live.' : 'Draft saved. The bar is off.' })
       window.dispatchEvent(new Event('announcement-changed'))
     } catch {
-      setFeedback('Could not connect. Try again.')
+      setFeedback({ kind: 'error', message: 'Could not connect. Try again.' })
     } finally {
       setSaving(false)
     }
   }
 
   const turnOff = async () => {
+    if (saving) return
     setSaving(true)
-    setFeedback('')
+    setFeedback(null)
     try {
       const response = await fetch('/api/announcement', { method: 'DELETE' })
       if (!response.ok) throw new Error()
       haptic('light')
       setActive(false)
-      setFeedback('Announcement bar turned off.')
+      setFeedback({ kind: 'success', message: 'Announcement bar turned off.' })
       window.dispatchEvent(new Event('announcement-changed'))
     } catch {
-      setFeedback('Could not turn off the announcement.')
+      setFeedback({ kind: 'error', message: 'Could not turn off the announcement.' })
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="space-y-5">
+    <div aria-busy={saving} className="space-y-5">
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="flex items-start gap-3 mb-4">
           <div className="rounded-xl bg-amber-400/20 p-2 text-amber-600 dark:text-amber-400">
@@ -76,6 +78,7 @@ export default function AnnouncementManager({ initialAnnouncement }: { initialAn
           Announcement
         </label>
         <textarea
+          disabled={saving}
           id="announcement-message"
           value={message}
           onChange={(event) => setMessage(event.target.value.slice(0, 500))}
@@ -91,6 +94,7 @@ export default function AnnouncementManager({ initialAnnouncement }: { initialAn
             <span className="block text-xs text-muted-foreground">Turn this off to save the message without displaying it.</span>
           </span>
           <input
+            disabled={saving}
             type="checkbox"
             checked={active}
             onChange={(event) => setActive(event.target.checked)}
@@ -99,8 +103,8 @@ export default function AnnouncementManager({ initialAnnouncement }: { initialAn
         </label>
 
         {feedback && (
-          <p className={`mt-3 text-sm ${feedback.includes('Could not') ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`} role="status">
-            {feedback}
+          <p className={`mt-3 text-sm ${feedback.kind === 'error' ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`} role={feedback.kind === 'error' ? 'alert' : 'status'}>
+            {feedback.message}
           </p>
         )}
 

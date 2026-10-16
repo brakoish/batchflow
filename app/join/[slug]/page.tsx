@@ -121,6 +121,7 @@ export default function JoinOrgPage() {
       </div>
 
       {/* PIN Dots */}
+      <p role="status" className="sr-only">{loading ? 'Checking PIN…' : `${pin.length} of 4 PIN digits entered`}</p>
       <div className="flex justify-center gap-3 mb-8">
         {[0, 1, 2, 3].map((i) => (
           <div
@@ -138,7 +139,7 @@ export default function JoinOrgPage() {
 
       {/* Error */}
       {error && (
-        <p className="text-destructive text-center text-base mb-6 font-medium">
+        <p role="alert" className="text-destructive text-center text-base mb-6 font-medium">
           {error}
         </p>
       )}
@@ -157,6 +158,7 @@ export default function JoinOrgPage() {
         ))}
         <button
           onClick={handleBackspace}
+          aria-label="Backspace PIN"
           disabled={loading || pin.length === 0}
           className="h-20 rounded-2xl bg-muted text-muted-foreground hover:bg-muted/80 active:scale-[0.95] transition-all duration-150 disabled:opacity-20 flex items-center justify-center"
         >

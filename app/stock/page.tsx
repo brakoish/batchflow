@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { getOrganizationName } from '@/lib/organization'
 import { getProducedBaseUnits, getRemovedQuantity } from '@/lib/inventory'
+import { stockAfterAdjustments } from '@/lib/operationalView'
 import StockCountButton from './StockCountButton'
 
 type StockBatch = {
@@ -69,7 +70,6 @@ export default async function StockPage() {
   for (const batch of batches as StockBatch[]) {
     const produced = getProducedBaseUnits(batch.steps)
     const removed = getRemovedQuantity(batch.removals)
-    if (produced === 0 && removed === 0) continue
 
     const brand = batch.product?.brand?.trim() || batch.recipe.brand?.trim() || 'Unassigned'
     const productKey = batch.product?.id || `recipe:${batch.recipe.id}`
@@ -90,20 +90,17 @@ export default async function StockPage() {
     current.produced += produced
     current.removed += removed
     current.onHand += batchOnHand
-    if (batchOnHand > 0) current.batches.push({ id: batch.id, name: batch.name, onHand: batchOnHand, status: batch.status })
+    current.batches.push({ id: batch.id, name: batch.name, onHand: batchOnHand, status: batch.status })
     products.set(productKey, current)
   }
 
-  for (const adjustment of adjustments) {
-    const productKey = adjustment.productId || `recipe:${adjustment.recipeId}`
-    const current = products.get(productKey)
-    if (!current) continue
-    current.onHand = Math.max(0, current.onHand + adjustment.quantityDelta)
-    current.adjusted = true
+  for (const product of products.values()) {
+    const deltas = adjustments.filter(adjustment => (adjustment.productId || `recipe:${adjustment.recipeId}`) === product.key).map(adjustment => adjustment.quantityDelta)
+    product.onHand = stockAfterAdjustments(product.onHand, deltas)
+    product.adjusted = deltas.length > 0
   }
 
   const inStock = [...products.values()]
-    .filter((product) => product.onHand > 0)
     .sort((a, b) => a.brand.localeCompare(b.brand) || a.product.localeCompare(b.product))
   const grouped = new Map<string, ProductStock[]>()
   for (const product of inStock) {
@@ -150,7 +147,8 @@ export default async function StockPage() {
                         <div><p className="text-sm font-bold tabular-nums text-foreground">{product.produced.toLocaleString()}</p><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Produced</p></div>
                         <div><p className="text-sm font-bold tabular-nums text-foreground">{product.removed.toLocaleString()}</p><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Removed</p></div>
                       </div>}
-                      {!product.adjusted && <div className="mt-3 space-y-1">
+                      {<div className="mt-3 space-y-1">
+                        {product.adjusted && <p className="text-xs text-muted-foreground">Contributing batches (historical balances; physical count above is authoritative)</p>}
                         {product.batches.map((batch) => (
                           <Link key={batch.id} href={`/batches/${batch.id}`} className="flex min-h-[44px] items-center justify-between gap-3 rounded-lg px-2 text-sm hover:bg-muted/40 active:bg-muted/60">
                             <span className="min-w-0 truncate text-muted-foreground">{batch.name}</span>

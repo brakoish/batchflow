@@ -29,11 +29,10 @@ export default function TeamHoursClient({
 
   return (
     <>
-      <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-muted p-1" role="tablist" aria-label="Team and hours">
+      <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-muted p-1" role="group" aria-label="Team and hours">
         <button
           type="button"
-          role="tab"
-          aria-selected={view === 'people'}
+          aria-pressed={view === 'people'}
           onClick={() => setView('people')}
           className={`min-h-[44px] rounded-lg px-4 text-sm font-semibold transition-colors ${view === 'people' ? 'border border-border bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
         >
@@ -41,8 +40,7 @@ export default function TeamHoursClient({
         </button>
         <button
           type="button"
-          role="tab"
-          aria-selected={view === 'hours'}
+          aria-pressed={view === 'hours'}
           onClick={() => setView('hours')}
           className={`min-h-[44px] rounded-lg px-4 text-sm font-semibold transition-colors ${view === 'hours' ? 'border border-border bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
         >

@@ -7,7 +7,7 @@ import AppShell from '@/app/components/AppShell'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { ClockIcon, CubeIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid'
 import { formatDuration } from '@/lib/format'
-import { localDateKey } from '@/lib/timezone'
+import { formatTimeInTz, formatDateInTz, localDateKey } from '@/lib/timezone'
 import { haptic } from '@/lib/haptic'
 import type { Session } from '@/lib/session'
 type Shift = { id: string; startedAt: string; endedAt: string | null; hours: number }
@@ -31,6 +31,8 @@ export default function MyDayClient({ session }: { session: Session }) {
   const [clockingIn, setClockingIn] = useState(false)
   const [languageSaving, setLanguageSaving] = useState(false)
 
+  const [dataError, setDataError] = useState('')
+  const [now, setNow] = useState(Date.now())
   const [error, setError] = useState('')
   const [timezone, setTimezone] = useState('America/New_York')
 
@@ -49,13 +51,16 @@ export default function MyDayClient({ session }: { session: Session }) {
   useEffect(() => {
     fetchData()
     const id = setInterval(fetchData, 30000) // Refresh every 30s
-    return () => clearInterval(id)
+    const tick = window.setInterval(() => setNow(Date.now()), 60000)
+    window.addEventListener('shift-changed', fetchData)
+    return () => { clearInterval(id); clearInterval(tick); window.removeEventListener('shift-changed', fetchData) }
   }, [])
 
   const fetchData = async () => {
     try {
       // Fetch today's activity
       const actRes = await fetch('/api/workers/activity', { cache: "no-store" })
+      if (!actRes.ok) throw new Error('Activity unavailable')
       if (actRes.ok) {
         const actData = await actRes.json()
         if (actData.workers) {
@@ -71,15 +76,19 @@ export default function MyDayClient({ session }: { session: Session }) {
 
       // Fetch current shift
       const shiftRes = await fetch('/api/shifts', { cache: "no-store" })
+      if (!shiftRes.ok) throw new Error('Shift status unavailable')
+      let responseTimezone = timezone
       if (shiftRes.ok) {
         const shiftData = await shiftRes.json()
         setActiveShift(shiftData.activeShift || null)
-        setTimezone(shiftData.timezone)
+        responseTimezone = shiftData.timezone || 'America/New_York'
+        setTimezone(responseTimezone)
         setTodayShifts((shiftData.todayShifts || []).filter((s: Shift) => s.endedAt).map((s: Shift) => ({ ...s, hours: (new Date(s.endedAt!).getTime() - new Date(s.startedAt).getTime()) / 3600000 })))
       }
 
       // Fetch worker stats (this gives us week data)
       const statsRes = await fetch('/api/workers/stats', { cache: "no-store" })
+      if (!statsRes.ok) throw new Error('Statistics unavailable')
       if (statsRes.ok) {
         const statsData = await statsRes.json()
         setWeekStats(statsData.stats || null)
@@ -87,10 +96,10 @@ export default function MyDayClient({ session }: { session: Session }) {
         // Extract today's batches from recent logs
         if (statsData.stats?.recentLogs) {
           const batchMap = new Map<string, number>()
-          const today = localDateKey(new Date(), timezone)
+          const today = localDateKey(new Date(), responseTimezone)
 
           statsData.stats.recentLogs.forEach((log: any) => {
-            const logDate = localDateKey(log.createdAt, timezone)
+            const logDate = localDateKey(log.createdAt, responseTimezone)
             if (logDate === today && log.batchStep?.batch?.name) {
               const name = log.batchStep.batch.name
               batchMap.set(name, (batchMap.get(name) || 0) + log.quantity)
@@ -102,8 +111,9 @@ export default function MyDayClient({ session }: { session: Session }) {
           )
         }
       }
+      setDataError('')
     } catch (err) {
-      console.error('Failed to fetch My Day data:', err)
+      setDataError('My Day data is unavailable or out of date. Retry to load current shift and totals.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -114,10 +124,11 @@ export default function MyDayClient({ session }: { session: Session }) {
 
   const todayHours = todayShifts.reduce((sum, s) => sum + s.hours, 0)
   const currentShiftDuration = activeShift
-    ? (Date.now() - new Date(activeShift.startedAt).getTime()) / 3600000
+    ? (now - new Date(activeShift.startedAt).getTime()) / 3600000
     : 0
 
   const handleClockIn = async () => {
+    if (clockingIn || dataError) return
     haptic('medium')
     setClockingIn(true)
     try {
@@ -150,12 +161,12 @@ export default function MyDayClient({ session }: { session: Session }) {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Hey {(session.name || '').split(' ')[0]}!</h1>
           <p className="text-muted-foreground mt-1">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            {formatDateInTz(new Date(), timezone)}
           </p>
           {session.workerId && <label className="mt-4 block max-w-xs text-xs font-semibold uppercase tracking-wider text-muted-foreground">{translateUi('Preferred language', session.preferredLanguage)}<select value={session.preferredLanguage} disabled={languageSaving} onChange={(e) => changeLanguage(e.target.value)} className="mt-1 min-h-[46px] w-full rounded-xl border border-input bg-card px-3 text-base font-normal normal-case text-foreground"><option value="en">{translateUi('English', session.preferredLanguage)}</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label>}
         </div>
 
-        {loading ? (
+        {dataError ? <div role="alert">{dataError} <button className="bf-btn bf-btn-secondary" onClick={fetchData}>Retry My Day</button></div> : loading ? (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
           </div>
@@ -178,7 +189,7 @@ export default function MyDayClient({ session }: { session: Session }) {
               </div>
               {activeShift ? (
                 <p className="text-sm text-muted-foreground">
-                  Started at {new Date(activeShift.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  Started at {formatTimeInTz(activeShift.startedAt, timezone)}
                 </p>
               ) : (
                 <div className="space-y-3">

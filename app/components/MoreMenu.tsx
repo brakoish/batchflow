@@ -51,13 +51,6 @@ export default function MoreMenu({ session, open, onClose }: Props) {
     return () => window.removeEventListener('shift-changed', onChange)
   }, [open, isOwner])
 
-  // Auto-cancel clock-out confirmation if the user hesitates
-  useEffect(() => {
-    if (!confirmingClockOut) return
-    const t = setTimeout(() => setConfirmingClockOut(false), 4000)
-    return () => clearTimeout(t)
-  }, [confirmingClockOut])
-
   const handleClockIn = async () => {
     if (clockLoading) return
     setClockError('')
@@ -175,6 +168,8 @@ export default function MoreMenu({ session, open, onClose }: Props) {
               confirmingClockOut ? (
                 <div className="grid grid-cols-2 gap-2">
                   <button
+                    disabled={clockLoading}
+                    autoFocus
                     onClick={() => { haptic('light'); setConfirmingClockOut(false) }}
                     className="bf-btn bf-btn-secondary bf-btn-lg"
                   >
@@ -183,7 +178,6 @@ export default function MoreMenu({ session, open, onClose }: Props) {
                   <button
                     onClick={handleClockOutConfirm}
                     disabled={clockLoading || checking}
-                    autoFocus
                     className="bf-btn bf-btn-danger bf-btn-lg"
                   >
                     <StopIcon className="w-4 h-4" />

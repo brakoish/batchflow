@@ -1,7 +1,8 @@
 'use client'
 
 import { translateUi } from '@/lib/uiLocale'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useDialogFocus } from './useDialogFocus'
 import { haptic } from '@/lib/haptic'
 
 type ConfirmModalProps = {
@@ -19,24 +20,7 @@ export default function ConfirmModal({
   language = 'en', open, title, message, confirmLabel = 'Confirm', confirmStyle = 'danger', onConfirm, onCancel,
 }: ConfirmModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!open) return
-    const previous = document.activeElement as HTMLElement | null
-    const dialog = dialogRef.current
-    dialog?.querySelector<HTMLButtonElement>('button')?.focus()
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); onCancel() }
-      if (event.key === 'Tab') {
-        const buttons = dialog?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
-        if (!buttons?.length) return
-        const first = buttons[0], last = buttons[buttons.length - 1]
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
-      }
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => { document.removeEventListener('keydown', handleKey); previous?.focus() }
-  }, [open, onCancel])
+  useDialogFocus(dialogRef, open, onCancel)
   if (!open) return null
 
   return (

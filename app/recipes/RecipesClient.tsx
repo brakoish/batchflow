@@ -116,13 +116,13 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
       )}
 
       {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+        <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
           <p className="text-sm font-medium text-red-500 dark:text-red-400">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-md rounded-xl border border-emerald-500/30 bg-emerald-600 px-4 py-3 shadow-lg">
+        <div role="status" className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-md rounded-xl border border-emerald-500/30 bg-emerald-600 px-4 py-3 shadow-lg">
           <p className="text-sm font-semibold text-white">{success}</p>
         </div>
       )}
@@ -159,11 +159,11 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                       {recipe.description && <p className="text-xs text-muted-foreground mt-0.5">{recipe.description}</p>}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">{categoryLabel(recipe.category || 'OTHER')}</span>
-                        <span className="text-[10px] text-muted-foreground/60">Base: {recipe.baseUnit}</span>
+                        <span className="text-xs text-muted-foreground">Base: {recipe.baseUnit}</span>
                         {recipe.units.map((u, i) => (
-                          <span key={i} className="text-[10px] text-muted-foreground/60">· {u.name} = {u.ratio} {recipe.baseUnit}</span>
+                          <span key={i} className="text-xs text-muted-foreground">· {u.name} = {u.ratio} {recipe.baseUnit}</span>
                         ))}
-                        <span className="text-[10px] text-muted-foreground/60">· {recipe._count.batches} batch{recipe._count.batches !== 1 ? 'es' : ''}</span>
+                        <span className="text-xs text-muted-foreground">· {recipe._count.batches} batch{recipe._count.batches !== 1 ? 'es' : ''}</span>
                       </div>
                       {recipe.products.length > 0 && (
                         <p className="mt-1 text-xs text-muted-foreground">Products: {recipe.products.map(product => `${product.brand || 'Unassigned'} · ${product.name}${product.variations?.length ? ` (${product.variations.length} variations)` : ''}`).join(', ')}</p>

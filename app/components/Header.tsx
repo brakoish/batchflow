@@ -121,7 +121,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden sm:flex items-center gap-1">
+        <nav aria-label="Primary navigation" className="hidden sm:flex items-center gap-1">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -138,7 +138,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
           ))}
         </nav>
 
-        <button type="button" className="hidden sm:block bf-btn bf-btn-ghost" onClick={() => setMoreOpen(true)}>{translateUi('More', session.preferredLanguage)}</button>
+        <button type="button" aria-haspopup="dialog" aria-expanded={moreOpen} className="hidden sm:block bf-btn bf-btn-ghost" onClick={() => setMoreOpen(true)}>{translateUi('More', session.preferredLanguage)}</button>
         <MoreMenu session={session} open={moreOpen} onClose={() => setMoreOpen(false)} />
         {/* Right side */}
         <div className="flex items-center gap-2">

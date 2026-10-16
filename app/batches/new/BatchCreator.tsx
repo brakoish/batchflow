@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlusIcon } from '@heroicons/react/24/solid'
+import { CheckIcon, PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { emitBatchChanged } from '@/lib/batchEvents'
 import NewProductWizard, { type NewBatchRecipe } from './NewProductWizard'
@@ -40,6 +40,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [teamFeedback, setTeamFeedback] = useState('')
   const [showMetrc, setShowMetrc] = useState(false)
   const [setupMode, setSetupMode] = useState<'existing' | 'new' | null>(null)
   const [productQuery, setProductQuery] = useState('')
@@ -136,8 +137,8 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
     if (!selectedId) { setError('Pick a product'); return }
     if (selected?.products.length && !productId) { setError('Pick the finished product'); return }
     if (selectedProduct && !variationId) { setError('Pick or add a variation'); return }
-    if (!name.trim()) { setError('Give this batch a name'); return }
-    if (batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)) { setError('Enter a quantity'); return }
+    if (!name.trim()) { setError('Give this batch a name'); nameRef.current?.focus(); return }
+    if (batchType === 'fixed' && (!targetQuantity || parseInt(targetQuantity) <= 0)) { setError('Enter a quantity'); qtyRef.current?.focus(); return }
 
     const dueDate = selectedDueDate || undefined
 
@@ -168,7 +169,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
   }
 
   return (
-    <div className={`space-y-8 ${selected ? 'pb-28 sm:pb-0' : ''}`}>
+    <fieldset disabled={loading || variationSaving} aria-busy={loading || variationSaving} className={`min-w-0 space-y-8 ${selected ? 'pb-28 sm:pb-0' : ''}`}>
 
       {/* ── Product path ── */}
       {!setupMode && <div>
@@ -193,10 +194,10 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
 
       {setupMode === 'existing' && !selected && <section className="space-y-3">
         <div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-semibold text-foreground">Select a product</h2><p className="text-xs text-muted-foreground">Its saved steps will be copied into this batch.</p></div><button type="button" onClick={() => setSetupMode(null)} className="bf-btn bf-btn-ghost bf-btn-sm">Back</button></div>
-        <input autoFocus value={productQuery} onChange={event => setProductQuery(event.target.value)} placeholder="Search product or brand" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
+        <input autoFocus aria-label="Search product or brand" value={productQuery} onChange={event => setProductQuery(event.target.value)} placeholder="Search product or brand" className="min-h-[48px] w-full rounded-xl border border-input bg-card px-3 text-base text-foreground" />
         <div className="grid gap-2">{productOptions.map(({ recipe, product }) => <button key={product.id} type="button" onClick={() => chooseProduct(recipe, product)} className="flex min-h-[58px] items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:border-emerald-500/50"><span className="min-w-0"><span className="block truncate text-sm font-semibold text-foreground">{product.brand ? `${product.brand} · ` : ''}{product.name}</span><span className="block truncate text-xs text-muted-foreground">{product.variations.length} variation{product.variations.length === 1 ? '' : 's'} · {recipe.steps.length} steps</span></span><span className="text-muted-foreground">›</span></button>)}</div>
         {recipeOptions.filter(recipe => recipe.products.length === 0).length > 0 && <section aria-label="Legacy workflows" className="space-y-2"><h3 className="font-semibold">Use a legacy workflow without a product</h3><p className="text-sm text-muted-foreground">These batches retain the original workflow and have no catalog product or variation. You can create a new product separately.</p>{recipeOptions.filter(recipe => recipe.products.length === 0).map(recipe => <button type="button" key={recipe.id} onClick={() => { setSelectedId(recipe.id); setProductId(''); setVariationId(''); setStrain(''); setName(recipe.name) }} className="bf-btn w-full justify-start">{recipe.name} · {recipe.steps.length} steps</button>)}</section>}
-        {productOptions.length === 0 && <p className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No matching products.</p>}
+        {productOptions.length === 0 && <p className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No matching products. Clear your search or go Back to create a new product.</p>}
       </section>}
 
       {/* ── Details (shown after recipe selection) ── */}
@@ -208,9 +209,9 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
             <div>
               <div className="mb-2 flex items-center justify-between gap-3"><label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Variation / strain</label><button type="button" onClick={() => setAddingVariation(current => !current)} className="bf-btn bf-btn-ghost bf-btn-sm"><PlusIcon className="h-4 w-4" /> New</button></div>
               <div className="grid grid-cols-2 gap-2">
-                {selectedProduct.variations.map(variation => <button type="button" key={variation.id} onClick={() => { setVariationId(variation.id); setStrain(variation.name); setName(`${selectedProduct.name} · ${variation.name}`) }} className={`bf-select-btn justify-center ${variationId === variation.id ? 'bf-select-btn-active' : ''}`}>{variation.name}</button>)}
+                {selectedProduct.variations.map(variation => <button type="button" key={variation.id} aria-pressed={variationId === variation.id} onClick={() => { setVariationId(variation.id); setStrain(variation.name); setName(`${selectedProduct.name} · ${variation.name}`) }} className={`bf-select-btn justify-center ${variationId === variation.id ? 'bf-select-btn-active' : ''}`}>{variationId === variation.id && <CheckIcon aria-hidden="true" className="h-4 w-4" />}{variation.name}</button>)}
               </div>
-              {addingVariation && <div className="mt-2 flex gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-2"><input autoFocus value={newVariationName} onChange={event => setNewVariationName(event.target.value.slice(0, 120))} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addVariation() } }} placeholder="New strain or flavor" className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base text-foreground" /><button type="button" onClick={addVariation} disabled={variationSaving || !newVariationName.trim()} className="bf-btn bf-btn-success">{variationSaving ? 'Adding…' : 'Add'}</button></div>}
+              {addingVariation && <div className="mt-2 flex gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-2"><input autoFocus aria-label="New strain or flavor" value={newVariationName} onChange={event => setNewVariationName(event.target.value.slice(0, 120))} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addVariation() } }} placeholder="New strain or flavor" className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base text-foreground" /><button type="button" onClick={addVariation} disabled={variationSaving || !newVariationName.trim()} className="bf-btn bf-btn-success">{variationSaving ? 'Adding…' : 'Add'}</button></div>}
               {selectedProduct.variations.length === 0 && !addingVariation && <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">Add the first strain, flavor, or variation for this product.</p>}
             </div>
           )}
@@ -219,7 +220,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Worker flow</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Worker flow</p>
                 <p className="text-sm font-semibold text-foreground truncate">{selected.name}</p>
               </div>
               <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -229,31 +230,31 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
             <div className="space-y-1.5">
               {selected.steps.map((step, index) => (
                 <div key={step.id} className="flex items-center gap-2 rounded-lg bg-muted/45 px-3 py-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-card text-[11px] font-bold text-muted-foreground tabular-nums">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-card text-xs font-bold text-muted-foreground tabular-nums">
                     {index + 1}
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">{step.name}</p>
-                    {step.notes && <p className="truncate text-[11px] text-muted-foreground">{step.notes}</p>}
+                    {step.notes && <p className="truncate text-xs text-muted-foreground">{step.notes}</p>}
                   </div>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">
+            <p className="mt-3 text-xs text-muted-foreground">
               Batch edits can change steps for one run later without changing this recipe.
             </p>
           </div>
 
           {/* Batch Name */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">Batch name</label>
+            <label htmlFor="new-batch-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">Batch name</label>
             <input
               ref={nameRef}
               type="text"
-              value={name}
+              id="new-batch-name" value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={`e.g., ${selected.name} - Monday Run`}
-              className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
+              className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-all"
               disabled={loading}
             />
           </div>
@@ -263,6 +264,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">Batch type</label>
             <div className="grid grid-cols-2 gap-2">
               <button
+                aria-pressed={batchType === 'fixed'}
                 onClick={() => { haptic('medium'); setBatchType('fixed') }}
                 disabled={loading}
                 className={`bf-select-btn ${
@@ -271,22 +273,23 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                     : ''
                 }`}
               >
-                Fixed target
+                {batchType === 'fixed' && <CheckIcon aria-hidden="true" className="h-4 w-4 shrink-0" />}Fixed target
               </button>
               <button
+                aria-pressed={batchType === 'open'}
                 onClick={() => { haptic('medium'); setBatchType('open') }}
                 disabled={loading}
                 className={`bf-select-btn ${
                   batchType === 'open'
-                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
+                    ? 'bf-select-btn-active'
                     : ''
                 }`}
               >
-                Open — count as we go
+                {batchType === 'open' && <CheckIcon aria-hidden="true" className="h-4 w-4 shrink-0" />}Open — count as we go
               </button>
             </div>
             {batchType === 'open' && (
-              <p className="text-xs text-muted-foreground/70 mt-2">Workers will log what they produce. Mark the batch done when the run is finished.</p>
+              <p className="text-xs text-muted-foreground mt-2">Workers will log what they produce. Mark the batch done when the run is finished.</p>
             )}
           </div>
 
@@ -295,48 +298,52 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">Priority</label>
             <div className="grid grid-cols-4 gap-2">
               <button
+                aria-pressed={priority === 'LOW'}
                 onClick={() => { haptic('light'); setPriority('LOW') }}
                 disabled={loading}
                 className={`bf-select-btn px-2 text-xs ${
                   priority === 'LOW'
-                    ? 'bg-muted/80 text-foreground border-foreground/20'
+                    ? 'bf-select-btn-active'
                     : ''
                 }`}
               >
-                Low
+                {priority === 'LOW' && <CheckIcon aria-hidden="true" className="h-4 w-4 shrink-0" />}Low
               </button>
               <button
+                aria-pressed={priority === 'NORMAL'}
                 onClick={() => { haptic('light'); setPriority('NORMAL') }}
                 disabled={loading}
                 className={`bf-select-btn px-2 text-xs ${
                   priority === 'NORMAL'
-                    ? 'bg-muted/80 text-foreground border-foreground/30'
+                    ? 'bf-select-btn-active'
                     : ''
                 }`}
               >
-                Normal
+                {priority === 'NORMAL' && <CheckIcon aria-hidden="true" className="h-4 w-4 shrink-0" />}Normal
               </button>
               <button
+                aria-pressed={priority === 'HIGH'}
                 onClick={() => { haptic('light'); setPriority('HIGH') }}
                 disabled={loading}
                 className={`bf-select-btn px-2 text-xs ${
                   priority === 'HIGH'
-                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
+                    ? 'bf-select-btn-active'
                     : ''
                 }`}
               >
-                High
+                {priority === 'HIGH' && <CheckIcon aria-hidden="true" className="h-4 w-4 shrink-0" />}High
               </button>
               <button
+                aria-pressed={priority === 'URGENT'}
                 onClick={() => { haptic('light'); setPriority('URGENT') }}
                 disabled={loading}
                 className={`bf-select-btn px-2 text-xs ${
                   priority === 'URGENT'
-                    ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
+                    ? 'bf-select-btn-active'
                     : ''
                 }`}
               >
-                Urgent
+                {priority === 'URGENT' && <CheckIcon aria-hidden="true" className="h-4 w-4 shrink-0" />}Urgent
               </button>
             </div>
           </div>
@@ -350,6 +357,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
+                  aria-pressed={targetMode === 'base'}
                   onClick={() => { haptic('light'); setTargetMode('base'); setTargetInput('') }}
                   disabled={loading}
                   className={`bf-select-btn justify-start ${targetMode === 'base' ? 'bf-select-btn-active' : ''}`}
@@ -359,6 +367,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                 {selected.units.map((unit) => (
                   <button
                     key={unit.id}
+                    aria-pressed={targetMode === unit.id}
                     type="button"
                     onClick={() => { haptic('light'); setTargetMode(unit.id); setTargetInput('') }}
                     disabled={loading}
@@ -370,7 +379,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
               </div>
 
               <div className="mt-3">
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                <label htmlFor="new-batch-targetInput" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
                   Amount of {targetModeLabel || selected.baseUnit}
                 </label>
                 <input
@@ -378,21 +387,21 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                   type="number"
                   inputMode="decimal"
                   step="any"
-                  value={targetInput}
+                  id="new-batch-targetInput" value={targetInput}
                   onChange={(e) => setTargetInput(e.target.value)}
                   placeholder="0"
                   min="0"
-                  className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-2xl font-bold tabular-nums placeholder:text-muted-foreground/30 placeholder:font-normal placeholder:text-base focus:outline-none focus:border-emerald-500 transition-all"
+                  className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-2xl font-bold tabular-nums placeholder:text-muted-foreground placeholder:font-normal placeholder:text-base focus:outline-none focus:border-emerald-500 transition-all"
                   disabled={loading}
                 />
               </div>
 
               {targetHelp && (
-                <p className="mt-2 text-[11px] text-muted-foreground">{targetHelp}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{targetHelp}</p>
               )}
 
               <div className="mt-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Batch target</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Batch target</p>
                 <p className="text-lg font-bold tabular-nums text-foreground">
                   {calculatedTarget > 0 ? calculatedTarget.toLocaleString() : '0'} {selected.baseUnit}
                 </p>
@@ -431,17 +440,18 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                 return (
                   <button
                     key={i}
+                    aria-pressed={isSelected}
                     onClick={() => { haptic('light'); setSelectedDueDate(dateStr) }}
-                    className={`bf-select-btn bf-btn-sm shrink-0 flex-col gap-0 ${
+                    className={`bf-select-btn bf-btn-sm shrink-0 flex-col gap-1 ${
                       isSelected
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500'
+                        ? 'bf-select-btn-active'
                         : !selectedDueDate && !dateStr
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500'
+                        ? 'bf-select-btn-active'
                         : ''
                     }`}
                   >
-                    <div>{opt.label}</div>
-                    {opt.date && <div className="text-[10px] opacity-60">{opt.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>}
+                    <div className="flex items-center gap-1">{isSelected && <CheckIcon aria-hidden="true" className="h-4 w-4" />}{opt.label}</div>
+                    {opt.date && <div className="text-xs opacity-60">{opt.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>}
                   </button>
                 )
               })}
@@ -453,7 +463,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
               <div className="flex items-center justify-between mb-3">
                 <button
                   onClick={() => { haptic('light'); setCalendarMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d }) }}
-                  className="bf-icon-btn"
+                  className="bf-icon-btn" aria-label="Previous month"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -464,7 +474,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                 </span>
                 <button
                   onClick={() => { haptic('light'); setCalendarMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d }) }}
-                  className="bf-icon-btn"
+                  className="bf-icon-btn" aria-label="Next month"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -475,7 +485,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
               {/* Day headers */}
               <div className="grid grid-cols-7 mb-1">
                 {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => (
-                  <div key={d} className="text-center text-[10px] font-medium text-muted-foreground/60 py-1">{d}</div>
+                  <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
                 ))}
               </div>
 
@@ -511,6 +521,8 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                     days.push(
                       <button
                         key={d}
+                        aria-pressed={isSelected}
+                        aria-label={date.toLocaleDateString(undefined, { dateStyle: 'full' })}
                         onClick={() => {
                           if (!isPast) {
                             haptic('light')
@@ -518,17 +530,17 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                           }
                         }}
                         disabled={isPast || loading}
-                        className={`min-h-[40px] flex items-center justify-center rounded-lg text-sm font-medium transition-colors active:bg-muted/40 ${
+                        className={`min-h-[44px] flex items-center justify-center rounded-lg text-sm font-medium transition-colors active:bg-muted/40 ${
                           isSelected
                             ? 'bg-emerald-600 text-white'
                             : isToday
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
                             : isPast
-                            ? 'text-muted-foreground/30 cursor-default'
+                            ? 'text-muted-foreground cursor-default'
                             : 'text-foreground hover:bg-muted'
                         }`}
                       >
-                        {d}
+                        {isSelected && <CheckIcon aria-hidden="true" className="h-3 w-3" />}{d}
                       </button>
                     )
                   }
@@ -563,29 +575,32 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                   {selectedWorkers.length === workers.length ? 'Clear' : 'All'}
                 </button>
               </div>
-              {teams.length > 0 && <div className="mb-3 flex gap-2 overflow-x-auto pb-1">{teams.map(team => <button type="button" key={team.id} onClick={() => { const ids=team.members.map(m=>m.workerId); setSelectedWorkers(ids); if (leadWorkerId && !ids.includes(leadWorkerId)) setLeadWorkerId(''); haptic('light') }} className="bf-select-btn shrink-0">{team.name}</button>)}</div>}
+              {teams.length > 0 && <div className="mb-3 flex gap-2 overflow-x-auto pb-1">{teams.map(team => <button type="button" key={team.id} onClick={() => { const ids=team.members.map(m=>m.workerId); setSelectedWorkers(ids); setTeamFeedback(`Applied ${team.name}: ${ids.length} people selected. Previous selection replaced.`); if (leadWorkerId && !ids.includes(leadWorkerId)) setLeadWorkerId(''); haptic('light') }} className="bf-select-btn shrink-0">Apply {team.name}</button>)}</div>}
+              {teams.length > 0 && <p className="mb-2 text-xs text-muted-foreground">Applying a saved team replaces the selected people.</p>}
+              {teamFeedback && <p role="status" className="text-xs text-muted-foreground">{teamFeedback}</p>}
               <div className="flex flex-wrap gap-2">
                 {workers.map((w) => {
                   const on = selectedWorkers.includes(w.id)
                   return (
                     <button
                       key={w.id}
+                      aria-pressed={on}
                       onClick={() => toggleWorker(w.id)}
                       disabled={loading}
                       className={`bf-select-btn ${
                         on
-                          ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-950 dark:border-slate-100'
+                          ? 'bf-select-btn-active'
                           : ''
                       }`}
                     >
-                      {w.name}
+                      {on && <CheckIcon aria-hidden="true" className="h-4 w-4 shrink-0" />}{w.name}
                     </button>
                   )
                 })}
               </div>
-              {selectedWorkers.length > 0 && <div className="mt-3"><label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Team lead</label><select value={leadWorkerId} onChange={e=>setLeadWorkerId(e.target.value)} className="w-full min-h-[48px] rounded-xl border border-border bg-card px-3 text-foreground"><option value="">No lead</option>{workers.filter(w=>selectedWorkers.includes(w.id)).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></div>}
+              {selectedWorkers.length > 0 && <div className="mt-3"><label htmlFor="new-batch-leadWorkerId" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Team lead</label><select id="new-batch-leadWorkerId" value={leadWorkerId} onChange={e=>setLeadWorkerId(e.target.value)} className="w-full min-h-[48px] rounded-xl border border-border bg-card px-3 text-foreground"><option value="">No lead</option>{workers.filter(w=>selectedWorkers.includes(w.id)).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></div>}
               {selectedWorkers.length === 0 && (
-                <p className="text-[11px] text-muted-foreground/60 mt-2">No one selected = unassigned</p>
+                <p className="text-xs text-muted-foreground mt-2">No one selected = unassigned</p>
               )}
             </div>
           )}
@@ -593,26 +608,26 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           {/* Tracking (collapsible) */}
           {/* Notes */}
           <div>
-            <label className="text-[10px] text-foreground font-semibold uppercase tracking-wider block mb-1.5">Notes <span className="text-muted-foreground/60 normal-case font-normal">(optional)</span></label>
+            <label htmlFor="new-batch-notes" className="text-xs text-foreground font-semibold uppercase tracking-wider block mb-1.5">Notes <span className="text-muted-foreground normal-case font-normal">(optional)</span></label>
             <textarea
-              value={notes}
+              id="new-batch-notes" value={notes}
               onChange={(e) => setNotes(e.target.value.slice(0, 2000))}
               rows={3}
               placeholder="Anything the team should know (e.g. flower came in wet, add 1h dry time)"
               disabled={loading}
               autoCapitalize="sentences"
               inputMode="text"
-              className="w-full min-h-[88px] px-4 py-3 rounded-xl bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all resize-y"
+              className="w-full min-h-[88px] px-4 py-3 rounded-xl bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-all resize-y"
             />
             {notes.length > 0 && (
-              <p className="mt-1 text-[10px] text-muted-foreground/70 text-right tabular-nums">{notes.length}/2000</p>
+              <p className="mt-1 text-xs text-muted-foreground text-right tabular-nums">{notes.length}/2000</p>
             )}
           </div>
 
           <button
             type="button"
             onClick={() => { haptic('light'); setShowMetrc(!showMetrc) }}
-            className="bf-btn bf-btn-ghost bf-btn-full"
+            aria-expanded={showMetrc} aria-controls="batch-tracking" className="bf-btn bf-btn-ghost bf-btn-full"
           >
             <svg className={`w-4 h-4 transition-transform ${showMetrc ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -621,29 +636,29 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           </button>
 
           {showMetrc && (
-            <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+            <div id="batch-tracking" className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
               {[
                 { value: strain, set: setStrain, placeholder: 'Strain' },
                 { value: metrcBatchId, set: setMetrcBatchId, placeholder: 'METRC Batch ID' },
                 { value: lotNumber, set: setLotNumber, placeholder: 'Lot Number' },
                 { value: packageTag, set: setPackageTag, placeholder: 'Package Tag' },
               ].map((f, i) => (
-                <input
-                  key={i}
+                <label key={i} className="block text-xs text-muted-foreground">{f.placeholder}<input
+                  aria-label={f.placeholder}
                   type="text"
                   value={f.value}
                   onChange={(e) => f.set(e.target.value)}
                   placeholder={f.placeholder}
-                  className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
+                  className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-all"
                   disabled={loading}
-                />
+                /></label>
               ))}
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <div role="alert" className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
               <p className="text-red-500 dark:text-red-400 text-sm text-center">{error}</p>
             </div>
           )}
@@ -652,7 +667,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Review</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Review</p>
                 <p className="text-sm font-semibold text-foreground truncate">{name.trim() || 'Unnamed batch'}</p>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -685,7 +700,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
               <div className="rounded-lg bg-muted/50 px-3 py-2">
                 <p className="text-muted-foreground">Team</p>
                 <p className="font-medium text-foreground truncate">
-                  {selectedWorkers.length ? `${selectedWorkers.length} assigned` : 'Everyone'}
+                  {selectedWorkers.length ? `${selectedWorkers.length} assigned` : 'Unassigned'}
                 </p>
               </div>
             </div>
@@ -734,6 +749,6 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           </div>
         </div>
       )}
-    </div>
+    </fieldset>
   )
 }

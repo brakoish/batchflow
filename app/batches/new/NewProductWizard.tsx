@@ -116,6 +116,7 @@ export default function NewProductWizard({ recipes, knownBrands, onCancel, onCre
     if (!brand.trim() || !productName.trim()) { setError('Add the brand and product name'); return }
     if (!variationName.trim()) { setError('Add the first strain, flavor, or variation'); return }
     if (!baseUnit.trim()) { setError('Enter what this product counts'); return }
+    if (materialWeightGrams.trim() && (!Number.isFinite(Number(materialWeightGrams)) || Number(materialWeightGrams) <= 0)) { setError('Material weight must be greater than 0'); return }
     if (!cleanSteps.length) { setError('Add at least one production step'); return }
     const duplicate = cleanSteps.find((step, index) => cleanSteps.findIndex(candidate => candidate.name.trim().toLowerCase() === step.name.trim().toLowerCase()) !== index)
     if (duplicate) { setError(`Step names must be unique: ${duplicate.name.trim()}`); return }
@@ -150,55 +151,55 @@ export default function NewProductWizard({ recipes, knownBrands, onCancel, onCre
   }
 
   return (
-    <section className="space-y-5 rounded-2xl border border-emerald-500/25 bg-card p-4">
+    <fieldset disabled={saving} aria-busy={saving} className="min-w-0 space-y-5 rounded-2xl border border-emerald-500/25 bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div><h2 className="text-base font-semibold text-foreground">Set up a new product</h2><p className="mt-1 text-xs text-muted-foreground">Save its normal steps, then start the first batch.</p></div>
         <button type="button" onClick={onCancel} disabled={saving} className="bf-btn bf-btn-ghost bf-btn-sm">Cancel</button>
       </div>
 
       <div>
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">1. Category</label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{PROCESSING_CATEGORIES.map(option => <button key={option.value} type="button" onClick={() => chooseCategory(option.value)} className={`bf-select-btn justify-center ${category === option.value ? 'bf-select-btn-active' : ''}`}>{option.label}</button>)}</div>
+        <p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">1. Category</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{PROCESSING_CATEGORIES.map(option => <button key={option.value} aria-pressed={category === option.value} type="button" onClick={() => chooseCategory(option.value)} className={`bf-select-btn justify-center ${category === option.value ? 'bf-select-btn-active' : ''}`}>{option.label}</button>)}</div>
       </div>
 
       <div className="space-y-2">
-        <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">2. Product</label>
-        <input value={brand} onChange={event => setBrand(event.target.value.slice(0, 100))} list="new-product-brand-options" placeholder="Brand" className="min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" />
+        <p className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">2. Product</p>
+        <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Brand</span><input value={brand} onChange={event => setBrand(event.target.value.slice(0, 100))} list="new-product-brand-options" placeholder="Brand" className="min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" /></label>
         <datalist id="new-product-brand-options">{knownBrands.map(value => <option key={value} value={value} />)}</datalist>
-        <input value={productName} onChange={event => setProductName(event.target.value.slice(0, 120))} placeholder="Product — e.g. 3.5g Jar" className="min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" />
+        <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Product name</span><input value={productName} onChange={event => setProductName(event.target.value.slice(0, 120))} placeholder="Product — e.g. 3.5g Jar" className="min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" /></label>
         <div className="grid grid-cols-2 gap-2">
-          <input value={variationName} onChange={event => setVariationName(event.target.value.slice(0, 120))} placeholder="First strain / flavor" className="min-h-[48px] min-w-0 rounded-xl border border-input bg-muted px-3 text-base text-foreground" />
-          <input value={baseUnit} onChange={event => setBaseUnit(event.target.value.slice(0, 40))} placeholder="Count as — Jars" className="min-h-[48px] min-w-0 rounded-xl border border-input bg-muted px-3 text-base text-foreground" />
+          <label className="block min-w-0 min-w-0"><span className="block basis-full text-xs font-medium text-muted-foreground">First variation</span><input value={variationName} onChange={event => setVariationName(event.target.value.slice(0, 120))} placeholder="First strain / flavor" className="min-h-[48px] min-w-0 rounded-xl border border-input bg-muted px-3 text-base text-foreground" /></label>
+          <label className="block min-w-0 min-w-0"><span className="block basis-full text-xs font-medium text-muted-foreground">Counted unit</span><input value={baseUnit} onChange={event => setBaseUnit(event.target.value.slice(0, 40))} placeholder="Count as — Jars" className="min-h-[48px] min-w-0 rounded-xl border border-input bg-muted px-3 text-base text-foreground" /></label>
         </div>
-        <input type="number" inputMode="decimal" min="0.01" step="0.01" value={materialWeightGrams} onChange={event => setMaterialWeightGrams(event.target.value)} placeholder="Material per finished unit in grams (optional)" className="min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" />
+        <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Material per finished item (g, optional)</span><input type="number" inputMode="decimal" min="0.01" step="0.01" value={materialWeightGrams} onChange={event => setMaterialWeightGrams(event.target.value)} placeholder="Material per finished unit in grams (optional)" className="min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" /></label>
       </div>
 
       <div>
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">3. Start the steps from</label>
+        <p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">3. Start the steps from</p>
         <div className="grid grid-cols-3 gap-2">
-          <button type="button" onClick={() => chooseSource('category')} className={`bf-select-btn justify-center px-2 text-xs ${source === 'category' ? 'bf-select-btn-active' : ''}`}>{categoryLabel(category)} base</button>
-          <button type="button" onClick={() => chooseSource('copy')} className={`bf-select-btn justify-center px-2 text-xs ${source === 'copy' ? 'bf-select-btn-active' : ''}`}>Copy product</button>
-          <button type="button" onClick={() => chooseSource('blank')} className={`bf-select-btn justify-center px-2 text-xs ${source === 'blank' ? 'bf-select-btn-active' : ''}`}>Start blank</button>
+          <button type="button" aria-pressed={source === 'category'} onClick={() => chooseSource('category')} className={`bf-select-btn justify-center px-2 text-xs ${source === 'category' ? 'bf-select-btn-active' : ''}`}>{categoryLabel(category)} base</button>
+          <button type="button" aria-pressed={source === 'copy'} onClick={() => chooseSource('copy')} className={`bf-select-btn justify-center px-2 text-xs ${source === 'copy' ? 'bf-select-btn-active' : ''}`}>Copy product</button>
+          <button type="button" aria-pressed={source === 'blank'} onClick={() => chooseSource('blank')} className={`bf-select-btn justify-center px-2 text-xs ${source === 'blank' ? 'bf-select-btn-active' : ''}`}>Start blank</button>
         </div>
-        {source === 'copy' && <select value={copyRecipeId} onChange={event => copyWorkflow(event.target.value)} className="mt-2 min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground"><option value="">Choose a product to copy…</option>{copyOptions.map(({ recipe, product }) => <option key={product.id} value={recipe.id}>{product.brand ? `${product.brand} · ` : ''}{product.name}</option>)}</select>}
+        {source === 'copy' && <label className="block min-w-0 mt-2 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Workflow to copy</span><select value={copyRecipeId} onChange={event => copyWorkflow(event.target.value)} className="mt-2 min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground"><option value="">Choose a product to copy…</option>{copyOptions.map(({ recipe, product }) => <option key={product.id} value={recipe.id}>{product.brand ? `${product.brand} · ` : ''}{product.name}</option>)}</select></label>}
       </div>
 
       <div>
-        <div className="mb-2 flex items-center justify-between"><label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">4. Normal production steps</label><span className="text-xs text-muted-foreground">{steps.filter(step => step.name.trim()).length} steps</span></div>
+        <div className="mb-2 flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">4. Normal production steps</p><span className="text-xs text-muted-foreground">{steps.filter(step => step.name.trim()).length} steps</span></div>
         <div className="space-y-2">
           {steps.map((step, index) => <div key={index} className="rounded-xl border border-border bg-muted/25 p-3">
             <div className="flex gap-2">
               <span className="flex h-10 w-8 shrink-0 items-center justify-center text-xs font-bold text-muted-foreground">{index + 1}</span>
-              <input value={step.name} onChange={event => updateStep(index, { name: event.target.value })} placeholder="Step name" className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base text-foreground" />
+              <label className="block min-w-0 min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Step name ${index + 1}`} </span><input value={step.name} onChange={event => updateStep(index, { name: event.target.value })} placeholder="Step name" className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base text-foreground" /></label>
               <button type="button" onClick={() => setSteps(current => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove step ${index + 1}`} className="bf-icon-btn bf-icon-btn-danger"><XMarkIcon className="h-4 w-4" /></button>
             </div>
             <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-2 pl-10">
-              <select value={step.type} onChange={event => updateStep(index, { type: event.target.value as StepDraft['type'] })} className="min-h-[40px] rounded-lg border border-input bg-card px-2 text-sm text-foreground"><option value="COUNT">Count</option><option value="CHECK">Done check</option><option value="ENTRY">Measurement</option></select>
+              <label className="block min-w-0 "><span className="block basis-full text-xs font-medium text-muted-foreground">{`Step type ${index + 1}`} </span><select value={step.type} onChange={event => updateStep(index, { type: event.target.value as StepDraft['type'] })} className="min-h-[40px] rounded-lg border border-input bg-card px-2 text-sm text-foreground"><option value="COUNT">Count</option><option value="CHECK">Done check</option><option value="ENTRY">Measurement</option></select></label>
               <button type="button" disabled={index === 0} onClick={() => moveStep(index, -1)} aria-label="Move step up" className="bf-icon-btn"><ChevronUpIcon className="h-4 w-4" /></button>
               <button type="button" disabled={index === steps.length - 1} onClick={() => moveStep(index, 1)} aria-label="Move step down" className="bf-icon-btn"><ChevronDownIcon className="h-4 w-4" /></button>
             </div>
-            {step.type === 'ENTRY' && <input value={step.entryUnit} onChange={event => updateStep(index, { entryUnit: event.target.value.slice(0, 30) })} placeholder="Measurement unit — g" style={{ width: 'calc(100% - 2.5rem)' }} className="ml-10 mt-2 min-h-[40px] rounded-lg border border-input bg-card px-3 text-sm text-foreground" />}
-            <input value={step.notes} onChange={event => updateStep(index, { notes: event.target.value })} placeholder="Instructions (optional)" style={{ width: 'calc(100% - 2.5rem)' }} className="ml-10 mt-2 min-h-[40px] rounded-lg border border-input bg-card px-3 text-sm text-foreground" />
+            {step.type === 'ENTRY' && <label className="block min-w-0 ml-10 mt-2"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Measurement unit ${index + 1}`} </span><input value={step.entryUnit} onChange={event => updateStep(index, { entryUnit: event.target.value.slice(0, 30) })} placeholder="Measurement unit — g" style={{ width: 'calc(100% - 2.5rem)' }} className="ml-10 mt-2 min-h-[40px] rounded-lg border border-input bg-card px-3 text-sm text-foreground" /></label>}
+            <label className="block min-w-0 ml-10 mt-2"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Instructions (optional) ${index + 1}`} </span><input value={step.notes} onChange={event => updateStep(index, { notes: event.target.value })} placeholder="Instructions (optional)" style={{ width: 'calc(100% - 2.5rem)' }} className="ml-10 mt-2 min-h-[40px] rounded-lg border border-input bg-card px-3 text-sm text-foreground" /></label>
           </div>)}
         </div>
         <button type="button" onClick={() => setSteps(current => [...current, { name: '', notes: '', type: 'COUNT', entryUnit: 'g', unitName: '', materials: [] }])} className="bf-btn bf-btn-secondary mt-3 w-full border-dashed"><PlusIcon className="h-4 w-4" /> Add step</button>
@@ -206,6 +207,6 @@ export default function NewProductWizard({ recipes, knownBrands, onCancel, onCre
 
       {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
       <button type="button" onClick={save} disabled={saving} className="bf-btn bf-btn-success min-h-[50px] w-full">{saving ? 'Saving product…' : 'Save product & continue to batch'}</button>
-    </section>
+    </fieldset>
   )
 }

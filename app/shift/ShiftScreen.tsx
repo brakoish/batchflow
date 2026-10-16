@@ -24,29 +24,32 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
   const [shift, setShift] = useState<Shift | null>(null)
   const [elapsed, setElapsed] = useState('0h 00m')
   const [loading, setLoading] = useState(false)
-  const [stats, setStats] = useState<TodayStats>({ batches: 0, units: 0 })
+  const [stats, setStats] = useState<TodayStats | null>(null)
   const [workerStats, setWorkerStats] = useState<WorkerStats | null>(null)
   const [showStats, setShowStats] = useState(false)
   const [timezone, setTimezone] = useState('America/New_York')
   const router = useRouter()
 
   useEffect(() => {
-    // Check current shift status
-    fetch('/api/shifts')
-      .then(r => r.json())
-      .then(d => {
-        setShift(d.activeShift)
-        setTimezone(d.timezone || 'America/New_York')
-        if (d.activeShift) {
-          updateElapsed(d.activeShift.startedAt)
-        }
-      })
-      .catch(() => setClockError('Unable to check shift. Reload to retry.'))
-      .finally(() => setChecking(false))
+    const checkShift = async () => {
+      setChecking(true)
+      try {
+        const response = await fetch('/api/shifts', { cache: 'no-store' })
+        if (!response.ok) throw new Error('Unable to check shift. Retry before clocking in.')
+        const data = await response.json()
+        setShift(data.activeShift || null)
+        setTimezone(data.timezone || 'America/New_York')
+        setClockError('')
+      } catch (error) { setClockError(error instanceof Error ? error.message : 'Shift status unavailable. Retry.') }
+      finally { setChecking(false) }
+    }
+    checkShift()
+    window.addEventListener('shift-changed', checkShift)
+    const timer = window.setInterval(checkShift, 30000)
 
     // Fetch today's stats
-    fetch('/api/workers/activity')
-      .then(r => r.json())
+    fetch('/api/workers/activity', { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw new Error('Statistics unavailable'); return r.json() })
       .then(d => {
         if (d.workers) {
           const me = d.workers.find((w: any) => w.id === worker.id)
@@ -58,17 +61,19 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
       .catch(() => {})
 
     // Fetch worker stats
-    fetch('/api/workers/stats')
-      .then(r => r.json())
+    fetch('/api/workers/stats', { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw new Error('Statistics unavailable'); return r.json() })
       .then(d => {
         if (d.stats) setWorkerStats(d.stats)
       })
       .catch(() => {})
+    return () => { window.removeEventListener('shift-changed', checkShift); window.clearInterval(timer) }
   }, [worker.id])
 
   // Update elapsed time
   useEffect(() => {
-    if (!shift) return
+    if (!shift) { setElapsed('0h 00m'); return }
+    updateElapsed(shift.startedAt)
     const id = setInterval(() => updateElapsed(shift.startedAt), 60000)
     return () => clearInterval(id)
   }, [shift])
@@ -100,6 +105,8 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
   }
 
   const handleClockOut = async () => {
+    if (loading) return
+    setClockError('')
     haptic('medium')
     if (!confirm(translateUi('End your shift?', language))) return
     setLoading(true)
@@ -120,7 +127,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      {clockError && <p role="alert">{clockError}</p>}
+      {clockError && <p role="alert">{clockError} <button onClick={() => window.dispatchEvent(new Event('shift-changed'))}>Retry shift status</button></p>}
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         {/* Status Indicator */}
@@ -128,7 +135,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
 
         {/* Status Text */}
         <h1 className={`text-3xl font-bold mb-2 ${shift ? 'text-success' : 'text-muted-foreground'}`}>
-          {translateUi(shift ? 'ON SHIFT' : 'OFF SHIFT', language)}
+          {translateUi(checking ? 'Checking shift…' : clockError ? 'Shift status unavailable' : shift ? 'ON SHIFT' : 'OFF SHIFT', language)}
         </h1>
 
         {/* Welcome */}
@@ -136,18 +143,18 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
 
         {/* Giant Timer */}
         <div className="text-6xl font-bold text-foreground tabular-nums mb-8">
-          {elapsed}
+          {checking || clockError ? '—' : elapsed}
         </div>
 
         {/* Today's Stats */}
         <div className="flex gap-6 mb-6">
           <div className="flex items-center gap-2 text-muted-foreground">
             <CubeIcon className="w-5 h-5" />
-            <span className="text-sm">{stats.batches} batches</span>
+            <span className="text-sm">{stats ? `${stats.batches} batches` : 'Activity unavailable'}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <ClockIcon className="w-5 h-5" />
-            <span className="text-sm">{stats.units} units</span>
+            <span className="text-sm">{stats ? `${stats.units} units` : '—'}</span>
           </div>
         </div>
 
@@ -198,7 +205,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
             </Link>
             <button
               onClick={handleClockOut}
-              disabled={loading || checking}
+              disabled={loading || checking || !!clockError}
               className="bf-btn bf-btn-soft-danger bf-btn-lg bf-btn-full"
             >
               <StopIcon className="w-5 h-5" /> {translateUi('Clock Out', language)}
@@ -208,7 +215,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
           <>
             <button
               onClick={handleClockIn}
-              disabled={loading || checking}
+              disabled={loading || checking || !!clockError}
               className="bf-btn bf-btn-success bf-btn-lg bf-btn-full py-5 text-xl"
             >
               <PlayIcon className="w-6 h-6" /> {translateUi('Clock In', language)}

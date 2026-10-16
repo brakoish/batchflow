@@ -1,5 +1,7 @@
 'use client'
 
+import { useId } from 'react'
+
 const WEIGHT_UNITS = ['g', 'kg', 'oz', 'lb'] as const
 
 export default function MeasurementUnitPicker({
@@ -13,6 +15,7 @@ export default function MeasurementUnitPicker({
   label?: string
   className?: string
 }) {
+  const customId = useId()
   const isWeightUnit = WEIGHT_UNITS.includes(value as (typeof WEIGHT_UNITS)[number])
   const isCustom = !isWeightUnit
 
@@ -41,14 +44,15 @@ export default function MeasurementUnitPicker({
         </button>
       </div>
       {isCustom && (
-        <input
+        <label htmlFor={customId} className="mt-2 block text-sm font-medium">Custom measurement unit<input
+          id={customId}
           value={value}
           onChange={(event) => onChange(event.target.value.slice(0, 30))}
           placeholder="Custom unit, e.g. °F"
           className="mt-2 min-h-[48px] w-full rounded-xl border border-input bg-background px-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-        />
+        /></label>
       )}
-      <p className="mt-1 text-[11px] text-muted-foreground">Workers enter one decimal measurement in this unit.</p>
+      <p className="mt-1 text-xs text-muted-foreground">Workers enter one decimal measurement in this unit.</p>
     </div>
   )
 }

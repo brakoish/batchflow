@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { isCurrentHoursQuery } from '@/lib/operationalView'
 import { haptic } from '@/lib/haptic'
 import { formatDuration } from '@/lib/format'
 import { formatTimeInTz, formatDateInTz, toDateTimeLocalString, fromDateTimeLocalString } from '@/lib/timezone'
+import { useDialogFocus } from '@/app/components/useDialogFocus'
 import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Worker = { id: string; name: string; hourlyRate: number | null }
@@ -34,6 +36,12 @@ type ConfirmAction = {
 }
 
 export default function TimesheetClient({ workers, teams }: { workers: Worker[]; teams: WorkTeam[] }) {
+  const requestId = useRef(0)
+  const [readError, setReadError] = useState('')
+  const [activeError, setActiveError] = useState('')
+  const [correctionError, setCorrectionError] = useState('')
+  const [loadedQuery, setLoadedQuery] = useState('')
+  const [reading, setReading] = useState(true)
   const [shifts, setShifts] = useState<Shift[]>([])
   const [timezone, setTimezone] = useState('America/New_York')
   const [filterWorker, setFilterWorker] = useState('')
@@ -58,15 +66,21 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   const [corrLoading, setCorrLoading] = useState(false)
   const [reviewingCorrection, setReviewingCorrection] = useState<string | null>(null)
 
+  const editDialogRef = useRef<HTMLDivElement>(null)
+  const closeEdit = useCallback(() => setEditingShift(null), [])
+  useDialogFocus(editDialogRef, !!editingShift, closeEdit, loading)
+
   const fetchCorrections = async () => {
     setCorrLoading(true)
     try {
       const res = await fetch('/api/shifts/corrections?status=PENDING', { cache: 'no-store' })
+      if (!res.ok) throw new Error('Correction requests are unavailable')
+      setCorrectionError('')
       if (res.ok) {
         const data = await res.json()
         setCorrections(data.requests || [])
       }
-    } catch {}
+    } catch { setCorrectionError('Correction requests are unavailable. Previously loaded requests may be out of date.') }
     setCorrLoading(false)
   }
 
@@ -119,19 +133,26 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 
+  const queryKey = JSON.stringify([viewMode, filterWorker, filterTeam, dateFrom, dateTo, currentWeekStart.toISOString(), periodPreset, customFrom, customTo])
+  const queryReady = isCurrentHoursQuery(loadedQuery, queryKey, reading, readError)
+
   const fetchActiveShifts = async () => {
     try {
       const res = await fetch('/api/shifts/all?status=ACTIVE', { cache: 'no-store' })
+      if (!res.ok) throw new Error('Active shifts unavailable')
+      setActiveError('')
       if (res.ok) {
         const data = await res.json()
         setActiveShifts(data.shifts || [])
         setTimezone(data.timezone || 'America/New_York')
       }
-    } catch {}
+    } catch { setActiveError('Active shifts are unavailable. Previously loaded status may be out of date.') }
   }
 
   const fetchShifts = async () => {
-    setLoading(true)
+    const id = ++requestId.current
+    setReading(true)
+    setReadError('')
     try {
       const params = new URLSearchParams()
       if (filterWorker) params.append('workerId', filterWorker)
@@ -140,17 +161,22 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
       if (dateTo) params.append('to', dateTo)
 
       const res = await fetch(`/api/shifts/all?${params}`, { cache: "no-store" })
+      if (!res.ok) throw new Error('Hours unavailable. Retry to load this filter.')
       if (res.ok) {
         const data = await res.json()
+        if (id !== requestId.current) return
+        setLoadedQuery(queryKey)
         setShifts(data.shifts || [])
         setTimezone(data.timezone || 'America/New_York')
       }
-    } catch {}
-    setLoading(false)
+    } catch { if (id === requestId.current) setReadError('Hours unavailable. Retry to load this filter; no totals are shown.') }
+    finally { if (id === requestId.current) setReading(false) }
   }
 
   const fetchWeeklySummary = async () => {
-    setLoading(true)
+    const id = ++requestId.current
+    setReading(true)
+    setReadError('')
     try {
       if (periodPreset === 'custom' && (!customFrom || !customTo)) {
         setWeeklyData([])
@@ -158,9 +184,10 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
         setWeeklyTotalShifts(0)
         setWeeklyEstimatedPay(0)
         setWeeklyMissingWages(0)
-        setLoading(false)
+        setReadError('Choose both dates to load hours.')
         return
       }
+      if (periodPreset === 'custom' && customFrom > customTo) { setReadError('From date must be before To date.'); return }
       const rangeStart = periodPreset === 'custom' && customFrom
         ? new Date(`${customFrom}T00:00:00`)
         : new Date(currentWeekStart)
@@ -179,8 +206,11 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
       if (filterTeam) params.append('teamId', filterTeam)
 
       const res = await fetch(`/api/shifts/weekly?${params}`, { cache: "no-store" })
+      if (!res.ok) throw new Error('Hours unavailable. Retry to load this filter.')
       if (res.ok) {
         const data = await res.json()
+        if (id !== requestId.current) return
+        setLoadedQuery(queryKey)
         setWeeklyData(data.weeks || [])
         setWeeklyTotalHours(data.totalHours || 0)
         setWeeklyTotalShifts(data.totalShifts || 0)
@@ -188,8 +218,8 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
         setWeeklyMissingWages(data.missingWageCount || 0)
         setTimezone(data.timezone || 'America/New_York')
       }
-    } catch {}
-    setLoading(false)
+    } catch { if (id === requestId.current) setReadError('Hours unavailable. Retry to load this filter; no totals are shown.') }
+    finally { if (id === requestId.current) setReading(false) }
   }
 
   useEffect(() => {
@@ -276,12 +306,13 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   }
 
   const handleUpdateShift = async () => {
-    if (!editingShift) return
+    if (!editingShift || loading) return
 
     // Convert from org timezone datetime-local string to UTC
     const start = fromDateTimeLocalString(editStart, timezone)
     const end = editEnd ? fromDateTimeLocalString(editEnd, timezone) : null
 
+    if (!Number.isFinite(start.getTime()) || (end && !Number.isFinite(end.getTime()))) { setError('Enter a valid start and end time.'); return }
     if (end && end <= start) {
       setError('End time must be after start time')
       return
@@ -349,6 +380,8 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
 
   return (
     <div className="space-y-4">
+      {activeError && <p role="alert">{activeError} <button onClick={fetchActiveShifts}>Retry active shifts</button></p>}
+      {correctionError && <p role="alert">{correctionError} <button onClick={fetchCorrections}>Retry requests</button></p>}
       {activeShifts.length > 0 && (
         <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
           <div className="flex items-center justify-between gap-3">
@@ -515,7 +548,8 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
       )}
 
       {/* Summary */}
-      {viewMode === 'shifts' ? (
+      {!queryReady && <div role={readError ? "alert" : "status"}>{readError || "Loading hours for this filter…"} {readError && <button className="bf-btn bf-btn-secondary" onClick={() => viewMode === 'shifts' ? fetchShifts() : fetchWeeklySummary()}>Retry hours</button>}</div>}
+      {queryReady && (viewMode === 'shifts' ? (
         <div>
           <div className="text-sm">
             <span className="text-muted-foreground">Total: </span>
@@ -533,16 +567,16 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
         <div className="text-sm">
           <span className="text-muted-foreground">{periodPreset === 'custom' ? (customFrom && customTo ? `${customFrom} – ${customTo}` : 'Choose a date range') : formatWeekRange(currentWeekStart)}</span>
         </div>
-      )}
+      ))}
 
       {/* Messages */}
       {error && (
-        <div className="p-3 rounded-lg bg-destructive-subtle border border-destructive">
+        <div role="alert" className="p-3 rounded-lg bg-destructive-subtle border border-destructive">
           <p className="text-destructive text-sm">{error}</p>
         </div>
       )}
       {success && (
-        <div className="p-3 rounded-lg bg-success-subtle border border-success">
+        <div role="status" className="p-3 rounded-lg bg-success-subtle border border-success">
           <p className="text-success text-sm font-medium">{success}</p>
         </div>
       )}
@@ -550,11 +584,12 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
       {/* Edit Modal - Full screen on mobile */}
       {editingShift && (
         <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl p-5 w-full max-w-md space-y-4">
+          <div ref={editDialogRef} role="dialog" aria-modal="true" aria-label="Edit shift" aria-busy={loading} className="bg-card border border-border rounded-xl p-5 w-full max-w-md space-y-4">
+            {error && <p role="alert">{error}</p>}
             <div className="flex items-center justify-between">
               <h3 className="text-base font-medium text-foreground">Edit Shift</h3>
               <button
-                onClick={() => setEditingShift(null)}
+                disabled={loading} aria-label="Close edit shift" onClick={() => setEditingShift(null)}
                 className="bf-icon-btn"
               >
                 ✕
@@ -567,19 +602,19 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
             
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Start Time</label>
+                <label htmlFor="shift-edit-start" className="text-xs text-muted-foreground block mb-1.5">Start Time</label>
                 <input
                   type="datetime-local"
-                  value={editStart}
+                  id="shift-edit-start" disabled={loading} value={editStart}
                   onChange={(e) => setEditStart(e.target.value)}
                   className="w-full px-3 py-3 bg-background border border-border rounded-lg text-foreground text-base focus:outline-none focus:border-primary"
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">End Time</label>
+                <label htmlFor="shift-edit-end" className="text-xs text-muted-foreground block mb-1.5">End Time</label>
                 <input
                   type="datetime-local"
-                  value={editEnd}
+                  id="shift-edit-end" disabled={loading} value={editEnd}
                   onChange={(e) => setEditEnd(e.target.value)}
                   className="w-full px-3 py-3 bg-background border border-border rounded-lg text-foreground text-base focus:outline-none focus:border-primary"
                 />
@@ -608,7 +643,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
       )}
 
       {/* Content - Shifts or Weekly Summary */}
-      {viewMode === 'shifts' ? (
+      {queryReady && (viewMode === 'shifts' ? (
         <div className="space-y-2">
           {shifts.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No shifts found</p>
@@ -768,7 +803,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
             )}
           </div>
         </div>
-      )}
+      ))}
 
       <ConfirmModal
         open={!!confirmAction}

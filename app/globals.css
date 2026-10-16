@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * BatchFlow Design System
  * 
@@ -34,14 +36,14 @@
   --color-primary-subtle: #0066ff10;
   
   /* Success - Soft Green */
-  --color-success: #00b894;
+  --color-success: #007d63;
   --color-success-foreground: #ffffff;
-  --color-success-subtle: #00b89410;
+  --color-success-subtle: #007d6310;
   
   /* Destructive - Soft Red */
-  --color-destructive: #ff6b6b;
+  --color-destructive: #c92b36;
   --color-destructive-foreground: #ffffff;
-  --color-destructive-subtle: #ff6b6b10;
+  --color-destructive-subtle: #c92b3610;
   
   /* Warning - Soft Amber */
   --color-warning: #fdcb6e;
@@ -49,7 +51,7 @@
   
   /* Status Colors */
   --color-status-active: #0066ff;
-  --color-status-completed: #00b894;
+  --color-status-completed: #007d63;
   --color-status-pending: #fdcb6e;
   --color-status-locked: #999999;
   
@@ -72,6 +74,19 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
+  --spacing-safe: env(safe-area-inset-bottom);
+  --spacing-safe-top: env(safe-area-inset-top);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --animate-slide-up: slide-up 0.3s ease-out;
+  --animate-slide-down: slide-down 0.3s ease-out;
+  @keyframes slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes slide-down {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
 }
 
 @keyframes bf-announcement-scroll {
@@ -159,6 +174,8 @@ input::placeholder {
   color: var(--color-muted-foreground);
 }
 
+/* Components stay below utilities in the cascade (including responsive hidden). */
+@layer components {
 /* Buttons */
 .bf-btn {
   min-height: 44px;
@@ -203,7 +220,7 @@ input::placeholder {
 }
 
 .bf-btn-success {
-  background: #059669;
+  background: #047857;
   color: #ffffff;
 }
 
@@ -345,10 +362,24 @@ input::placeholder {
   transform: scale(0.975);
 }
 
-.bf-select-btn-active {
-  border-color: #059669;
-  background: rgba(5, 150, 105, 0.1);
-  color: #047857;
+.bf-select-btn-active,
+.bf-select-btn[aria-pressed="true"] {
+  border-color: var(--color-success);
+  background: var(--color-success-subtle);
+  color: var(--color-success);
+}
+
+.bf-select-btn-active:hover:not(:disabled),
+.bf-select-btn[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 16%, var(--color-card));
+  color: var(--color-success);
+}
+
+.bf-select-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .dark .bf-btn-primary {
@@ -361,7 +392,9 @@ input::placeholder {
 }
 
 .dark .bf-select-btn-active {
-  color: #34d399;
+  color: var(--color-success);
+}
+
 }
 
 /* Number inputs without spinners */

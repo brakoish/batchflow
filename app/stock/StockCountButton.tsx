@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useId } from 'react'
+import { useDialogFocus } from '@/app/components/useDialogFocus'
 import { useRouter } from 'next/navigation'
 
 export default function StockCountButton({ recipeId, productId, productName, baseUnit, currentQuantity }: {
@@ -17,6 +18,9 @@ export default function StockCountButton({ recipeId, productId, productName, bas
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const panelRef = useRef<HTMLDivElement>(null)
+  const fieldId = useId()
+  useDialogFocus(panelRef, open, () => setOpen(false), saving)
   const save = async (explicitCount?: number) => {
     const countedQuantity = explicitCount ?? Number(quantity)
     if (saving) return
@@ -49,14 +53,14 @@ export default function StockCountButton({ recipeId, productId, productName, bas
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/55 p-3 sm:items-center sm:justify-center" onClick={() => !saving && setOpen(false)}>
-          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <div ref={panelRef} role="dialog" aria-modal="true" aria-label={`Count ${productName}`} aria-busy={saving} className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-lg font-bold text-foreground">Count {productName}</h2>
             <p className="mt-1 text-sm text-muted-foreground">Enter the physical quantity on hand. This records a correction without deleting batch history.</p>
-            <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{baseUnit} on hand</label>
-            <input autoFocus type="number" inputMode="numeric" min="0" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} className="mt-1 min-h-[52px] w-full rounded-xl border border-input bg-muted px-3 text-xl font-bold text-foreground" />
-            <label className="mt-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Note (optional)</label>
-            <input value={note} onChange={(event) => setNote(event.target.value.slice(0, 300))} placeholder="Physical count, old stock cleanup…" className="mt-1 min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" />
-            {error && <p className="mt-3 text-sm font-medium text-red-500">{error}</p>}
+            <label htmlFor={`${fieldId}-quantity`} className="mt-4 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{baseUnit} on hand</label>
+            <input id={`${fieldId}-quantity`} disabled={saving} autoFocus type="number" inputMode="numeric" min="0" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} className="mt-1 min-h-[52px] w-full rounded-xl border border-input bg-muted px-3 text-xl font-bold text-foreground" />
+            <label htmlFor={`${fieldId}-note`} className="mt-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Note (optional)</label>
+            <input id={`${fieldId}-note`} disabled={saving} value={note} onChange={(event) => setNote(event.target.value.slice(0, 300))} placeholder="Physical count, old stock cleanup…" className="mt-1 min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" />
+            {error && <p role="alert" className="mt-3 text-sm font-medium text-red-500">{error}</p>}
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button type="button" disabled={saving} onClick={() => save()} className="bf-btn bf-btn-primary">{saving ? 'Saving…' : 'Save Count'}</button>
               <button type="button" disabled={saving} onClick={() => setOpen(false)} className="bf-btn bf-btn-secondary">Cancel</button>

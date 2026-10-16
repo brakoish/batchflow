@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, HashtagIcon, PencilSquareIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
@@ -208,18 +208,34 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
     return ratio
   }
 
-  const handleSubmit = async () => {
-    if (!name.trim()) { setError('Give your recipe a name — like "1g Pre-Rolls" or "Flower Jars"'); return }
-    if (!baseUnit.trim()) { setError('What are you counting? Enter a base unit like "bags", "jars", or "pre-rolls"'); return }
-    const validSteps = steps.filter((s) => s.name.trim())
-    if (!validSteps.length) { setError('Add at least one step so your team knows what to do'); return }
-    if (products.some(product => product.name.trim() && !product.brand.trim())) { setError('Add a brand for each finished product'); return }
-    if (duplicateUnits.length) { setError(`Unit names must be unique: ${Array.from(new Set(duplicateUnits)).join(', ')}`); return }
-    if (duplicateSteps.length) { setError(`Step names must be unique: ${Array.from(new Set(duplicateSteps)).join(', ')}`); return }
-    if (missingStepUnits.length) { setError(`These steps point to a missing unit: ${missingStepUnits.join(', ')}`); return }
+  const validationError = (() => {
+    if (!name.trim()) return 'Give your recipe a name — like "1g Pre-Rolls" or "Flower Jars"'
+    if (!baseUnit.trim()) return 'What are you counting? Enter a base unit like "bags", "jars", or "pre-rolls"'
+    if (!steps.some(s => s.name.trim())) return 'Add at least one step so your team knows what to do'
+    if (products.some(product => product.name.trim() && !product.brand.trim())) return 'Add a brand for each finished product'
+    if (duplicateUnits.length) return `Unit names must be unique: ${Array.from(new Set(duplicateUnits)).join(', ')}`
+    if (duplicateSteps.length) return `Step names must be unique: ${Array.from(new Set(duplicateSteps)).join(', ')}`
+    if (missingStepUnits.length) return `These steps point to a missing unit: ${missingStepUnits.join(', ')}`
     const badUnit = trimmedUnits.find(u => u.name && (!Number.isFinite(u.count) || u.count <= 0))
-    if (badUnit) { setError(`Check the relation for ${badUnit.name}. The number must be greater than 0.`); return }
+    if (badUnit) return `Check the relation for ${badUnit.name}. The number must be greater than 0.`
 
+    if (products.some(p => p.materialWeightGrams.trim() && (!Number.isFinite(Number(p.materialWeightGrams)) || Number(p.materialWeightGrams) <= 0))) return 'Material weight must be greater than 0.'
+    return ''
+  })()
+
+  const formRef = useRef<HTMLDivElement>(null)
+  const handleSubmit = async () => {
+    if (loading) return
+    if (validationError) {
+      setError(validationError)
+      const labels = Array.from(formRef.current?.querySelectorAll('label') || [])
+      const purpose = !name.trim() ? 'Workflow name' : !baseUnit.trim() ? 'Counted unit' : !steps.some(s => s.name.trim()) ? 'Step name 1' : products.some(p => p.name.trim() && !p.brand.trim()) ? `Brand ${products.findIndex(p => p.name.trim() && !p.brand.trim()) + 1}` : ''
+      const field = labels.find(label => purpose && label.textContent?.trim().startsWith(purpose))?.querySelector<HTMLElement>('input,select,textarea')
+      if (field) { field.focus(); field.scrollIntoView({ block: 'center' }) }
+      else { const summary = formRef.current?.querySelector<HTMLElement>('[data-validation-summary]'); summary?.focus() }
+      return
+    }
+    const validSteps = steps.filter(s => s.name.trim())
     haptic('medium')
     setLoading(true); setError('')
     try {
@@ -257,28 +273,28 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
   }
 
   return (
-    <div>
+    <div ref={formRef}>
       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
         {isEdit ? 'Edit Recipe' : 'New Recipe'}
       </h2>
-      <div className="space-y-8">
+      <fieldset disabled={loading} aria-busy={loading} className="space-y-8 min-w-0">
         {/* ── Recipe and products ── */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">Processing category</label>
+          <p className="text-base text-foreground font-semibold block mb-1">Processing category</p>
           <p className="mb-3 text-sm text-muted-foreground">Start with the common touch points, then tailor them to this brand and product.</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {PROCESSING_CATEGORIES.map(option => <button key={option.value} type="button" onClick={() => { setCategory(option.value); if (!isEdit && steps.length === 1 && !steps[0].name.trim()) applyCategoryBase(option.value) }} className={`bf-select-btn justify-center ${category === option.value ? 'bf-select-btn-active' : ''}`}>{option.label}</button>)}
+            {PROCESSING_CATEGORIES.map(option => <button key={option.value} aria-pressed={category === option.value} type="button" onClick={() => { setCategory(option.value); if (!isEdit && steps.length === 1 && !steps[0].name.trim()) applyCategoryBase(option.value) }} className={`bf-select-btn justify-center ${category === option.value ? 'bf-select-btn-active' : ''}`}>{option.label}</button>)}
           </div>
           {category !== 'OTHER' && <button type="button" onClick={() => applyCategoryBase(category)} className="bf-btn bf-btn-secondary mt-3 w-full">Reset steps to {PROCESSING_CATEGORIES.find(option => option.value === category)?.label} base</button>}
 
           <div className="mt-5 border-t border-border pt-5">
-          <label className="text-base text-foreground font-semibold block mb-1">Name this production flow</label>
+          <p className="text-base text-foreground font-semibold block mb-1">Name this production flow</p>
           <p className="text-sm text-muted-foreground mb-3">
             Make this workflow specific to one brand and product. Strains or flavors belong under it as variations.
           </p>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+          <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Workflow name</span><input type="text" value={name} onChange={(e) => setName(e.target.value)}
             placeholder="e.g., Charas Jars, 1g Pre-Roll Tins" disabled={loading}
-            className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+            className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" /></label>
           </div>
 
           <datalist id="batchflow-brand-options">
@@ -286,21 +302,21 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
           </datalist>
 
           <div className="mt-4 border-t border-border pt-4">
-            <label className="text-sm font-semibold text-foreground">Finished products</label>
+            <p className="text-sm font-semibold text-foreground">Finished products</p>
             <p className="mb-3 mt-1 text-xs text-muted-foreground">The sellable format this workflow makes. Example: Terp Selection · 3.5g Jar.</p>
             <div className="space-y-2">
               {products.map((product, index) => (
                 <div key={index} className="rounded-xl border border-border bg-muted/20 p-2">
-                  <div className="flex gap-2"><input type="text" value={product.name} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, name: event.target.value } : value))} placeholder="Finished item name" maxLength={120} disabled={loading} className="min-h-[46px] flex-1 rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
+                  <div className="flex gap-2"><label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Product name ${index + 1}`} </span><input type="text" value={product.name} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, name: event.target.value } : value))} placeholder="Finished item name" maxLength={120} disabled={loading} className="min-h-[46px] flex-1 rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
                   <button type="button" onClick={() => setProducts(current => current.filter((_, itemIndex) => itemIndex !== index))} className="bf-icon-btn bf-icon-btn-danger" aria-label="Remove product">
                     <XMarkIcon className="h-5 w-5" />
                   </button></div>
-                  <input type="text" value={product.brand} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, brand: event.target.value } : value))} list="batchflow-brand-options" placeholder="Brand — e.g., Terp Selection" maxLength={100} disabled={loading} className="mt-2 min-h-[46px] w-full rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
+                  <label className="block min-w-0 mt-2 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Brand ${index + 1}`} </span><input type="text" value={product.brand} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, brand: event.target.value } : value))} list="batchflow-brand-options" placeholder="Brand — e.g., Terp Selection" maxLength={100} disabled={loading} className="mt-2 min-h-[46px] w-full rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <input type="number" inputMode="decimal" min="0.01" step="0.01" value={product.materialWeightGrams} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, materialWeightGrams: event.target.value } : value))} placeholder="Material per item (g)" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
-                    <input type="text" value={product.variations} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, variations: event.target.value } : value))} placeholder="Variations — Blue Dream, LCG" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" />
+                    <label className="block min-w-0 "><span className="block basis-full text-xs font-medium text-muted-foreground">{`Material per item (g, optional) ${index + 1}`} </span><input type="number" inputMode="decimal" min="0.01" step="0.01" value={product.materialWeightGrams} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, materialWeightGrams: event.target.value } : value))} placeholder="Material per item (g)" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
+                    <label className="block min-w-0 "><span className="block basis-full text-xs font-medium text-muted-foreground">{`Variations (comma separated) ${index + 1}`} </span><input type="text" value={product.variations} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, variations: event.target.value } : value))} placeholder="Variations — Blue Dream, LCG" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
                   </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Variations share this workflow. Separate names with commas.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Variations share this workflow. Separate names with commas.</p>
                 </div>
               ))}
             </div>
@@ -308,29 +324,29 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
               <PlusIcon className="h-4 w-4" /> {products.length ? 'Add legacy shared product' : 'Add product'}
             </button>}
             <div className="mt-2 flex gap-2">
-              <select value={existingProductId} onChange={(event) => setExistingProductId(event.target.value)} className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-sm text-foreground">
+              <label className="block min-w-0 min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Existing product</span><select value={existingProductId} onChange={(event) => setExistingProductId(event.target.value)} className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-sm text-foreground">
                 <option value="">Use existing product…</option>
                 {availableProducts.filter((option) => !products.some((product) => product.id === option.id)).map((option) => <option key={option.id} value={option.id}>{option.brand ? `${option.brand} · ` : ''}{option.name}</option>)}
-              </select>
+              </select></label>
               <button type="button" disabled={!existingProductId} onClick={() => { const selected = availableProducts.find((option) => option.id === existingProductId); if (selected) setProducts((current) => [...current, { id: selected.id, name: selected.name, brand: selected.brand || '', materialWeightGrams: selected.materialWeightGrams?.toString() || '', variations: selected.variations?.map(variation => variation.name).join(', ') || '' }]); setExistingProductId('') }} className="bf-btn bf-btn-secondary">Add</button>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Using an existing product moves it to this recipe. Its stock and batch history stay attached.</p>
           </div>
 
-          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
+          <label className="block min-w-0 w-full mt-3"><span className="block basis-full text-xs font-medium text-muted-foreground">Description (optional)</span><input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
             placeholder="Short description (optional) — e.g., Standard 14g ground flower bags" disabled={loading}
-            className="w-full mt-3 px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+            className="w-full mt-3 px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" /></label>
         </div>
 
         {/* ── Sellable Unit ── */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">What do you sell?</label>
+          <p className="text-base text-foreground font-semibold block mb-1">What do you sell?</p>
           <p className="text-sm text-muted-foreground mb-3">
             The finished product — what you set a batch target in. For pre-rolls packed in tins, that’s “Tins.” For loose flower, it might be “Bags” or “Jars.”
           </p>
-          <input type="text" value={baseUnit} onChange={(e) => setBaseUnit(e.target.value)}
+          <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Counted unit</span><input type="text" value={baseUnit} onChange={(e) => setBaseUnit(e.target.value)}
             placeholder="e.g., Tins, Bags, Jars, Cartridges" disabled={loading}
-            className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+            className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-muted/50 border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" /></label>
           {baseUnit && (
             <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
               ✓ Batch targets will be set in {baseUnit}
@@ -340,18 +356,18 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
 
         {/* ── Advanced quantities ── */}
         <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <button type="button" onClick={() => setAdvancedOpen(!advancedOpen)} className="flex min-h-[64px] w-full items-center justify-between gap-3 p-5 text-left">
+          <button type="button" aria-expanded={advancedOpen} aria-controls="recipe-advanced-quantities" onClick={() => setAdvancedOpen(!advancedOpen)} className="flex min-h-[64px] w-full items-center justify-between gap-3 p-5 text-left">
             <span>
               <span className="block text-base font-semibold text-foreground">Advanced quantities</span>
               <span className="block text-sm text-muted-foreground">Optional · materials, inner packs, cases, and conversions</span>
             </span>
             <ChevronDownIcon className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
           </button>
-          {advancedOpen && <div className="border-t border-border p-5">
+          {advancedOpen && <div id="recipe-advanced-quantities" className="border-t border-border p-5">
           <p className="text-sm text-muted-foreground mb-1">
             Add only the extra things workers count. Fill in a plain conversion sentence; batches will still target {baseUnit || 'the finished product'}.
           </p>
-          <p className="text-xs text-muted-foreground/60 mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             e.g., <span className="font-medium">14 Pre-rolls = 1 {baseUnit || 'Tin'}</span> · <span className="font-medium">1 Case = 20 {baseUnit || 'Tins'}</span>
           </p>
 
@@ -387,16 +403,16 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                       {u.direction === 'bigger' ? (
                         <>
                           <span className="text-sm text-muted-foreground shrink-0">1</span>
-                          <input
+                          <label className="block min-w-0 flex-1 min-w-[6rem]"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Unit name ${i + 1}`} </span><input
                             type="text"
                             value={u.name}
                             onChange={(e) => updateUnit(i, 'name', e.target.value)}
                             placeholder="Case"
                             disabled={loading}
                             className="flex-1 min-w-[6rem] px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
-                          />
+                          /></label>
                           <span className="text-sm text-muted-foreground shrink-0">=</span>
-                          <input
+                          <label className="block min-w-0 w-20 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Relation quantity ${i + 1}`} </span><input
                             type="number"
                             inputMode="decimal"
                             step="any"
@@ -405,8 +421,8 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                             min="1"
                             disabled={loading}
                             className="w-20 shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base font-semibold tabular-nums text-center focus:outline-none focus:border-emerald-500 transition-all"
-                          />
-                          <select
+                          /></label>
+                          <label className="block min-w-0 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Related unit ${i + 1}`} </span><select
                             value={u.basedOn || ''}
                             onChange={(e) => updateUnit(i, 'basedOn', e.target.value)}
                             disabled={loading || rhsOptions.length <= 1}
@@ -415,11 +431,11 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                             {rhsOptions.map((opt) => (
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
-                          </select>
+                          </select></label>
                         </>
                       ) : (
                         <>
-                          <input
+                          <label className="block min-w-0 w-20 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Relation quantity ${i + 1}`} </span><input
                             type="number"
                             inputMode="decimal"
                             step="any"
@@ -428,17 +444,17 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                             min="1"
                             disabled={loading}
                             className="w-20 shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base font-semibold tabular-nums text-center focus:outline-none focus:border-emerald-500 transition-all"
-                          />
-                          <input
+                          /></label>
+                          <label className="block min-w-0 flex-1 min-w-[6rem]"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Unit name ${i + 1}`} </span><input
                             type="text"
                             value={u.name}
                             onChange={(e) => updateUnit(i, 'name', e.target.value)}
                             placeholder="Pre-rolls"
                             disabled={loading}
                             className="flex-1 min-w-[6rem] px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
-                          />
+                          /></label>
                           <span className="text-sm text-muted-foreground shrink-0">= 1</span>
-                          <select
+                          <label className="block min-w-0 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Related unit ${i + 1}`} </span><select
                             value={u.basedOn || ''}
                             onChange={(e) => updateUnit(i, 'basedOn', e.target.value)}
                             disabled={loading || rhsOptions.length <= 1}
@@ -447,7 +463,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                             {rhsOptions.map((opt) => (
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
-                          </select>
+                          </select></label>
                         </>
                       )}
                     </div>
@@ -458,7 +474,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                         type="button"
                         onClick={() => updateUnit(i, 'direction', u.direction === 'bigger' ? 'smaller' : 'bigger')}
                         disabled={loading}
-                        className="bf-btn bf-btn-ghost bf-btn-sm text-[11px]"
+                        className="bf-btn bf-btn-ghost bf-btn-sm text-xs"
                       >
                         ⇄ Flip — {u.direction === 'bigger' ? `it’s smaller than a ${u.basedOn || baseUnit || 'base unit'}` : `it’s bigger than a ${u.basedOn || baseUnit || 'base unit'}`}
                       </button>
@@ -501,11 +517,11 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
 
         {/* ── Steps ── */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">Production steps</label>
+          <p className="text-base text-foreground font-semibold block mb-1">Production steps</p>
           <p className="text-sm text-muted-foreground mb-1">
             List every step your team follows, in order. Think of it as the checklist someone would follow to make this product from start to finish.
           </p>
-          <p className="text-xs text-muted-foreground/60 mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             Example for pre-rolls: Mix flower → Fill cones → Twist & pack → Label → Case up → QC check
           </p>
 
@@ -514,42 +530,42 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
               <div key={i} className={`overflow-hidden rounded-xl border ${expandedStep === i ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-border bg-muted/30'}`}>
                 {/* Header with step number and controls */}
                 <div className="flex min-h-[58px] items-center gap-2 px-3 py-2">
-                  <button type="button" onClick={() => setExpandedStep(expandedStep === i ? null : i)} className="min-w-0 flex-1 text-left">
+                  <button type="button" aria-expanded={expandedStep === i} aria-controls={`recipe-step-${i}`} onClick={() => setExpandedStep(expandedStep === i ? null : i)} className="min-w-0 flex-1 text-left">
                     <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Step {i + 1}</span>
                     <span className="block truncate text-sm font-semibold text-foreground">{step.name.trim() || 'Name this step'}</span>
-                    <span className="block text-[11px] text-muted-foreground">{step.type === 'CHECK' ? 'Checkpoint · mark done' : step.type === 'ENTRY' ? `Entry · record ${step.entryUnit || 'g'}` : `Count · ${step.unitName || baseUnit || 'finished units'}`}</span>
+                    <span className="block text-xs text-muted-foreground">{step.type === 'CHECK' ? 'Checkpoint · mark done' : step.type === 'ENTRY' ? `Entry · record ${step.entryUnit || 'g'}` : `Count · ${step.unitName || baseUnit || 'finished units'}`}</span>
                   </button>
                   <div className="flex items-center gap-0.5">
-                    <button onClick={() => moveStep(i, 'up')} disabled={i === 0}
+                    <button aria-label={`Move ${step.name || `step ${i + 1}`} up`} onClick={() => moveStep(i, 'up')} disabled={i === 0}
                       className="bf-icon-btn">
                       <ChevronUpIcon className="w-5 h-5" />
                     </button>
-                    <button onClick={() => moveStep(i, 'down')} disabled={i === steps.length - 1}
+                    <button aria-label={`Move ${step.name || `step ${i + 1}`} down`} onClick={() => moveStep(i, 'down')} disabled={i === steps.length - 1}
                       className="bf-icon-btn">
                       <ChevronDownIcon className="w-5 h-5" />
                     </button>
-                    <button onClick={() => removeStep(i)} disabled={steps.length === 1}
+                    <button aria-label={`Remove ${step.name || `step ${i + 1}`}`} onClick={() => removeStep(i)} disabled={steps.length === 1}
                       className="bf-icon-btn bf-icon-btn-danger">
                       <XMarkIcon className="w-5 h-5" />
                     </button>
-                    <button type="button" onClick={() => setExpandedStep(expandedStep === i ? null : i)} className="bf-icon-btn" aria-label={expandedStep === i ? 'Collapse step' : 'Edit step'}>
+                    <button type="button" aria-expanded={expandedStep === i} aria-controls={`recipe-step-${i}`} onClick={() => setExpandedStep(expandedStep === i ? null : i)} className="bf-icon-btn" aria-label={expandedStep === i ? 'Collapse step' : 'Edit step'}>
                       <ChevronDownIcon className={`h-5 w-5 transition-transform ${expandedStep === i ? 'rotate-180' : ''}`} />
                     </button>
                   </div>
                 </div>
 
-                {expandedStep === i && <div className="border-t border-border/70 p-4">
+                {expandedStep === i && <div id={`recipe-step-${i}`} className="border-t border-border/70 p-4">
                 {/* Step name */}
                 <div className="mb-3">
-                  <input type="text" value={step.name} onChange={(e) => updateStep(i, 'name', e.target.value)}
+                  <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Step name ${i + 1}`} </span><input type="text" value={step.name} onChange={(e) => updateStep(i, 'name', e.target.value)}
                     placeholder={i === 0 ? 'e.g., Weigh & Prep Materials' : i === 1 ? 'e.g., Fill Bags' : 'Step name'}
                     disabled={loading}
-                    className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+                    className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" /></label>
                 </div>
 
                 {/* Type toggle */}
                 <div className="mb-3">
-                  <label className="text-xs text-muted-foreground font-medium block mb-2">What do workers do at this step?</label>
+                  <p className="text-xs text-muted-foreground font-medium block mb-2">What do workers do at this step?</p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <button type="button" aria-pressed={step.type === 'CHECK'} onClick={() => { haptic('light'); updateStep(i, 'type', 'CHECK') }} disabled={loading}
                       className={`bf-select-btn flex-1 justify-start px-4 py-3 ${
@@ -558,7 +574,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                       <CheckCircleIcon className="w-6 h-6 shrink-0" />
                       <div className="text-left">
                         <div>Checkpoint</div>
-                        <div className="text-[11px] opacity-70 font-normal">Mark done — no counting</div>
+                        <div className="text-xs opacity-70 font-normal">Mark done — no counting</div>
                       </div>
                       {step.type === 'CHECK' && <span className="ml-auto text-lg font-bold" aria-hidden="true">✓</span>}
                     </button>
@@ -569,7 +585,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                       <PencilSquareIcon className="w-6 h-6 shrink-0" />
                       <div className="text-left">
                         <div>Entry</div>
-                        <div className="text-[11px] opacity-70 font-normal">Record one measured value</div>
+                        <div className="text-xs opacity-70 font-normal">Record one measured value</div>
                       </div>
                       {step.type === 'ENTRY' && <span className="ml-auto text-lg font-bold" aria-hidden="true">✓</span>}
                     </button>
@@ -580,7 +596,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                       <HashtagIcon className="w-6 h-6 shrink-0" />
                       <div className="text-left">
                         <div>Count</div>
-                        <div className="text-[11px] opacity-70 font-normal">Workers log quantities</div>
+                        <div className="text-xs opacity-70 font-normal">Workers log quantities</div>
                       </div>
                       {step.type === 'COUNT' && <span className="ml-auto text-lg font-bold" aria-hidden="true">✓</span>}
                     </button>
@@ -594,13 +610,13 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                 {/* Unit selector for COUNT steps */}
                 {step.type === 'COUNT' && units.filter(u => u.name.trim()).length > 0 && (
                   <div className="mb-3">
-                    <label className="text-xs text-muted-foreground font-medium block mb-1.5">What does the worker count on this step?</label>
-                    <p className="text-[11px] text-muted-foreground/70 mb-2">
+                    <p className="text-xs text-muted-foreground font-medium block mb-1.5">What does the worker count on this step?</p>
+                    <p className="text-xs text-muted-foreground mb-2">
                       Pick the thing they physically handle. The batch total still tracks in {baseUnit || 'your sellable unit'}.
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={() => { haptic('light'); updateStep(i, 'unitName', '') }}
+                        aria-pressed={!step.unitName} onClick={() => { haptic('light'); updateStep(i, 'unitName', '') }}
                         disabled={loading}
                         className={`bf-select-btn ${
                           !step.unitName ? 'bf-select-btn-active' : ''
@@ -611,7 +627,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                       {units.filter(u => u.name.trim()).map((u, idx) => (
                         <button
                           key={idx}
-                          onClick={() => { haptic('light'); updateStep(i, 'unitName', u.name) }}
+                          aria-pressed={step.unitName === u.name} onClick={() => { haptic('light'); updateStep(i, 'unitName', u.name) }}
                           disabled={loading}
                           className={`bf-select-btn ${
                             step.unitName === u.name ? 'bf-select-btn-active' : ''
@@ -631,9 +647,9 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                 )}
 
                 {/* Notes */}
-                <input type="text" value={step.notes} onChange={(e) => updateStep(i, 'notes', e.target.value)}
+                <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Instructions (optional) ${i + 1}`} </span><input type="text" value={step.notes} onChange={(e) => updateStep(i, 'notes', e.target.value)}
                   placeholder="Instructions or notes — e.g., Use 3.5g per jar, keep lids tight" disabled={loading}
-                  className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" />
+                  className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" /></label>
                 </div>}
               </div>
             ))}
@@ -647,7 +663,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
 
         {/* ── Recipe Check ── */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <label className="text-base text-foreground font-semibold block mb-1">Recipe check</label>
+          <p className="text-base text-foreground font-semibold block mb-1">Recipe check</p>
           <p className="text-sm text-muted-foreground mb-4">
             Quick sanity check before this becomes a batch template.
           </p>
@@ -670,13 +686,14 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
             </div>
           </div>
           <div className="mt-4 space-y-2">
+            {validationError && <p className="text-sm text-amber-600 dark:text-amber-400">{validationError}</p>}
             {!name.trim() && <p className="text-xs text-amber-600 dark:text-amber-400">Add a product name.</p>}
             {!baseUnit.trim() && <p className="text-xs text-amber-600 dark:text-amber-400">Add the thing the batch target counts.</p>}
             {emptyStepCount > 0 && <p className="text-xs text-muted-foreground">Empty step{emptyStepCount === 1 ? '' : 's'} will be ignored when saved.</p>}
             {duplicateUnits.length > 0 && <p className="text-xs text-red-500 dark:text-red-400">Duplicate unit name: {Array.from(new Set(duplicateUnits)).join(', ')}.</p>}
             {duplicateSteps.length > 0 && <p className="text-xs text-red-500 dark:text-red-400">Duplicate step name: {Array.from(new Set(duplicateSteps)).join(', ')}.</p>}
             {missingStepUnits.length > 0 && <p className="text-xs text-red-500 dark:text-red-400">Missing unit on: {missingStepUnits.join(', ')}.</p>}
-            {name.trim() && baseUnit.trim() && duplicateUnits.length === 0 && duplicateSteps.length === 0 && missingStepUnits.length === 0 && (
+            {!validationError && (
               <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Looks ready to create batches.</p>
             )}
           </div>
@@ -685,7 +702,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
         {/* ── Preview ── */}
         {steps.some(s => s.name.trim()) && (
           <div className="rounded-xl border border-border bg-card p-5">
-            <label className="text-base text-foreground font-semibold block mb-1">Preview</label>
+            <p className="text-base text-foreground font-semibold block mb-1">Preview</p>
             <p className="text-sm text-muted-foreground mb-4">
               Here&apos;s what your team will see for a 500 {baseUnit || 'unit'} batch:
             </p>
@@ -723,7 +740,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
 
         {/* ── Error ── */}
         {error && (
-          <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <div data-validation-summary tabIndex={-1} role="alert" className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
             <p className="text-red-500 dark:text-red-400 text-sm text-center">{error}</p>
           </div>
         )}
@@ -731,7 +748,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
         <button type="button" onClick={handleSubmit} disabled={loading} className="bf-btn bf-btn-success bf-btn-lg bf-btn-full">
           {loading ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Save Recipe' : 'Create Recipe')}
         </button>
-      </div>
+      </fieldset>
     </div>
   )
 }

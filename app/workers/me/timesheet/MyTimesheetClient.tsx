@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useDialogFocus } from '@/app/components/useDialogFocus'
 import Link from 'next/link'
 import AppShell from '@/app/components/AppShell'
 import { ChevronLeftIcon, ClockIcon, ArrowDownTrayIcon, ShareIcon, PencilSquareIcon, XMarkIcon } from '@heroicons/react/24/solid'
@@ -46,6 +47,9 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
   const [corrReason, setCorrReason] = useState('')
   const [corrSubmitting, setCorrSubmitting] = useState(false)
   const [corrMsg, setCorrMsg] = useState<string | null>(null)
+
+  const correctionRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(correctionRef, !!correctionShift, () => setCorrectionShift(null), corrSubmitting)
 
   const weekEnd = new Date(weekStart)
   weekEnd.setUTCDate(weekStart.getUTCDate() + 7)
@@ -410,7 +414,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
                             onClick={() => openCorrectionModal(s)}
                             title="Request correction"
                             aria-label="Request correction"
-                            className="bf-icon-btn"
+                            disabled={corrSubmitting} className="bf-icon-btn"
                           >
                             <PencilSquareIcon className="w-4 h-4" />
                           </button>
@@ -431,13 +435,13 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
         {/* Correction Request Modal */}
         {correctionShift && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCorrectionShift(null)} />
-            <div className="relative w-full max-w-md bg-card border border-border rounded-t-3xl sm:rounded-3xl p-6 pb-10 space-y-4 shadow-2xl">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { if (!corrSubmitting) setCorrectionShift(null) }} />
+            <div ref={correctionRef} role="dialog" aria-modal="true" aria-label="Request correction" aria-busy={corrSubmitting} className="max-h-[90dvh] overflow-y-auto relative w-full max-w-md bg-card border border-border rounded-t-3xl sm:rounded-3xl p-6 pb-10 space-y-4 shadow-2xl">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Request Correction</h2>
                 <button
-                  onClick={() => setCorrectionShift(null)}
-                  className="bf-icon-btn"
+                  onClick={() => { if (!corrSubmitting) setCorrectionShift(null) }}
+                  disabled={corrSubmitting} aria-label="Close correction request" className="bf-icon-btn"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -451,28 +455,28 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Correct start time</label>
+                  <label htmlFor="corrStart" className="block text-xs font-medium text-muted-foreground mb-1.5">Correct start time</label>
                   <input
                     type="datetime-local"
-                    value={corrStart}
+                    id="corrStart" disabled={corrSubmitting} value={corrStart}
                     onChange={(e) => setCorrStart(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Correct end time</label>
+                  <label htmlFor="corrEnd" className="block text-xs font-medium text-muted-foreground mb-1.5">Correct end time</label>
                   <input
                     type="datetime-local"
-                    value={corrEnd}
+                    id="corrEnd" disabled={corrSubmitting} value={corrEnd}
                     onChange={(e) => setCorrEnd(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl bg-muted border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Reason (optional)</label>
+                  <label htmlFor="corrReason" className="block text-xs font-medium text-muted-foreground mb-1.5">Reason (optional)</label>
                   <input
                     type="text"
-                    value={corrReason}
+                    id="corrReason" disabled={corrSubmitting} value={corrReason}
                     onChange={(e) => setCorrReason(e.target.value)}
                     placeholder="e.g. Forgot to clock out"
                     className="w-full px-3 py-2.5 rounded-xl bg-muted border border-input text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -481,7 +485,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
               </div>
 
               {corrMsg && (
-                <p className={`text-sm font-medium ${
+                <p role="status" className={`text-sm font-medium ${
                   corrMsg.startsWith('✓') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
                 }`}>{corrMsg}</p>
               )}

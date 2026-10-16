@@ -178,7 +178,7 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
     } catch { setError('Connection error') } finally { setLoading(false) }
   }
 
-  const teamPicker = (selected: string[], setSelected: (ids: string[]) => void, pendingName: string, setPendingName: (value: string) => void) => <div><label className="text-xs text-muted-foreground block mb-1.5">Employee teams</label><div className="flex flex-wrap gap-2">{teams.map(team => { const on=selected.includes(team.id); return <button type="button" key={team.id} onClick={()=>setSelected(on?selected.filter(id=>id!==team.id):[...selected,team.id])} className={`bf-select-btn ${on?'bf-select-btn-active':''}`}>{on?'✓ ':''}{team.name}</button> })}</div><div className="mt-2 flex gap-2"><input className="min-h-[44px] flex-1 rounded-lg border border-border bg-background px-3 text-sm" value={pendingName} onChange={e=>setPendingName(e.target.value.slice(0,60))} placeholder="New team name"/><button type="button" disabled={!pendingName.trim()||loading} className="bf-btn bf-btn-secondary" onClick={()=>createTeam(pendingName, id=>setSelected([...selected,id]), ()=>setPendingName(''))}>+ New Team</button></div>{teams.length===0&&!pendingName&&<p className="mt-1 text-xs text-muted-foreground">Create a team now, or leave the employee unassigned.</p>}</div>
+  const teamPicker = (selected: string[], setSelected: (ids: string[]) => void, pendingName: string, setPendingName: (value: string) => void) => <div><p className="text-xs text-muted-foreground block mb-1.5">Employee teams</p><div className="flex flex-wrap gap-2">{teams.map(team => { const on=selected.includes(team.id); return <button type="button" key={team.id} aria-pressed={on} onClick={()=>setSelected(on?selected.filter(id=>id!==team.id):[...selected,team.id])} className={`bf-select-btn ${on?'bf-select-btn-active':''}`}>{on?'✓ ':''}{team.name}</button> })}</div><div className="mt-2 flex gap-2"><label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">New team name</span><input className="min-h-[44px] flex-1 rounded-lg border border-border bg-background px-3 text-sm" value={pendingName} onChange={e=>setPendingName(e.target.value.slice(0,60))} placeholder="New team name"/></label><button type="button" disabled={!pendingName.trim()||loading} className="bf-btn bf-btn-secondary" onClick={()=>createTeam(pendingName, id=>setSelected([...selected,id]), ()=>setPendingName(''))}>+ New Team</button></div>{teams.length===0&&!pendingName&&<p className="mt-1 text-xs text-muted-foreground">Create a team now, or leave the employee unassigned.</p>}</div>
 
   return (
     <div className="space-y-6">
@@ -188,7 +188,7 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           <p className="text-sm text-muted-foreground">{workers.length} employee{workers.length === 1 ? '' : 's'}</p>
         </div>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
+          aria-expanded={showAddForm} aria-controls="add-employee-form" onClick={() => setShowAddForm(!showAddForm)}
           className="bf-btn bf-btn-primary"
         >
           {showAddForm ? 'Close' : '+ Employee'}
@@ -197,20 +197,20 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
 
       {/* Add Worker */}
       {showAddForm && (
-      <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+      <fieldset id="add-employee-form" disabled={loading} aria-busy={loading} className="min-w-0 bg-card border border-border rounded-lg p-4 space-y-4">
         <h2 className="text-sm font-medium text-foreground">Add Employee</h2>
         
-        <input
+        <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Employee name</span><input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Employee name"
           className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           disabled={loading}
-        />
+        /></label>
 
         <div className="flex gap-2">
-          <input
+          <label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">PIN</span><input
             type="text"
             value={pin}
             onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
@@ -218,7 +218,7 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
             className="flex-1 px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
             disabled={loading}
             maxLength={4}
-          />
+          /></label>
           <button
             onClick={generatePin}
             disabled={loading}
@@ -229,10 +229,10 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground block mb-1.5">Hourly wage (admin only)</label>
+          <p className="text-xs text-muted-foreground block mb-1.5">Hourly wage (admin only)</p>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-            <input
+            <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Hourly wage</span><input
               type="number"
               inputMode="decimal"
               min="0"
@@ -243,17 +243,17 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
               placeholder="0.00"
               className="w-full pl-7 pr-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm tabular-nums focus:outline-none focus:border-primary transition-colors"
               disabled={loading}
-            />
+            /></label>
           </div>
         </div>
 
-        <div><label className="text-xs text-muted-foreground block mb-1.5">Preferred language</label><select value={preferredLanguage} onChange={(e) => setPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></div>
+        <div><p className="text-xs text-muted-foreground block mb-1.5">Preferred language</p><label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Preferred language</span><select value={preferredLanguage} onChange={(e) => setPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label></div>
         {teamPicker(teamIds, setTeamIds, newTeamName, setNewTeamName)}
 
         <div className="flex gap-2">
           {(['WORKER', 'SUPERVISOR', 'OWNER'] as const).map((r) => (
             <button
-              key={r}
+              key={r} aria-pressed={role === r}
               onClick={() => setRole(r)}
               disabled={loading}
               className={`bf-select-btn flex-1 ${
@@ -268,12 +268,12 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
         </div>
 
         {error && (
-          <div className="p-3 rounded-md bg-destructive-subtle border border-destructive/20">
+          <div role="alert" className="p-3 rounded-md bg-destructive-subtle border border-destructive/20">
             <p className="text-destructive text-sm">{error}</p>
           </div>
         )}
         {success && (
-          <div className="p-3 rounded-md bg-success-subtle border border-success/20">
+          <div role="status" className="p-3 rounded-md bg-success-subtle border border-success/20">
             <p className="text-success text-sm font-medium">{success}</p>
           </div>
         )}
@@ -286,34 +286,34 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           {loading ? 'Creating...' : 'Create Employee'}
         </button>
         <p className="text-xs text-muted-foreground text-center">Leave PIN blank for auto-generation</p>
-      </div>
+      </fieldset>
       )}
 
       {/* Edit Worker Modal */}
       {showEditModal && editingWorker && (
-        <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+        <fieldset disabled={loading} aria-busy={loading} className="min-w-0 bg-card border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-foreground">Edit Employee</h3>
             <button
               onClick={() => { setShowEditModal(false); setEditingWorker(null); setError('') }}
-              className="bf-icon-btn"
+              aria-label="Close employee editor" className="bf-icon-btn"
             >
               ✕
             </button>
           </div>
           
-          <input
+          <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Employee name</span><input
             type="text"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             placeholder="Employee name"
             className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-          />
+          /></label>
 
           <div className="flex gap-2">
             {(['WORKER', 'SUPERVISOR', 'OWNER'] as const).map((r) => (
               <button
-                key={r}
+                key={r} aria-pressed={editRole === r}
                 onClick={() => setEditRole(r)}
                 className={`bf-select-btn flex-1 ${
                   editRole === r
@@ -327,10 +327,10 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">Hourly wage (admin only)</label>
+            <p className="text-xs text-muted-foreground block mb-1.5">Hourly wage (admin only)</p>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-              <input
+              <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Hourly wage</span><input
                 type="number"
                 inputMode="decimal"
                 min="0"
@@ -340,24 +340,24 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
                 onChange={(e) => setEditHourlyRate(e.target.value)}
                 placeholder="Not set"
                 className="w-full pl-7 pr-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm tabular-nums focus:outline-none focus:border-primary transition-colors"
-              />
+              /></label>
             </div>
           </div>
 
-          <div><label className="text-xs text-muted-foreground block mb-1.5">Preferred language</label><select value={editPreferredLanguage} onChange={(e) => setEditPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></div>
+          <div><p className="text-xs text-muted-foreground block mb-1.5">Preferred language</p><label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Preferred language</span><select value={editPreferredLanguage} onChange={(e) => setEditPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label></div>
           {teamPicker(editTeamIds, setEditTeamIds, editNewTeamName, setEditNewTeamName)}
 
           <div className="pt-3 border-t border-border">
-            <label className="text-xs text-muted-foreground block mb-2">Change PIN</label>
+            <p className="text-xs text-muted-foreground block mb-2">Change PIN</p>
             <div className="flex gap-2">
-              <input
+              <label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">New PIN</span><input
                 type="text"
                 value={editPin}
                 onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="New PIN (4 digits)"
                 className="flex-1 px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 maxLength={4}
-              />
+              /></label>
               <button
                 onClick={handleUpdatePin}
                 disabled={loading || editPin.length !== 4}
@@ -369,7 +369,7 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           </div>
 
           {error && (
-            <div className="p-3 rounded-md bg-destructive-subtle border border-destructive/20">
+            <div role="alert" className="p-3 rounded-md bg-destructive-subtle border border-destructive/20">
               <p className="text-destructive text-sm">{error}</p>
             </div>
           )}
@@ -381,7 +381,7 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
-        </div>
+        </fieldset>
       )}
 
       {/* Worker List */}

@@ -22,7 +22,7 @@ type Step = { id: string; name: string; order: number; status: string; type?: st
 type Assignment = { worker: { id: string; name: string } }
 type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
-  id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
+  id: string; name: string; targetQuantity: number | null; status: string; createdAt?: string; startDate?: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
   recipe: { name: string; brand?: string | null }; product?: { name: string; brand?: string | null } | null; steps: Step[]; assignments?: Assignment[]
   leadWorker?: { id: string; name: string } | null
 }
@@ -33,6 +33,7 @@ export default function BatchListClient({
   initialBatches: Batch[]; session: Session; organizationName?: string; teamWorkerIds: string[]
 }) {
   const [batches, setBatches] = useState(initialBatches)
+  const [shiftError, setShiftError] = useState('')
   const [onShift, setOnShift] = useState(false)
   const [shiftChecked, setShiftChecked] = useState(false)
   const [nudgeDismissed, setNudgeDismissed] = useState(false)
@@ -69,12 +70,14 @@ export default function BatchListClient({
           setLoading(false)
         }
       }
+      if (!sRes.ok) { setShiftChecked(false); setShiftError('Shift status unavailable. Retry before clocking in.') }
       if (sRes.ok) {
+        setShiftError('')
         const data = await sRes.json()
         setOnShift(!!data.activeShift)
         setShiftChecked(true)
       }
-    } catch (err) { setFetchError(err instanceof Error ? err.message : 'Connection error. Refresh to retry.') }
+    } catch (err) { setShiftChecked(false); setShiftError('Shift status could not be refreshed. Retry to check current status.'); setFetchError(err instanceof Error ? err.message : 'Connection error. Refresh to retry.') }
     finally { setLoading(false); if (showLoading) setRefreshing(false) }
   }
 
@@ -82,29 +85,38 @@ export default function BatchListClient({
     fetchData()
     // 15s safety-net polling; events cover same-tab mutations
     const id = setInterval(() => fetchData(), 15000)
+    const onShiftChanged = () => fetchData()
+    window.addEventListener('shift-changed', onShiftChanged)
     const unsubscribe = onBatchChanged(() => fetchData())
     return () => {
       clearInterval(id)
       unsubscribe()
+      window.removeEventListener('shift-changed', onShiftChanged)
     }
   }, [])
 
   const { handlers: ptrHandlers } = usePullToRefresh(() => { setRefreshing(true); fetchData(true) }, 80)
 
   const handleQuickClockIn = async () => {
+    if (clockingIn) return
     haptic('medium')
     setClockingIn(true)
     try {
       const res = await fetch('/api/shifts', { method: 'POST' })
+      if (!res.ok) throw new Error('Clock-in was not confirmed. Retry.')
       if (res.ok) {
+        setShiftError('')
         setOnShift(true)
         window.dispatchEvent(new Event('shift-changed'))
       }
-    } catch {}
+    } catch (error) { setShiftError(error instanceof Error ? error.message : 'Connection error. Clock-in was not confirmed.') }
     setClockingIn(false)
   }
 
-  const isBatchReady = (batch: Batch) => getActiveStations(batch.steps, 1)[0]?.label !== 'waiting'
+  const isBatchReady = (batch: Batch) => {
+    const station = getActiveStations(batch.steps, 1)[0]
+    return !!station && station.label !== 'waiting'
+  }
   const getBatchActivityTime = (batch: Batch) => {
     const lastMovement = getLastBatchMovement(batch.steps)
     return lastMovement ? new Date(lastMovement.createdAt).getTime() : 0
@@ -123,141 +135,7 @@ export default function BatchListClient({
     if (!bTime) return -1
     return bTime - aTime
   }
-  const readyCount = batches.filter(isBatchReady).length
-
-  return (
-    <AppShell session={session} organizationName={organizationName}>
-      <main 
-        className="max-w-2xl mx-auto px-4 py-6 pb-24"
-        onTouchStart={ptrHandlers.onTouchStart}
-        onTouchMove={ptrHandlers.onTouchMove}
-        onTouchEnd={ptrHandlers.onTouchEnd}
-      >
-        {/* Pull to refresh indicator */}
-        {refreshing && (
-          <div className="flex justify-center py-4">
-            <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
-          </div>
-        )}
-        
-        {/* Clock-in nudge banner */}
-        {shiftChecked && !onShift && !nudgeDismissed && (session.role === 'WORKER' || session.role === 'SUPERVISOR') && (
-          <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="text-lg shrink-0">👋</span>
-              <p className="text-sm text-foreground">You&apos;re not clocked in</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={handleQuickClockIn}
-                disabled={clockingIn}
-                className="bf-btn bf-btn-success"
-              >
-                {clockingIn ? translateUi('Starting...', session.preferredLanguage) : translateUi('Clock In', session.preferredLanguage)}
-              </button>
-              <button
-                onClick={() => { haptic('light'); setNudgeDismissed(true) }}
-                className="bf-icon-btn"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="mb-6">
-          <div className="mb-5 grid grid-cols-2 rounded-xl bg-muted p-1">
-            <span className="min-h-[44px] rounded-lg bg-card px-3 py-2.5 text-center text-sm font-semibold text-foreground shadow-sm">{translateUi('In Progress', session.preferredLanguage)}</span>
-            <Link href="/stock" className="min-h-[44px] rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-muted-foreground">{translateUi('Current Stock', session.preferredLanguage)}</Link>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{isWorker ? 'Ready Now' : 'Your Batches'}</h1>
-              <p className="text-muted-foreground mt-1">
-                {isWorker
-                  ? `${readyCount} ready · ${Math.max(0, batches.length - readyCount)} waiting`
-                  : `${batches.length} available`}
-              </p>
-            </div>
-            {!isWorker ? (
-              <div className="flex items-center gap-2 shrink-0">
-                {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && <Link href="/history" className="bf-btn bf-btn-secondary">History</Link>}
-                <Link href="/batches/new" className="bf-btn bf-btn-primary">New Batch</Link>
-              </div>
-            ) : onShift && (
-              <div className="mt-1 flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                On shift
-              </div>
-            )}
-          </div>
-
-          {(!isWorker || batches.length > 5 || searchQuery) && (
-          <div className="relative mt-4">
-            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={translateUi('Search batches...', session.preferredLanguage)}
-              className="w-full pl-10 pr-4 py-2.5 min-h-[48px] rounded-xl bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-            />
-          </div>
-          )}
-
-          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
-            <select
-              value={brandFilter}
-              onChange={(e) => { haptic('light'); setBrandFilter(e.target.value) }}
-              aria-label="Filter batches by brand"
-              className="shrink-0 min-h-[44px] max-w-[180px] px-3 rounded-lg bg-card border border-border text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-            >
-              <option value="all">All brands</option>
-              {brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
-            </select>
-            {((session.workerId ? ['mine','all','unassigned'] : ['all','unassigned']) as ('mine'|'all'|'unassigned')[]).map(filter => <button key={filter} onClick={() => { haptic('light'); setWorkFilter(filter) }} className={`bf-select-btn shrink-0 ${workFilter===filter?'bf-select-btn-active':''}`}>{filter === 'mine' ? (session.role === 'SUPERVISOR' ? 'My Team' : 'My Work') : filter === 'all' ? 'All Work' : 'Unassigned'}</button>)}
-          {!isWorker && <>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              aria-label="Sort batches"
-              className="shrink-0 min-h-[44px] px-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-            >
-              <option value="priority">Sort: Priority</option>
-              <option value="newest">Sort: Newest</option>
-              <option value="dueDate">Sort: Due date</option>
-              <option value="progress">Sort: Progress</option>
-            </select>
-            <button
-              onClick={() => { haptic('light'); setPriorityFilter(!priorityFilter) }}
-              className={`bf-select-btn shrink-0 ${
-                priorityFilter
-                  ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
-                  : ''
-              }`}
-            >
-              <FlagIcon className="w-4 h-4" />
-              High+
-            </button>
-          </>}
-          </div>
-        </div>
-
-        {/* Batch Cards */}
-        {fetchError && <div role="alert" className="mb-4 rounded-xl border border-border p-3 text-sm">{fetchError} <button className="bf-btn bf-btn-secondary" onClick={() => fetchData(true)}>Retry</button></div>}
-        {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
-            ))}
-          </div>
-        ) : (() => {
-            let filteredBatches = batches.filter((b) => {
+  const visibleBatches = batches.filter((b) => {
               const query = searchQuery.toLowerCase()
               const matchesSearch = (
                 b.name.toLowerCase().includes(query) ||
@@ -280,6 +158,142 @@ export default function BatchListClient({
               }
               return true
             })
+  const readyCount = visibleBatches.filter(isBatchReady).length
+
+  return (
+    <AppShell session={session} organizationName={organizationName}>
+      <main 
+        className="max-w-2xl mx-auto px-4 py-6 pb-24"
+        onTouchStart={ptrHandlers.onTouchStart}
+        onTouchMove={ptrHandlers.onTouchMove}
+        onTouchEnd={ptrHandlers.onTouchEnd}
+      >
+        {/* Pull to refresh indicator */}
+        {refreshing && (
+          <div className="flex justify-center py-4">
+            <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
+          </div>
+        )}
+        
+        {shiftError && <p role="alert">{shiftError} <button onClick={() => fetchData(true)}>Retry shift status</button></p>}
+        {/* Clock-in nudge banner */}
+        {shiftChecked && !onShift && !nudgeDismissed && (session.role === 'WORKER' || session.role === 'SUPERVISOR') && (
+          <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-lg shrink-0">👋</span>
+              <p className="text-sm text-foreground">You&apos;re not clocked in</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleQuickClockIn}
+                disabled={clockingIn}
+                className="bf-btn bf-btn-success"
+              >
+                {clockingIn ? translateUi('Starting...', session.preferredLanguage) : translateUi('Clock In', session.preferredLanguage)}
+              </button>
+              <button
+                aria-label="Dismiss clock-in reminder" onClick={() => { haptic('light'); setNudgeDismissed(true) }}
+                className="bf-icon-btn"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="mb-6">
+          <div className="mb-5 grid grid-cols-2 rounded-xl bg-muted p-1">
+            <span className="min-h-[44px] rounded-lg bg-card px-3 py-2.5 text-center text-sm font-semibold text-foreground shadow-sm">{translateUi('In Progress', session.preferredLanguage)}</span>
+            <Link href="/stock" className="min-h-[44px] rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-muted-foreground">{translateUi('Current Stock', session.preferredLanguage)}</Link>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">{isWorker ? 'Ready Now' : 'Your Batches'}</h1>
+              <p className="text-muted-foreground mt-1">
+                {isWorker
+                  ? `${readyCount} ready · ${Math.max(0, visibleBatches.length - readyCount)} waiting`
+                  : `${visibleBatches.length} matching · ${batches.length} available`}
+              </p>
+            </div>
+            {!isWorker ? (
+              <div className="flex items-center gap-2 shrink-0">
+                {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && <Link href="/history" className="bf-btn bf-btn-secondary">History</Link>}
+                <Link href="/batches/new" className="bf-btn bf-btn-primary">New Batch</Link>
+              </div>
+            ) : onShift && (
+              <div className="mt-1 flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                On shift
+              </div>
+            )}
+          </div>
+
+          {(!isWorker || batches.length > 5 || searchQuery) && (
+          <div className="relative mt-4">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              aria-label="Search batches" value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={translateUi('Search batches...', session.preferredLanguage)}
+              className="w-full pl-10 pr-4 py-2.5 min-h-[48px] rounded-xl bg-muted/50 border border-input text-foreground text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            />
+          </div>
+          )}
+
+          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+            <select
+              value={brandFilter}
+              onChange={(e) => { haptic('light'); setBrandFilter(e.target.value) }}
+              aria-label="Filter batches by brand"
+              className="shrink-0 min-h-[44px] max-w-[180px] px-3 rounded-lg bg-card border border-border text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            >
+              <option value="all">All brands</option>
+              {brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+            </select>
+            {((session.workerId ? ['mine','all','unassigned'] : ['all','unassigned']) as ('mine'|'all'|'unassigned')[]).map(filter => <button key={filter} aria-pressed={workFilter === filter} onClick={() => { haptic('light'); setWorkFilter(filter) }} className={`bf-select-btn shrink-0 ${workFilter===filter?'bf-select-btn-active':''}`}>{filter === 'mine' ? (session.role === 'SUPERVISOR' ? 'My Team' : 'My Work') : filter === 'all' ? 'All Work' : 'Unassigned'}</button>)}
+          {!isWorker && <>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              aria-label="Sort batches"
+              className="shrink-0 min-h-[44px] px-3 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            >
+              <option value="priority">Sort: Priority</option>
+              <option value="newest">Sort: Newest</option>
+              <option value="dueDate">Sort: Due date</option>
+              <option value="progress">Sort: Progress</option>
+            </select>
+            <button
+              aria-pressed={priorityFilter} onClick={() => { haptic('light'); setPriorityFilter(!priorityFilter) }}
+              className={`bf-select-btn shrink-0 ${
+                priorityFilter
+                  ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
+                  : ''
+              }`}
+            >
+              <FlagIcon className="w-4 h-4" />
+              High+
+            </button>
+          </>}
+          </div>
+        </div>
+
+        {/* Batch Cards */}
+        {fetchError && <div role="alert" className="mb-4 rounded-xl border border-border p-3 text-sm">{fetchError} <button className="bf-btn bf-btn-secondary" onClick={() => fetchData(true)}>Retry</button></div>}
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : (() => {
+            let filteredBatches = [...visibleBatches]
 
             // Apply sort. Dashboard uses identical rules — keep
             // these two surfaces in sync when tweaking.
@@ -298,6 +312,8 @@ export default function BatchListClient({
                 if (!bDate) return -1
                 return aDate.getTime() - bDate.getTime()
               })
+            } else if (sortBy === 'newest') {
+              filteredBatches.sort((a, b) => new Date(b.createdAt || b.startDate || 0).getTime() - new Date(a.createdAt || a.startDate || 0).getTime())
             } else if (sortBy === 'dueDate') {
               const today = new Date()
               today.setHours(0, 0, 0, 0)
@@ -327,33 +343,13 @@ export default function BatchListClient({
               filteredBatches.sort((a, b) => {
                 const readyDiff = Number(isBatchReady(b)) - Number(isBatchReady(a))
                 if (readyDiff !== 0) return readyDiff
-                return compareRecordedActiveFirst(a, b)
+                const ranks: Record<string, number> = { URGENT: 4, HIGH: 3, NORMAL: 2, LOW: 1 }
+                return (ranks[b.priority || 'NORMAL'] - ranks[a.priority || 'NORMAL']) || compareRecordedActiveFirst(a, b)
               })
-            } else {
-              filteredBatches.sort(compareRecordedActiveFirst)
             }
 
             if (filteredBatches.length === 0) {
-              return searchQuery || brandFilter !== 'all' ? (
-                <EmptyState icon="inbox" title="No batches match" description="Try a different search or brand filter." />
-              ) : (
-                <EmptyState icon="inbox" title="No batches" description="Check back later for new work." />
-              )
-            }
-
-            const myBatches = filteredBatches
-            const otherBatches: Batch[] = []
-            const groupByBrand = (items: Batch[]) => {
-              const groups = new Map<string, Batch[]>()
-              for (const batch of items) {
-                const brand = getBatchBrand(batch)
-                groups.set(brand, [...(groups.get(brand) || []), batch])
-              }
-              return [...groups.entries()].sort(([a], [b]) => {
-                if (a === 'Unassigned') return 1
-                if (b === 'Unassigned') return -1
-                return a.localeCompare(b)
-              })
+              return <div><EmptyState icon="inbox" title="No matching batches" description="Try All Work or clear your filters." /><button className="bf-btn bf-btn-secondary" onClick={() => { setSearchQuery(''); setBrandFilter('all'); setPriorityFilter(false); setWorkFilter('all') }}>Clear all filters · All Work</button><button className="bf-btn bf-btn-secondary" onClick={() => { setSearchQuery(''); setBrandFilter('all'); setPriorityFilter(false); setWorkFilter('unassigned') }}>View unassigned</button></div>
             }
 
             const renderBatch = (batch: Batch) => {
@@ -513,46 +509,7 @@ export default function BatchListClient({
               )
             }
 
-            return (
-              <div className="space-y-7">
-                {myBatches.length > 0 && (
-                  <>
-                    {groupByBrand(myBatches).map(([brand, brandBatches]) => {
-                      const brandReady = isWorker ? brandBatches.filter(isBatchReady) : brandBatches
-                      const brandWaiting = isWorker ? brandBatches.filter(b => !isBatchReady(b)) : []
-                      return (
-                        <section key={brand} className="space-y-3">
-                          <div className="flex items-center gap-3">
-                            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{brand}</h2>
-                            <div className="h-px flex-1 bg-border" />
-                            <span className="text-xs tabular-nums text-muted-foreground">{brandBatches.length}</span>
-                          </div>
-                          {isWorker && brandReady.length > 0 && <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{translateUi('Ready to Touch', session.preferredLanguage)}</p>}
-                          {brandReady.map(renderBatch)}
-                          {isWorker && brandWaiting.length > 0 && <p className="pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{translateUi('Waiting on Product', session.preferredLanguage)}</p>}
-                          {brandWaiting.map(renderBatch)}
-                        </section>
-                      )
-                    })}
-                  </>
-                )}
-                {otherBatches.length > 0 && (
-                  <>
-                    <div className="flex items-center gap-3 mt-2">
-                      <div className="flex-1 h-px bg-border" />
-                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Other Batches</h2>
-                      <div className="flex-1 h-px bg-border" />
-                    </div>
-                    {groupByBrand(otherBatches).map(([brand, brandBatches]) => (
-                      <section key={brand} className="space-y-3">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{brand}</h3>
-                        {brandBatches.map(renderBatch)}
-                      </section>
-                    ))}
-                  </>
-                )}
-              </div>
-            )
+            return <div className="space-y-3">{filteredBatches.map(renderBatch)}</div>
         })()}
 
       </main>
