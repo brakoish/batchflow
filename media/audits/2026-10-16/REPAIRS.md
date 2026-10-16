@@ -49,3 +49,7 @@ Will: please test (1) New Batch Open/priority/deadline/people in light and dark 
 Three next improvements: provide isolated role-based fixture accounts for repeatable route tests; complete physical iOS/Android + screen-reader/zoom acceptance; replace native Manage discard confirmation with explicit Save/discard/stay if operators prefer it.
 
 Commit, push and deployment verification recorded by completion report after release.
+
+## Release proof
+
+Implementation commit `a8a79562e478d316dbf86a22281267eb6079ed1f` pushed to main; remote main verified equal. Vercel build logs identify Branch main / Commit a8a7956; deployment `dpl_C6wffKXv1ze7FfrZoYtAvtLi2hY7`, URL `https://batchflow-864bx6jh7-brakoishs-projects.vercel.app`, Ready. Auto-deploy initially left canonical alias on the old build; explicitly promoted `batchflow-two.vercel.app` to this Ready deployment. Alias inspection confirms same deployment ID/Ready; live HTML serves `/_next/static/css/d1b3da717024f2e0.css?dpl=dpl_C6wffKXv1ze7FfrZoYtAvtLi2hY7`. No authenticated submissions performed. Only unstaged leftovers are local build-generated PWA artifacts, intentionally excluded.
