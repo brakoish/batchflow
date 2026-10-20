@@ -7,6 +7,7 @@ import { formatDuration } from '@/lib/format'
 import { formatTimeInTz, formatDateInTz, toDateTimeLocalString, fromDateTimeLocalString } from '@/lib/timezone'
 import { useDialogFocus } from '@/app/components/useDialogFocus'
 import ConfirmModal from '@/app/components/ConfirmModal'
+import AddShift from './AddShift'
 
 type Worker = { id: string; name: string; hourlyRate: number | null }
 type WorkTeam = { id: string; name: string; members: { workerId: string }[] }
@@ -380,6 +381,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
 
   return (
     <div className="space-y-4">
+      <AddShift workers={workers} timezone={timezone} onAdded={() => { fetchActiveShifts(); if (viewMode === 'weekly') fetchWeeklySummary(); else fetchShifts() }} />
       {activeError && <p role="alert">{activeError} <button onClick={fetchActiveShifts}>Retry active shifts</button></p>}
       {correctionError && <p role="alert">{correctionError} <button onClick={fetchCorrections}>Retry requests</button></p>}
       {activeShifts.length > 0 && (
