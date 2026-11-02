@@ -1,3 +1,4 @@
+import { summarizeBatchAssignments } from '@/lib/batchAssignmentSummary'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -40,7 +41,7 @@ export default async function BatchesPage() {
 
   return (
     <BatchListClient
-      initialBatches={JSON.parse(JSON.stringify(batches))}
+      initialBatches={JSON.parse(JSON.stringify(await summarizeBatchAssignments(batches, session.organizationId)))}
       session={session}
       organizationName={organizationName || undefined}
       teamWorkerIds={teamWorkerIds}

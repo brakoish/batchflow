@@ -1,3 +1,4 @@
+import { summarizeBatchAssignments } from '@/lib/batchAssignmentSummary'
 import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -67,7 +68,7 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ batch })
+    return NextResponse.json({ batch: (await summarizeBatchAssignments([batch], session.user.organizationId))[0] })
   } catch (error) {
     console.error('Get batch error:', error)
     return NextResponse.json(

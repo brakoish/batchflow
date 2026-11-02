@@ -1,3 +1,4 @@
+import { summarizeBatchAssignments } from '@/lib/batchAssignmentSummary'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
@@ -33,7 +34,7 @@ export async function GET() {
       orderBy: { startDate: 'desc' },
     })
 
-    return NextResponse.json({ batches })
+    return NextResponse.json({ batches: await summarizeBatchAssignments(batches, session.user.organizationId) })
   } catch (error) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

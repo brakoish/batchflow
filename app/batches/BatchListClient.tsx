@@ -1,5 +1,7 @@
 'use client'
 
+import { assignmentSummary } from '@/lib/assignmentSummary'
+
 import { translateUi } from '@/lib/uiLocale'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -24,6 +26,7 @@ type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; createdAt?: string; startDate?: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
   recipe: { name: string; brand?: string | null }; product?: { name: string; brand?: string | null } | null; steps: Step[]; assignments?: Assignment[]
+  assignmentLabel?: string
   leadWorker?: { id: string; name: string } | null
 }
 
@@ -163,7 +166,7 @@ export default function BatchListClient({
   return (
     <AppShell session={session} organizationName={organizationName}>
       <main 
-        className="max-w-2xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 py-6 pb-24"
+        className="batch-list max-w-2xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 py-6 pb-24"
         onTouchStart={ptrHandlers.onTouchStart}
         onTouchMove={ptrHandlers.onTouchMove}
         onTouchEnd={ptrHandlers.onTouchEnd}
@@ -356,11 +359,12 @@ export default function BatchListClient({
               const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
               const priority = batch.priority || 'NORMAL'
               const isUrgent = priority === 'URGENT'
-              const assignedNames = batch.assignments?.map(a => a.worker.name.split(' ')[0]) || []
+              const assignedNames = batch.assignments || []
+              const teamLabel = batch.assignmentLabel || assignmentSummary(batch.assignments)
               const cardBrand = getBatchBrand(batch)
               const cardProduct = batch.product?.name || batch.recipe.name
               const stepOverview = (
-                <div className="mt-4 space-y-3 rounded-xl border border-border/60 p-3">
+                <div className="batch-step-overview mt-4 space-y-3 rounded-xl border border-border/60 p-3">
                   {batch.steps.map((step) => {
                     const skipped = step.name.startsWith('[Skipped] ')
                     const done = step.status === 'COMPLETED' && !skipped
@@ -407,7 +411,7 @@ export default function BatchListClient({
                   <Link
                     key={batch.id}
                     href={`/batches/${batch.id}`}
-                    className={`group block rounded-2xl border bg-card p-4 transition-colors active:bg-muted/35 ${
+                    className={`batch-run-card group block rounded-2xl border bg-card p-4 transition-colors active:bg-muted/35 ${
                       isUrgent ? 'border-l-4 border-l-red-500 border-y-border border-r-border' : 'border-border'
                     }`}
                   >
@@ -426,7 +430,7 @@ export default function BatchListClient({
                           )}
                         </div>
                         <p className="mt-1 truncate text-sm text-muted-foreground">{cardBrand} · {cardProduct}</p>
-                        <p className={`mt-1 truncate text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? assignedNames.join(', ') : 'Needs team'}</p>
+                        <p className={`mt-1 truncate text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</p>
                       </div>
                       {dueLabel && (
                         <span className={`shrink-0 text-xs font-semibold ${dueLabel.includes('overdue') ? 'text-red-500' : 'text-muted-foreground'}`}>
@@ -449,7 +453,7 @@ export default function BatchListClient({
                 <Link
                   key={batch.id}
                   href={`/batches/${batch.id}`}
-                  className={`group block rounded-xl border bg-card p-4 transition-colors duration-150 hover:border-foreground/20 hover:bg-muted/20 active:bg-muted/35 ${
+                  className={`batch-run-card group block rounded-xl border bg-card p-4 transition-colors duration-150 hover:border-foreground/20 hover:bg-muted/20 active:bg-muted/35 ${
                     isUrgent ? 'border-l-4 border-l-red-500 border-t border-r border-b border-border' : 'border-border'
                   }`}
                 >
@@ -485,7 +489,7 @@ export default function BatchListClient({
 
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     {priority !== 'NORMAL' && <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${priority === 'URGENT' ? 'bg-red-500/10 text-red-500' : priority === 'HIGH' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground'}`}>{priority}</span>}
-                    <span className={`text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? assignedNames.join(', ') : 'Needs team'}</span>
+                    <span className={`text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</span>
                   </div>
 
                   {/* Inline notes preview (mobile-friendly — no hover needed) */}

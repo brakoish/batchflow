@@ -1,3 +1,4 @@
+import { summarizeBatchAssignments } from '@/lib/batchAssignmentSummary'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -72,7 +73,7 @@ export default async function BatchDetailPage({
 
   return (
     <BatchDetailClient
-      batch={JSON.parse(JSON.stringify(batch))}
+      batch={JSON.parse(JSON.stringify((await summarizeBatchAssignments([batch], session.organizationId))[0]))}
       workers={JSON.parse(JSON.stringify(workers))}
       session={session}
       orgTimezone={orgTimezone}

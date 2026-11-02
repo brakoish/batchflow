@@ -1,5 +1,7 @@
 'use client'
 
+import { assignmentSummary } from '@/lib/assignmentSummary'
+
 import { translateUi } from '@/lib/uiLocale'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -69,6 +71,7 @@ type Batch = {
   packageTag?: string
   notes?: string | null
   recipe: { id: string; name: string; category?: string }; product?: { id: string; name: string; materialWeightGrams?: number | null } | null; variation?: { id: string; name: string } | null; steps: BatchStep[]
+  assignmentLabel?: string
   assignments?: { worker: Worker }[]
   removals?: BatchRemoval[]
   materialName?: string | null
@@ -1237,19 +1240,8 @@ export default function BatchDetailClient({
           {batch.assignments && batch.assignments.length > 0 && (
             <div className="flex items-center gap-2 mt-2">
               <span className="text-xs text-muted-foreground font-medium">Team:</span>
-              <div className="flex items-center -space-x-1">
-                {batch.assignments.map((a, i) => (
-                  <div
-                    key={a.worker.id}
-                    className="w-6 h-6 rounded-full bg-muted border-2 border-card flex items-center justify-center"
-                    title={a.worker.name}
-                  >
-                    <span className="text-[9px] font-semibold text-foreground">{a.worker.name.charAt(0)}</span>
-                  </div>
-                ))}
-              </div>
               <span className="text-xs text-muted-foreground">
-                {batch.assignments.map(a => a.worker.name).join(', ')}
+                {batch.assignmentLabel || assignmentSummary(batch.assignments)}
               </span>
             </div>
           )}
