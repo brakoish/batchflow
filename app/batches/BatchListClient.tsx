@@ -513,7 +513,7 @@ export default function BatchListClient({
               )
             }
 
-            return <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">{filteredBatches.map(renderBatch)}</div>
+            return <div className="batch-card-grid space-y-3 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">{filteredBatches.map(renderBatch)}</div>
         })()}
 
       </main>

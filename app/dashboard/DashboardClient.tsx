@@ -8,6 +8,7 @@ import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import { CheckCircleIcon, ChevronRightIcon, FlagIcon } from '@heroicons/react/24/solid'
 import EmptyState from '@/app/components/EmptyState'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
+import { assignmentSummary } from '@/lib/assignmentSummary'
 import type { Session } from '@/lib/session'
 import {
   displayProductionStepName,
@@ -24,7 +25,7 @@ type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
   lotNumber?: string; metrcBatchId?: string; packageTag?: string
-  recipe: { name: string }; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
+  assignmentLabel?: string; recipe: { name: string }; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
 }
 type ActivityLog = {
   id: string
@@ -526,7 +527,7 @@ export default function DashboardClient({
               <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
             </Link>
           </div>
-          <div className="hidden lg:block lg:col-span-2 space-y-2.5">
+          <div className="hidden lg:block lg:col-span-3 space-y-2.5">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Active Batches</h2>
             {loading ? (
               <>
@@ -545,7 +546,7 @@ export default function DashboardClient({
                   )
                 }
 
-                return filteredBatches.map((batch) => {
+                return <div className="batch-card-grid dashboard-batch-grid">{filteredBatches.map((batch) => {
                 const completedSteps = batch.steps.filter((s) => s.status === 'COMPLETED').length
                 const stationStates = getStationStates(batch.steps)
                 const activeStations = getActiveStations(batch.steps, 3)
@@ -621,19 +622,7 @@ export default function DashboardClient({
                         })()}
                         {batch.assignments && batch.assignments.length > 0 && (
                           <div className="flex items-center gap-1.5 mt-1">
-                            <div className="flex -space-x-1">
-                              {batch.assignments.slice(0, 4).map((a) => (
-                                <div key={a.worker.id} className="w-5 h-5 rounded-full bg-muted border border-card flex items-center justify-center" title={a.worker.name}>
-                                  <span className="text-[8px] font-semibold text-muted-foreground">{a.worker.name.charAt(0)}</span>
-                                </div>
-                              ))}
-                              {batch.assignments.length > 4 && (
-                                <div className="w-5 h-5 rounded-full bg-muted border border-card flex items-center justify-center">
-                                  <span className="text-[8px] font-semibold text-muted-foreground">+{batch.assignments.length - 4}</span>
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-muted-foreground/60">{batch.assignments.map(a => a.worker.name.split(' ')[0]).join(', ')}</span>
+                            <span className="min-w-0 break-words text-xs text-muted-foreground">{batch.assignmentLabel || assignmentSummary(batch.assignments)}</span>
                           </div>
                         )}
                         {lastMovement && (
@@ -759,7 +748,7 @@ export default function DashboardClient({
                     </div>
                   </Link>
                 )
-              })
+              })}</div>
             })()}
           </div>
 
