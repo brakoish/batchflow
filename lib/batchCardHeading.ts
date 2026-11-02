@@ -2,7 +2,12 @@ type HeadingBatch = { name: string; strain?: string | null; product?: { name: st
 
 /** Display-only hierarchy; never parse or rewrite the batch's identity. */
 export function batchCardHeading(batch: HeadingBatch) {
-  const title = batch.strain?.trim() || batch.name
+  const strain = batch.strain?.trim()
+  const productName = batch.product?.name || ''
+  // The same strain can be packaged in both formats; keep that identity primary.
+  const format = /\bdisposable\b/i.test(productName) ? 'Disposable'
+    : /\bcartridge\b|\b510\b/i.test(productName) ? 'Cartridge' : null
+  const title = strain ? [strain, format].filter(Boolean).join(' · ') : batch.name
   const brand = batch.product?.brand?.trim() || batch.recipe.brand?.trim()
   let product = batch.product?.name.trim() || batch.recipe.name.trim()
   // Strip only an exact structured brand prefix, not arbitrary name segments.
