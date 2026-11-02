@@ -1,6 +1,7 @@
 'use client'
 
 import { assignmentSummary } from '@/lib/assignmentSummary'
+import { batchCardHeading } from '@/lib/batchCardHeading'
 
 import { translateUi } from '@/lib/uiLocale'
 import { useState, useEffect } from 'react'
@@ -361,18 +362,12 @@ export default function BatchListClient({
               const isUrgent = priority === 'URGENT'
               const assignedNames = batch.assignments || []
               const teamLabel = batch.assignmentLabel || assignmentSummary(batch.assignments)
-              const cardBrand = getBatchBrand(batch)
-              const cardProduct = batch.product?.name || batch.recipe.name
+              const heading = batchCardHeading(batch)
               const stepOverview = (
                 <div className="batch-step-overview mt-4 space-y-3 rounded-xl border border-border/60 p-3">
                   {batch.steps.map((step) => {
                     const skipped = step.name.startsWith('[Skipped] ')
                     const done = step.status === 'COMPLETED' && !skipped
-                    const progress = skipped || done
-                      ? 100
-                      : step.targetQuantity
-                        ? Math.min(100, Math.round((step.completedQuantity / step.targetQuantity) * 100))
-                        : step.completedQuantity > 0 ? 100 : 0
                     const value = skipped
                       ? 'Skipped'
                       : step.type === 'CHECK'
@@ -381,14 +376,11 @@ export default function BatchListClient({
                           ? done ? `Recorded · ${step.unitLabel || ''}` : `Needs ${step.unitLabel || 'entry'}`
                         : step.targetQuantity
                           ? `${step.completedQuantity.toLocaleString()} / ${step.targetQuantity.toLocaleString()} ${step.unitLabel || ''}`
-                          : `${step.completedQuantity.toLocaleString()} ${step.unitLabel || ''} recorded`
+                          : `${step.completedQuantity.toLocaleString()} ${step.unitLabel || ''}`
                     return <div key={step.id}>
-                      <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className={`truncate font-semibold ${done ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{displayProductionStepName(step)}</span>
+                      <div className="flex items-start justify-between gap-3 text-sm">
+                        <span className={`min-w-0 break-words font-semibold ${done ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{displayProductionStepName(step)}</span>
                         <span className="shrink-0 tabular-nums text-muted-foreground">{value}</span>
-                      </div>
-                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
-                        <div className={`h-full rounded-full ${skipped ? 'bg-muted-foreground/40' : done ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }} />
                       </div>
                     </div>
                   })}
@@ -418,7 +410,7 @@ export default function BatchListClient({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h2 className="truncate text-lg font-semibold text-foreground">{batch.name}</h2>
+                          <h2 className="min-w-0 break-words text-lg leading-snug font-semibold text-foreground">{heading.title}</h2>
                           {(priority === 'URGENT' || priority === 'HIGH') && (
                             <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
                               priority === 'URGENT'
@@ -429,7 +421,7 @@ export default function BatchListClient({
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 truncate text-sm text-muted-foreground">{cardBrand} · {cardProduct}</p>
+                        <p className="mt-1 break-words text-sm text-muted-foreground">{heading.subtitle}</p>
                         <p className={`mt-1 truncate text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</p>
                       </div>
                       {dueLabel && (
@@ -460,8 +452,8 @@ export default function BatchListClient({
                   {/* Top Row */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-lg font-semibold text-foreground truncate">{batch.name}</h2>
-                      <p className="text-sm text-muted-foreground">{cardBrand} · {cardProduct}</p>
+                      <h2 className="break-words text-lg leading-snug font-semibold text-foreground">{heading.title}</h2>
+                      <p className="break-words text-sm text-muted-foreground">{heading.subtitle}</p>
                       {batch.dueDate && (() => {
                         const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')
                         const now = new Date()

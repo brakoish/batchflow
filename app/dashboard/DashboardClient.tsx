@@ -9,6 +9,7 @@ import { CheckCircleIcon, ChevronRightIcon, FlagIcon } from '@heroicons/react/24
 import EmptyState from '@/app/components/EmptyState'
 import { emitBatchChanged, onBatchChanged } from '@/lib/batchEvents'
 import { assignmentSummary } from '@/lib/assignmentSummary'
+import { batchCardHeading } from '@/lib/batchCardHeading'
 import type { Session } from '@/lib/session'
 import {
   displayProductionStepName,
@@ -25,7 +26,7 @@ type BatchPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 type Batch = {
   id: string; name: string; targetQuantity: number | null; status: string; priority?: BatchPriority; strain?: string; dueDate?: string; notes?: string | null
   lotNumber?: string; metrcBatchId?: string; packageTag?: string
-  assignmentLabel?: string; recipe: { name: string }; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
+  assignmentLabel?: string; recipe: { name: string; brand?: string | null }; product?: { name: string; brand?: string | null } | null; steps: Step[]; assignments?: { worker: { id: string; name: string } }[]
 }
 type ActivityLog = {
   id: string
@@ -574,13 +575,8 @@ export default function DashboardClient({
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-sm font-semibold text-foreground truncate">{batch.name}</h3>
+                          <h3 className="min-w-0 break-words text-lg leading-snug font-semibold text-foreground">{batchCardHeading(batch).title}</h3>
                           <PriorityBadge priority={batch.priority} />
-                          {batch.strain && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
-                              {batch.strain}
-                            </span>
-                          )}
                           {batch.notes && batch.notes.trim() && (
                             <span
                               aria-label="Has notes"
@@ -595,7 +591,7 @@ export default function DashboardClient({
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">{batch.recipe.name}</p>
+                        <p className="break-words text-sm text-muted-foreground">{batchCardHeading(batch).subtitle}</p>
                         {batch.notes && batch.notes.trim() && (
                           <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400 line-clamp-1 break-words">
                             📝 {batch.notes}
