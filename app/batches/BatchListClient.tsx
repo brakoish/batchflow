@@ -163,7 +163,7 @@ export default function BatchListClient({
   return (
     <AppShell session={session} organizationName={organizationName}>
       <main 
-        className="max-w-2xl mx-auto px-4 py-6 pb-24"
+        className="max-w-2xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 py-6 pb-24"
         onTouchStart={ptrHandlers.onTouchStart}
         onTouchMove={ptrHandlers.onTouchMove}
         onTouchEnd={ptrHandlers.onTouchEnd}
@@ -509,7 +509,7 @@ export default function BatchListClient({
               )
             }
 
-            return <div className="space-y-3">{filteredBatches.map(renderBatch)}</div>
+            return <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">{filteredBatches.map(renderBatch)}</div>
         })()}
 
       </main>

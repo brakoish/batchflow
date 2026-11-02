@@ -1143,7 +1143,7 @@ export default function BatchDetailClient({
         </div>
       )}
 
-      <main className="max-w-2xl mx-auto px-4 py-5 pb-36 sm:pb-5">
+      <main className="max-w-2xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 py-5 pb-36 sm:pb-5">
         {pageLoading ? (
           <>
             {/* Skeleton header */}
@@ -1160,8 +1160,9 @@ export default function BatchDetailClient({
           </>
         ) : (
           <>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:gap-8 lg:items-start">
         {/* Batch header */}
-        <div className="mb-5">
+        <div className="mb-5 min-w-0 lg:sticky lg:top-32">
           <h1 className="text-lg font-semibold tracking-tight text-foreground">{batch.name}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-foreground">{batch.product?.name || batch.recipe.name}</span>
@@ -1519,7 +1520,7 @@ export default function BatchDetailClient({
         </div>
 
         {/* Steps */}
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           {(session.role === 'OWNER' || session.role === 'SUPERVISOR') && batch.status === 'ACTIVE' && editingSteps && (
             <>
               <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
@@ -1824,6 +1825,8 @@ export default function BatchDetailClient({
               </div>
             )
           })}
+        </div>
+
         </div>
 
         {/* Chat Section */}

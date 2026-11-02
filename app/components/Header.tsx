@@ -87,6 +87,10 @@ export default function Header({ session, organizationName }: HeaderProps) {
     { href: '/tools', label: 'Tools' },
   ]
 
+  const desktopLinks = isOwner
+    ? [{ href: '/dashboard', label: 'Overview' }, { href: '/stock', label: 'Stock' }, { href: '/history', label: 'History' }]
+    : [{ href: '/shift', label: 'Shift' }, { href: '/workers/me', label: 'My Day' }]
+
   const navItems = isOwner ? ownerNavItems : isSupervisor ? supervisorNavItems : workerNavItems
 
   const ownerRouteGroups: Record<string, string[]> = {
@@ -103,7 +107,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
   return (
     <header className="bg-background border-b border-border">
       {clockError && <p role="alert" className="text-destructive text-center">{clockError}</p>}
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-5xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link href="/batches" className="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-7 h-7 text-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -174,6 +178,14 @@ export default function Header({ session, organizationName }: HeaderProps) {
           {/* Mobile: no hamburger here — the BottomNav "More" button owns secondary actions. */}
         </div>
       </div>
+      <nav aria-label="Desktop workspace" className="hidden lg:flex max-w-[1440px] mx-auto items-center gap-2 px-8 pb-2">
+        {desktopLinks.map(item => (
+          <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined}
+            className={`inline-flex min-h-[44px] items-center rounded-lg px-4 text-sm font-medium ${pathname === item.href ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+            {translateUi(item.label, session.preferredLanguage)}
+          </Link>
+        ))}
+      </nav>
     </header>
   )
 }

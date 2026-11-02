@@ -289,7 +289,7 @@ export default function DashboardClient({
     <AppShell session={session} organizationName={organizationName}>
 
       <main
-        className="max-w-5xl mx-auto px-4 py-5"
+        className="max-w-5xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 py-5"
         {...ptrHandlers}
       >
         {/* Pull to refresh indicator */}
