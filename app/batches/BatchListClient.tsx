@@ -1,5 +1,7 @@
 'use client'
 
+import DirectedTasks, { DirectTaskFlag } from '@/app/components/DirectedTasks'
+
 import { assignmentSummary } from '@/lib/assignmentSummary'
 import { batchCardHeading } from '@/lib/batchCardHeading'
 
@@ -172,6 +174,7 @@ export default function BatchListClient({
         onTouchMove={ptrHandlers.onTouchMove}
         onTouchEnd={ptrHandlers.onTouchEnd}
       >
+<DirectedTasks />
         {/* Pull to refresh indicator */}
         {refreshing && (
           <div className="flex justify-center py-4">
@@ -410,7 +413,7 @@ export default function BatchListClient({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h2 className="min-w-0 break-words text-lg leading-snug font-semibold text-foreground">{heading.title}</h2>
+                          <h2 className="min-w-0 break-words text-lg leading-snug font-semibold text-foreground">{heading.title}</h2><DirectTaskFlag batchId={batch.id} />
                           {(priority === 'URGENT' || priority === 'HIGH') && (
                             <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
                               priority === 'URGENT'
@@ -452,7 +455,7 @@ export default function BatchListClient({
                   {/* Top Row */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="min-w-0 flex-1">
-                      <h2 className="break-words text-lg leading-snug font-semibold text-foreground">{heading.title}</h2>
+                      <h2 className="break-words text-lg leading-snug font-semibold text-foreground">{heading.title}</h2><DirectTaskFlag batchId={batch.id} />
                       <p className="break-words text-sm text-muted-foreground">{heading.subtitle}</p>
                       {batch.dueDate && (() => {
                         const due = new Date(batch.dueDate.split('T')[0] + 'T00:00:00')

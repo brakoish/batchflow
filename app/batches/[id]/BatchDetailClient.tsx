@@ -1,5 +1,7 @@
 'use client'
 
+import DirectedTasks from '@/app/components/DirectedTasks'
+
 import { assignmentSummary } from '@/lib/assignmentSummary'
 
 import { translateUi } from '@/lib/uiLocale'
@@ -1147,6 +1149,7 @@ export default function BatchDetailClient({
       )}
 
       <main className="max-w-2xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 py-5 pb-36 sm:pb-5">
+<DirectedTasks batchId={batch.id} />
         {pageLoading ? (
           <>
             {/* Skeleton header */}

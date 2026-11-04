@@ -126,6 +126,7 @@ model Organization {
   reminders    Reminder[]
   workTeams    WorkTeam[]
   brands       Brand[]
+  directedTasks DirectedTask[]
 
   @@index([slug])
 }
@@ -174,6 +175,7 @@ model Worker {
   batchMaterialEvents BatchMaterialEvent[]
   pushSubscriptions PushSubscription[]
   reminderAssignments WorkerReminder[]
+  directedAssignments DirectedTaskAssignment[]
   workTeamMemberships WorkTeamMember[]
   leadBatches   Batch[]       @relation("BatchLead")
   user           User?
@@ -605,4 +607,41 @@ model PushSubscription {
   createdAt DateTime @default(now())
 
   @@index([workerId])
+}
+
+// Direction is separate from production permissions and progress.
+model DirectedTask {
+  id String @id @default(cuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title String
+  instructions String @default("")
+  startDate String
+  endDate String
+  position Int @default(0)
+  batchId String?
+  stepId String?
+  revision Int @default(1)
+  contentRevision Int @default(1)
+  archivedAt DateTime?
+  createdBy String
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  assignments DirectedTaskAssignment[]
+  @@index([organizationId, archivedAt, startDate])
+}
+model DirectedTaskAssignment {
+  id String @id @default(cuid())
+  taskId String
+  task DirectedTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  workerId String
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  status String @default("ASSIGNED")
+  blockedNote String @default("")
+  seenRevision Int @default(0)
+  removedAt DateTime?
+  updatedAt DateTime @updatedAt
+  @@unique([taskId, workerId])
+  @@index([workerId, removedAt])
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import DirectedTasks from '@/app/components/DirectedTasks'
+
 import { translateUi } from '@/lib/uiLocale'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -149,6 +151,7 @@ export default function MyDayClient({ session }: { session: Session }) {
         className="max-w-2xl mx-auto px-4 py-6 pb-24"
         {...ptrHandlers}
       >
+<DirectedTasks />
         {/* Pull to refresh indicator */}
         {refreshing && (
           <div className="flex justify-center py-4">
