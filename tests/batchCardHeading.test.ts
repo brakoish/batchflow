@@ -18,3 +18,9 @@ test('same strain distinguishes 1g 510 cartridge from disposable, including long
  }
  assert.equal(batchCardHeading({name:'Custom non-vape run 642',product:{name:'14g Flower Jar'},recipe:{name:'Jar Packaging'}}).title, 'Custom non-vape run 642')
 })
+
+ test('flower bags retain size and pre-roll packs distinguish count from each-roll weight', () => {
+ for (const [product, expected] of [['14g Flower Bag', '14g Flower Bags'], ['3.5g Flower Bag', '3.5g Flower Bags'], ['5-Pack 0.5g Pre-Rolls', '5 × 0.5g Pre-Rolls']]) {
+ assert.equal(batchCardHeading({name:'Old run name',strain:'Purple Ringer',product:{name:product,brand:'Red Eye'},recipe:{name:'Packaging'}}).title, `Purple Ringer · ${expected}`)
+ }
+})
