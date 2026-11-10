@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDialogFocus } from '@/app/components/useDialogFocus'
 import { useRouter } from 'next/navigation'
 import { haptic } from '@/lib/haptic'
 import ConfirmModal from '@/app/components/ConfirmModal'
@@ -48,6 +49,9 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
   const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const router = useRouter()
+  const editorRef = useRef<HTMLDivElement>(null)
+  const closeEditor = () => { setShowEditModal(false); setEditingWorker(null); setError('') }
+  useDialogFocus(editorRef, showEditModal, closeEditor, loading)
 
   const generatePin = () => {
     const randomPin = Math.floor(1000 + Math.random() * 9000).toString()
@@ -88,7 +92,13 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
       const res = await fetch(`/api/workers/${editingWorker.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, role: editRole, hourlyRate: editHourlyRate, preferredLanguage: editPreferredLanguage, teamIds: editTeamIds }),
+        body: JSON.stringify({
+          name: editName.trim(),
+          ...(editRole !== editingWorker.role ? { role: editRole } : {}),
+          ...(editHourlyRate !== (editingWorker.hourlyRate === null ? '' : editingWorker.hourlyRate.toFixed(2)) ? { hourlyRate: editHourlyRate } : {}),
+          ...(editPreferredLanguage !== (editingWorker.preferredLanguage || 'en') ? { preferredLanguage: editPreferredLanguage } : {}),
+          ...(JSON.stringify([...editTeamIds].sort()) !== JSON.stringify((editingWorker.workTeamMemberships || []).map(m => m.teamId).sort()) ? { teamIds: editTeamIds } : {}),
+        }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -291,11 +301,13 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
 
       {/* Edit Worker Modal */}
       {showEditModal && editingWorker && (
-        <fieldset disabled={loading} aria-busy={loading} className="min-w-0 bg-card border border-border rounded-lg p-4 space-y-4">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={() => { if (!loading) closeEditor() }}>
+        <div ref={editorRef} role="dialog" aria-modal="true" aria-labelledby="employee-editor-title" className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-card sm:rounded-2xl" onClick={e => e.stopPropagation()}>
+        <fieldset disabled={loading} aria-busy={loading} className="min-w-0 border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-foreground">Edit Employee</h3>
+            <h3 id="employee-editor-title" className="text-sm font-medium text-foreground">Edit {editingWorker.name}</h3>
             <button
-              onClick={() => { setShowEditModal(false); setEditingWorker(null); setError('') }}
+              onClick={closeEditor}
               aria-label="Close employee editor" className="bf-icon-btn"
             >
               ✕
@@ -304,6 +316,8 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           
           <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Employee name</span><input
             type="text"
+            maxLength={120}
+            autoFocus
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             placeholder="Employee name"
@@ -381,17 +395,20 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
+          <button type="button" onClick={closeEditor} className="bf-btn bf-btn-secondary bf-btn-full">Cancel</button>
         </fieldset>
+        </div>
+        </div>
       )}
 
       {/* Worker List */}
       <div className="space-y-3">
         {workers.map((worker) => (
-          <div key={worker.id} className="bg-card border border-border rounded-lg p-4 flex items-center justify-between">
+          <div key={worker.id} className="bg-card border border-border rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-foreground">{worker.name}</p>
               {worker.workTeamMemberships?.length > 0 && <p className="mt-0.5 text-xs text-muted-foreground">{worker.workTeamMemberships.map(m=>teams.find(t=>t.id===m.teamId)?.name).filter(Boolean).join(', ')}</p>}
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()

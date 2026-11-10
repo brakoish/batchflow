@@ -58,7 +58,12 @@ export async function PATCH(
 
     // Handle name/role update
     const updateData: { name?: string; role?: Role; hourlyRate?: number | null; preferredLanguage?: string } = {}
-    if (name) updateData.name = name
+    if (name !== undefined) {
+      if (typeof name !== 'string' || !name.trim() || name.trim().length > 120) {
+        return NextResponse.json({ error: 'Name must be between 1 and 120 characters' }, { status: 400 })
+      }
+      updateData.name = name.trim()
+    }
     if (role && ['WORKER', 'SUPERVISOR', 'OWNER'].includes(role)) updateData.role = role as Role
     if (preferredLanguage !== undefined) {
       if (!['en', 'zh-CN'].includes(preferredLanguage)) return NextResponse.json({ error: 'Unsupported language' }, { status: 400 })
