@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -13,7 +14,10 @@ export async function PATCH(request: NextRequest) {
       data: { preferredLanguage },
     })
     return NextResponse.json({ preferredLanguage })
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('workers/me/preferences failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

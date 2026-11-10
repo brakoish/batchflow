@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const includeTeam = { members: { include: { worker: { select: { id: true, name: true, role: true } } }, orderBy: { worker: { name: 'asc' as const } } } } as const
 
@@ -9,7 +10,7 @@ export async function GET() {
     const session = await requireSupervisorOrOwner()
     const teams = await prisma.workTeam.findMany({ where: { organizationId: session.user.organizationId }, include: includeTeam, orderBy: { name: 'asc' } })
     return NextResponse.json({ teams })
-  } catch { return NextResponse.json({ error: 'Supervisor access required' }, { status: 403 }) }
+  } catch (error) { return authErrorResponse(error) ?? NextResponse.json({ error: 'Supervisor access required' }, { status: 403 }) }
 }
 
 export async function POST(request: NextRequest) {
@@ -24,6 +25,8 @@ export async function POST(request: NextRequest) {
     const team = await prisma.workTeam.create({ data: { name, organizationId: session.user.organizationId, members: { create: workerIds.map(workerId => ({ worker: { connect: { id: workerId } } })) } }, include: includeTeam })
     return NextResponse.json({ team }, { status: 201 })
   } catch (error: any) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     if (error?.code === 'P2002') return NextResponse.json({ error: 'A team with that name already exists' }, { status: 409 })
     return NextResponse.json({ error: 'Unable to create team' }, { status: 500 })
   }

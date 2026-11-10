@@ -3,6 +3,7 @@ import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 async function getActivityWorkerId(session: Awaited<ReturnType<typeof requireSupervisorOrOwner>>, prisma: import('@prisma/client').Prisma.TransactionClient) {
   if (session.user.workerId) return session.user.workerId
@@ -82,6 +83,8 @@ export async function POST(
     return NextResponse.json({ removal })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Create batch removal error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

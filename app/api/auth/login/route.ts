@@ -1,48 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
-
-// Simple in-memory rate limiter
-const attempts = new Map<string, { count: number; lockedUntil: number }>()
-const MAX_ATTEMPTS = 5
-const LOCKOUT_MS = 15 * 60 * 1000 // 15 minutes
-
-function checkRateLimit(key: string): { allowed: boolean; retryAfter?: number } {
-  const now = Date.now()
-  const record = attempts.get(key)
-
-  if (record) {
-    if (record.lockedUntil > now) {
-      return { allowed: false, retryAfter: Math.ceil((record.lockedUntil - now) / 1000) }
-    }
-    if (record.lockedUntil <= now && record.count >= MAX_ATTEMPTS) {
-      // Lockout expired, reset
-      attempts.delete(key)
-    }
-  }
-
-  return { allowed: true }
-}
-
-function recordFailedAttempt(key: string) {
-  const now = Date.now()
-  const record = attempts.get(key) || { count: 0, lockedUntil: 0 }
-  record.count += 1
-  if (record.count >= MAX_ATTEMPTS) {
-    record.lockedUntil = now + LOCKOUT_MS
-  }
-  attempts.set(key, record)
-}
-
-function clearAttempts(key: string) {
-  attempts.delete(key)
-}
+import { checkRateLimit, clearAttempts, loginRateLimitKey, recordFailedAttempt } from '@/lib/loginRateLimit'
+import { encodeWorkerCookie, WORKER_COOKIE, workerCookieOptions } from '@/lib/workerCookie'
 
 export async function POST(request: NextRequest) {
   try {
     const { pin, slug } = await request.json()
 
-    if (!pin || pin.length !== 4) {
+    if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
       return NextResponse.json(
         { error: 'Invalid PIN format' },
         { status: 400 }
@@ -50,15 +16,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Require slug — no global PIN login
-    if (!slug) {
+    if (typeof slug !== 'string' || !slug) {
       return NextResponse.json(
         { error: 'Organization required. Please log in through your organization page.' },
         { status: 400 }
       )
     }
 
-    // Rate limit by slug
-    const rateLimitKey = `login:${slug}`
+    const rateLimitKey = loginRateLimitKey(request, slug)
     const { allowed, retryAfter } = checkRateLimit(rateLimitKey)
     if (!allowed) {
       return NextResponse.json(
@@ -106,15 +71,7 @@ export async function POST(request: NextRequest) {
     clearAttempts(rateLimitKey)
 
     const cookieStore = await cookies()
-    const sevenDays = 60 * 60 * 24 * 7
-    cookieStore.set('workerId', worker.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: sevenDays,
-      expires: new Date(Date.now() + sevenDays * 1000), // iOS PWA needs explicit expires
-    })
+    cookieStore.set(WORKER_COOKIE, encodeWorkerCookie(worker.id), workerCookieOptions())
 
     return NextResponse.json({
       worker: {

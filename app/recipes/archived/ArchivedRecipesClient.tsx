@@ -66,7 +66,7 @@ export default function ArchivedRecipesClient({ initialRecipes }: { initialRecip
 
   return (
     <div className="space-y-3">
-      {error && <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm font-medium text-red-500">{error}</p>}
+      {error && <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm font-medium text-destructive">{error}</p>}
       {message && (
         <div className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-md rounded-xl border border-emerald-500/30 bg-emerald-600 px-4 py-3 shadow-lg">
           <p className="text-sm font-semibold text-white">{message}</p>

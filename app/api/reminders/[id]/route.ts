@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -44,7 +45,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       select: { workerId: true, enabled: true },
     })
     return NextResponse.json({ assignment })
-  } catch {
+  } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     return NextResponse.json({ error: 'Unable to update reminder' }, { status: 500 })
   }
 }
@@ -58,7 +61,9 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     })
     if (!result.count) return NextResponse.json({ error: 'Reminder not found' }, { status: 404 })
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     return NextResponse.json({ error: 'Unable to delete reminder' }, { status: 500 })
   }
 }

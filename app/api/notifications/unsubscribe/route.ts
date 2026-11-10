@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession } from '@/lib/auth';
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +27,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Error unsubscribing from notifications:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

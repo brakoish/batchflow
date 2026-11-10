@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
 import { Role } from '@prisma/client'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function PATCH(
   request: NextRequest,
@@ -93,6 +94,8 @@ export async function PATCH(
 
     return NextResponse.json({ worker })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Update worker error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -123,6 +126,8 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Delete worker error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

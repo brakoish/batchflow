@@ -15,7 +15,7 @@ export default async function ToolsPage() {
     <AppShell session={session} organizationName={organizationName}>
       <main className="mx-auto w-full max-w-3xl px-4 py-5">
         <div className="mb-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-400">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
             Quick actions
           </p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight">Tools</h1>
@@ -28,7 +28,7 @@ export default async function ToolsPage() {
           href="/tools/retail-id"
           className="group flex min-h-[92px] items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm transition active:scale-[0.99]"
         >
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-700 dark:text-emerald-400">
             <QrCodeIcon className="h-8 w-8" />
           </span>
           <span className="min-w-0 flex-1">

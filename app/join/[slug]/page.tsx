@@ -74,11 +74,6 @@ export default function JoinOrgPage() {
         return
       }
 
-      // Set session token in cookie
-      if (data.sessionToken) {
-        document.cookie = `next-auth.session-token=${data.sessionToken}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`
-      }
-
       haptic('medium')
       setSuccess(true)
       setTimeout(() => {

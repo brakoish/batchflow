@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
 import { normalizeProcessingCategory } from '@/lib/processingCategories'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
 
@@ -40,7 +41,10 @@ export async function GET() {
 
     return NextResponse.json({ recipes })
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('recipes failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -190,6 +194,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ recipe: full })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Create recipe error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

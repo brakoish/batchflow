@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function PATCH(
   request: NextRequest,
@@ -49,6 +50,8 @@ export async function PATCH(
     const hours = Math.round(((result.endedAt?.getTime() || Date.now()) - result.startedAt.getTime()) / 3600000 * 100) / 100
     return NextResponse.json({ shift: { ...result, hours } })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Update shift error:', error)
     return NextResponse.json({ error: 'Failed to update shift' }, { status: 500 })
   }
@@ -70,6 +73,8 @@ export async function DELETE(
 
     return NextResponse.json({ error: 'Payroll history cannot be deleted; archival requires a retention-capable schema.' }, { status: 409 })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Delete shift error:', error)
     return NextResponse.json({ error: 'Failed to delete shift' }, { status: 500 })
   }

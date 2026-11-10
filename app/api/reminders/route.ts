@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const includeReminder = {
   assignments: {
@@ -28,7 +29,9 @@ export async function GET() {
       orderBy: { createdAt: 'asc' },
     })
     return NextResponse.json({ reminders })
-  } catch {
+  } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     return NextResponse.json({ error: 'Owner access required' }, { status: 403 })
   }
 }
@@ -44,7 +47,9 @@ export async function POST(request: NextRequest) {
       include: includeReminder,
     })
     return NextResponse.json({ reminder }, { status: 201 })
-  } catch {
+  } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     return NextResponse.json({ error: 'Unable to create reminder' }, { status: 500 })
   }
 }

@@ -33,7 +33,7 @@ export default function AddShift({ workers, timezone, onAdded }: { workers: { id
           <label className="block">Clock-out<input className="block w-full" name="endLocal" type="datetime-local" required /></label>
           <label className="block">Note (optional)<textarea className="block w-full" name="note" maxLength={1000} /></label>
         </fieldset>
-        {error && <p role="alert" className="text-red-500">{error}</p>}
+        {error && <p role="alert" className="text-destructive">{error}</p>}
         <div className="flex gap-2"><button type="button" className="bf-btn bf-btn-secondary" disabled={busy} onClick={close}>Cancel</button><button className="bf-btn bf-btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save shift'}</button></div>
       </form>
     </div></div>}

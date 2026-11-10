@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function GET(
   request: NextRequest,
@@ -19,10 +20,11 @@ export async function GET(
     })
     if (!batch) return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
 
-    const messages = await prisma.batchMessage.findMany({
+    // Newest 100, returned oldest-first so the chat still reads top to bottom.
+    const newestMessages = await prisma.batchMessage.findMany({
       where: { batchId: id },
       take: 100,
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       include: {
         worker: {
           select: { id: true, name: true },
@@ -30,9 +32,14 @@ export async function GET(
       },
     })
 
+    const messages = newestMessages.reverse()
+
     return NextResponse.json({ messages })
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('batches/[id]/chat failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -110,6 +117,8 @@ export async function POST(
 
     return NextResponse.json({ message: batchMessage })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Send message error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

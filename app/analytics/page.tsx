@@ -73,11 +73,11 @@ function formatDate(date: Date | null) {
 
 function StatCard({ label, value, detail, tone = 'default' }: { label: string; value: string | number; detail: string; tone?: 'default' | 'good' | 'warn' | 'bad' }) {
   const toneClass = tone === 'good'
-    ? 'text-emerald-600 dark:text-emerald-400'
+    ? 'text-emerald-700 dark:text-emerald-400'
     : tone === 'warn'
-    ? 'text-amber-600 dark:text-amber-400'
+    ? 'text-amber-700 dark:text-amber-400'
     : tone === 'bad'
-    ? 'text-red-500 dark:text-red-400'
+    ? 'text-red-700 dark:text-red-400'
     : 'text-foreground'
 
   return (
@@ -367,7 +367,7 @@ export default async function AnalyticsPage() {
                 <Link key={batch.id} href={`/batches/${batch.id}`} className="block rounded-lg bg-muted/35 px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-xs font-semibold text-foreground">{batch.name}</p>
-                    <span className="text-[10px] font-semibold tabular-nums text-amber-600 dark:text-amber-400">{batch.pct ?? 0}%</span>
+                    <span className="text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">{batch.pct ?? 0}%</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground">
                     {batch.staleDays === null ? 'No logged movement' : `${batch.staleDays}d since movement`}
@@ -387,7 +387,7 @@ export default async function AnalyticsPage() {
                 <div key={worker.id} className="rounded-lg bg-muted/35 px-3 py-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-foreground">{worker.name}</p>
-                    <p className="text-xs font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatNumber(worker.units)}</p>
+                    <p className="text-xs font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatNumber(worker.units)}</p>
                   </div>
                   <p className="text-[10px] text-muted-foreground">{worker.logs} logs · {worker.batches.slice(0, 2).join(', ')}</p>
                 </div>

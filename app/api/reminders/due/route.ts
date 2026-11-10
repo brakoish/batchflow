@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
 import { isReminderDue } from '@/lib/reminders'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,7 +50,9 @@ export async function GET() {
       { reminders: due },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     )
-  } catch {
+  } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     return NextResponse.json({ reminders: [] }, { status: 401 })
   }
 }

@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
+import { fromDateTimeLocalString, localDateKey } from '@/lib/timezone'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function GET() {
   try {
-    await requireOwner()
+    const session = await requireOwner()
+    const organizationId = session.user.organizationId
 
-    // Today's activity per worker
-    const startOfDay = new Date()
-    startOfDay.setHours(0, 0, 0, 0)
+    // Today's activity per worker, with "today" starting at midnight in the
+    // organization's own timezone.
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { timezone: true },
+    })
+    const timezone = organization?.timezone || 'America/New_York'
+    const startOfDay = fromDateTimeLocalString(`${localDateKey(new Date(), timezone)}T00:00`, timezone)
 
     const workers = await prisma.worker.findMany({
-      where: { role: 'WORKER' },
+      where: { role: 'WORKER', organizationId },
       select: {
         id: true,
         name: true,
@@ -49,6 +57,9 @@ export async function GET() {
 
     return NextResponse.json({ workers: summary })
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('workers/activity failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

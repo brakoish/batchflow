@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
 import { localDateKey } from '@/lib/timezone'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function GET(request: Request) {
   try {
@@ -118,6 +119,9 @@ export async function GET(request: Request) {
       allDays,
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('shifts/weekly failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

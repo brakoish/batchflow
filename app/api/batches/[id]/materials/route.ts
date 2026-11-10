@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withOperationalLock } from '@/lib/operationalLock'
 import { requireSupervisorOrOwner } from '@/lib/auth'
 import { parseMaterialQuantity, validateMaterialCloseout } from '@/lib/materialValidation'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -52,6 +53,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
     return NextResponse.json(result)
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Batch material error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

@@ -64,15 +64,15 @@ function StepTypePicker({ value, onChange }: { value: Step['type']; onChange: (v
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <button type="button" aria-pressed={value === 'CHECK'} onClick={() => onChange('CHECK')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'CHECK' ? 'bf-select-btn-active' : ''}`}>
           <CheckCircleIcon className="h-6 w-6 shrink-0" />
-          <span className="text-left"><span className="block">Checkpoint</span><span className="block text-xs font-normal ">Mark done</span></span>
+          <span className="text-left"><span className="block">Checkpoint</span><span className="block text-xs font-normal">Mark done</span></span>
         </button>
         <button type="button" aria-pressed={value === 'COUNT'} onClick={() => onChange('COUNT')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'COUNT' ? 'bf-select-btn-active' : ''}`}>
           <HashtagIcon className="h-6 w-6 shrink-0" />
-          <span className="text-left"><span className="block">Count</span><span className="block text-xs font-normal ">Log quantities</span></span>
+          <span className="text-left"><span className="block">Count</span><span className="block text-xs font-normal">Log quantities</span></span>
         </button>
         <button type="button" aria-pressed={value === 'ENTRY'} onClick={() => onChange('ENTRY')} className={`bf-select-btn min-h-[64px] justify-start px-3 ${value === 'ENTRY' ? 'bf-select-btn-active' : ''}`}>
           <PencilSquareIcon className="h-6 w-6 shrink-0" />
-          <span className="text-left"><span className="block">Entry</span><span className="block text-xs font-normal ">Record a value</span></span>
+          <span className="text-left"><span className="block">Entry</span><span className="block text-xs font-normal">Record a value</span></span>
         </button>
       </div>
     </div>

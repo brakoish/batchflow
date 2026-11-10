@@ -107,13 +107,13 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
       <p className="mt-1 text-sm text-muted-foreground">A workflow (recipe) defines production steps. A product is what you make; variations are strains or flavors. A batch tracks one production run.</p>
       <p className="mt-2 text-xs font-medium text-muted-foreground">{activeProductCount} active products · {activeVariationCount} active variations</p>
     </div>
-    {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</p>}
+    {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
     <section className="rounded-xl border border-border bg-card p-4">
       <h2 className="text-sm font-semibold text-foreground">Brands</h2>
       <div className="mt-3 flex flex-wrap gap-2">{brands.map((brand) => <span key={brand.id} className="rounded-full border border-border bg-muted px-3 py-1.5 text-sm">{brand.name}</span>)}</div>
       <div className="mt-3 flex gap-2">
-        <label className="block min-w-0 min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Brand name</span><input value={brandName} onChange={(event) => setBrandName(event.target.value.slice(0, 100))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addBrand() } }} placeholder="New brand name" className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
+        <label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Brand name</span><input value={brandName} onChange={(event) => setBrandName(event.target.value.slice(0, 100))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addBrand() } }} placeholder="New brand name" className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
         <button onClick={addBrand} disabled={busy === 'brand' || !brandName.trim()} className="bf-btn bf-btn-success"><PlusIcon className="h-4 w-4" /> Add</button>
       </div>
     </section>
@@ -133,8 +133,8 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
             return <article key={product.id} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex min-h-[48px] items-start gap-2">
                 {editingId === product.id ? <>
-                  <label className="block min-w-0 min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Product name</span><input autoFocus value={editingName} onChange={(event) => setEditingName(event.target.value.slice(0, 120))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); renameProduct(product) } else if (event.key === 'Escape') setEditingId('') }} aria-label="Product name" className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
-                  <button onClick={() => renameProduct(product)} disabled={busy === product.id || !editingName.trim()} className="bf-icon-btn text-emerald-600" aria-label={`Save ${product.name} name`}><CheckIcon className="h-5 w-5" /></button>
+                  <label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Product name</span><input autoFocus value={editingName} onChange={(event) => setEditingName(event.target.value.slice(0, 120))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); renameProduct(product) } else if (event.key === 'Escape') setEditingId('') }} aria-label="Product name" className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
+                  <button onClick={() => renameProduct(product)} disabled={busy === product.id || !editingName.trim()} className="bf-icon-btn text-emerald-700 dark:text-emerald-400" aria-label={`Save ${product.name} name`}><CheckIcon className="h-5 w-5" /></button>
                   <button onClick={() => setEditingId('')} className="bf-icon-btn" aria-label="Cancel rename"><XMarkIcon className="h-5 w-5" /></button>
                 </> : <>
                   <div className="min-w-0 flex-1"><p className="text-base font-semibold text-foreground">{product.name}</p><p className="mt-0.5 text-xs text-muted-foreground">{categoryLabels[product.recipe.category] || 'Other'} · {product.recipe.name}</p></div>
@@ -155,7 +155,7 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
                   {displayedVariations.length === 0 && <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No variations yet.</p>}
                 </div>
                 {!product.archivedAt && <div className="mt-3 flex gap-2">
-                  <label className="block min-w-0 min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Add strain or flavor</span><input value={variationNames[product.id] || ''} onChange={(event) => setVariationNames((current) => ({ ...current, [product.id]: event.target.value.slice(0, 120) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addVariation(product) } }} placeholder="Add strain or flavor" aria-label={`New variation for ${product.name}`} className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
+                  <label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Add strain or flavor</span><input value={variationNames[product.id] || ''} onChange={(event) => setVariationNames((current) => ({ ...current, [product.id]: event.target.value.slice(0, 120) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addVariation(product) } }} placeholder="Add strain or flavor" aria-label={`New variation for ${product.name}`} className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-base" /></label>
                   <button type="button" onClick={() => addVariation(product)} disabled={busy === `add-${product.id}` || !(variationNames[product.id] || '').trim()} className="bf-btn bf-btn-success bf-btn-sm"><PlusIcon className="h-4 w-4" /> Add</button>
                 </div>}
               </div>

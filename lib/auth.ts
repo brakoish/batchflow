@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
 import { cookies } from 'next/headers'
 import { prisma } from './prisma'
+import { decodeWorkerCookie, WORKER_COOKIE } from './workerCookie'
 
 // Hybrid session that checks NextAuth first, then falls back to workerId cookie.
 // Returns the NextAuth-style shape (session.user.X) so all API routes work unchanged.
@@ -14,7 +15,7 @@ export async function getSession() {
 
   // Fall back to workerId cookie (PIN users)
   const cookieStore = await cookies()
-  const workerId = cookieStore.get('workerId')?.value
+  const workerId = decodeWorkerCookie(cookieStore.get(WORKER_COOKIE)?.value)
 
   if (!workerId) {
     return null

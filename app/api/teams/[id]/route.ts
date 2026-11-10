@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const includeTeam = { members: { include: { worker: { select: { id: true, name: true, role: true } } }, orderBy: { worker: { name: 'asc' as const } } } } as const
 
@@ -22,6 +23,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
     return NextResponse.json({ team })
   } catch (error: any) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     if (error?.code === 'P2002') return NextResponse.json({ error: 'A team with that name already exists' }, { status: 409 })
     return NextResponse.json({ error: 'Unable to update team' }, { status: 500 })
   }
@@ -33,5 +36,5 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     const result = await prisma.workTeam.deleteMany({ where: { id, organizationId: session.user.organizationId } })
     if (!result.count) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
     return NextResponse.json({ success: true })
-  } catch { return NextResponse.json({ error: 'Unable to delete team' }, { status: 500 }) }
+  } catch (error) { return authErrorResponse(error) ?? NextResponse.json({ error: 'Unable to delete team' }, { status: 500 }) }
 }

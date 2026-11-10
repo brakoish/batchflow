@@ -2,6 +2,7 @@ import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
 
@@ -140,6 +141,8 @@ export async function POST(
     return NextResponse.json({ step })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Create batch step error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

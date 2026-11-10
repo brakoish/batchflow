@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; variationId: string }> }) {
   try {
@@ -22,6 +23,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     })
     return NextResponse.json({ variation: updated })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     if (error instanceof Error && error.message === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     return NextResponse.json({ error: 'Supervisor or owner access required' }, { status: 403 })
   }

@@ -257,7 +257,7 @@ export default function MyDayClient({ session }: { session: Session }) {
                   <h3 className="text-base font-semibold text-foreground">{translateUi('This Week', session.preferredLanguage)}</h3>
                   <Link
                     href="/workers/me/timesheet"
-                    className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center"
+                    className="text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center"
                   >
                     {translateUi('Timesheet →', session.preferredLanguage)}
                   </Link>
