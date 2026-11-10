@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { usePullToRefresh } from '@/app/components/usePullToRefresh'
 import AppShell from '@/app/components/AppShell'
 import EmptyState from '@/app/components/EmptyState'
-import { ChevronRightIcon, FlagIcon } from '@heroicons/react/24/solid'
+import { ChevronRightIcon, FlagIcon, HandRaisedIcon, ExclamationTriangleIcon, ClockIcon } from '@heroicons/react/24/solid'
 import { haptic } from '@/lib/haptic'
 import { onBatchChanged } from '@/lib/batchEvents'
 import type { Session } from '@/lib/session'
@@ -83,7 +83,7 @@ export default function BatchListClient({
         setOnShift(!!data.activeShift)
         setShiftChecked(true)
       }
-    } catch (err) { setShiftChecked(false); setShiftError('Shift status could not be refreshed. Retry to check current status.'); setFetchError(err instanceof Error ? err.message : 'Connection error. Refresh to retry.') }
+    } catch (err) { setShiftChecked(false); setShiftError(''); setFetchError(err instanceof Error ? err.message : 'Connection error. Refresh to retry.') }
     finally { setLoading(false); if (showLoading) setRefreshing(false) }
   }
 
@@ -182,12 +182,12 @@ export default function BatchListClient({
           </div>
         )}
         
-        {shiftError && <p role="alert">{shiftError} <button onClick={() => fetchData(true)}>Retry shift status</button></p>}
+        {shiftError && !fetchError && <p role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{shiftError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={() => fetchData(true)}>Retry shift status</button></p>}
         {/* Clock-in nudge banner */}
         {shiftChecked && !onShift && !nudgeDismissed && (session.role === 'WORKER' || session.role === 'SUPERVISOR') && (
           <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="text-lg shrink-0">👋</span>
+              <HandRaisedIcon className="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
               <p className="text-sm text-foreground">You&apos;re not clocked in</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -356,7 +356,9 @@ export default function BatchListClient({
             }
 
             if (filteredBatches.length === 0) {
-              return <div><EmptyState icon="inbox" title="No matching batches" description="Try All Work or clear your filters." /><button className="bf-btn bf-btn-secondary" onClick={() => { setSearchQuery(''); setBrandFilter('all'); setPriorityFilter(false); setWorkFilter('all') }}>Clear all filters · All Work</button><button className="bf-btn bf-btn-secondary" onClick={() => { setSearchQuery(''); setBrandFilter('all'); setPriorityFilter(false); setWorkFilter('unassigned') }}>View unassigned</button></div>
+              const filtersActive = !!searchQuery || brandFilter !== 'all' || priorityFilter || workFilter !== 'all'
+              if (!filtersActive) return <EmptyState icon="inbox" title="No active batches" />
+              return <div><EmptyState icon="inbox" title="No matching batches" description="Try All Work or clear your filters." /><div className="mt-3 flex flex-wrap justify-center gap-2"><button className="bf-btn bf-btn-secondary" onClick={() => { setSearchQuery(''); setBrandFilter('all'); setPriorityFilter(false); setWorkFilter('all') }}>Clear all filters · All Work</button><button className="bf-btn bf-btn-secondary" onClick={() => { setSearchQuery(''); setBrandFilter('all'); setPriorityFilter(false); setWorkFilter('unassigned') }}>View unassigned</button></div></div>
             }
 
             const renderBatch = (batch: Batch) => {
@@ -420,7 +422,7 @@ export default function BatchListClient({
                                 ? 'bg-red-500/10 text-red-700 dark:text-red-400'
                                 : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
                             }`}>
-                              {priority}
+                              {priority === 'URGENT' ? 'Urgent' : 'High'}
                             </span>
                           )}
                         </div>
@@ -465,13 +467,15 @@ export default function BatchListClient({
                         const isOverdue = batch.status === 'ACTIVE' && daysLeft < 0
                         const isSoon = batch.status === 'ACTIVE' && daysLeft >= 0 && daysLeft <= 2
                         return (
-                          <p className={`text-xs font-medium ${
+                          <p className={`flex items-center gap-1 text-xs font-medium ${
                             isOverdue ? 'text-red-700 dark:text-red-400' :
                             isSoon ? 'text-amber-700 dark:text-amber-400' :
                             'text-muted-foreground'
                           }`}>
-                            {isOverdue ? `⚠️ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${Math.abs(daysLeft)}d overdue)` :
-                             isSoon ? `⏰ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `${daysLeft}d`})` :
+                            {isOverdue && <ExclamationTriangleIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+                            {isSoon && <ClockIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+                            {isOverdue ? `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${Math.abs(daysLeft)}d overdue)` :
+                             isSoon ? `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `${daysLeft}d`})` :
                              `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                           </p>
                         )
@@ -483,7 +487,7 @@ export default function BatchListClient({
                   </div>
 
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    {priority !== 'NORMAL' && <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${priority === 'URGENT' ? 'bg-red-500/10 text-destructive' : priority === 'HIGH' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>{priority}</span>}
+                    {priority !== 'NORMAL' && <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${priority === 'URGENT' ? 'bg-red-500/10 text-destructive' : priority === 'HIGH' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>{priority.charAt(0) + priority.slice(1).toLowerCase()}</span>}
                     <span className={`text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-700 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</span>
                   </div>
 

@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth/next'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from './authOptions'
-import { decodeWorkerCookie, WORKER_COOKIE } from './workerCookie'
+import { readWorkerCookieId, verifyWorkerCookie, WORKER_COOKIE } from './workerCookie'
 
 export type Session = {
   id: string
@@ -37,7 +37,8 @@ export async function getSession() {
   
   // Fall back to workerId cookie (PIN users)
   const cookieStore = await cookies()
-  const workerId = decodeWorkerCookie(cookieStore.get(WORKER_COOKIE)?.value)
+  const cookieValue = cookieStore.get(WORKER_COOKIE)?.value
+  const workerId = readWorkerCookieId(cookieValue)
   
   if (!workerId) {
     return null
@@ -46,6 +47,7 @@ export async function getSession() {
   const worker = await prisma.worker.findUnique({
     where: { id: workerId },
     select: {
+      pin: true,
       id: true,
       name: true,
       role: true,
@@ -54,7 +56,7 @@ export async function getSession() {
     },
   })
   
-  if (!worker) {
+  if (!worker || !cookieValue || !verifyWorkerCookie(cookieValue, worker.id, worker.pin)) {
     return null
   }
   
@@ -79,7 +81,7 @@ export async function requireSession() {
 
 export async function requireOwner() {
   const session = await requireSession()
-  if (session.role !== 'OWNER') {
+  if (session.role !== 'OWNER' || !session.organizationId) {
     throw new Error('Forbidden: Owner access required')
   }
   return session
@@ -87,7 +89,7 @@ export async function requireOwner() {
 
 export async function requireSupervisorOrOwner() {
   const session = await requireSession()
-  if (session.role !== 'SUPERVISOR' && session.role !== 'OWNER') {
+  if ((session.role !== 'SUPERVISOR' && session.role !== 'OWNER') || !session.organizationId) {
     throw new Error('Forbidden: Supervisor or Owner access required')
   }
   return session

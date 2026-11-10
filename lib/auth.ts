@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
 import { cookies } from 'next/headers'
 import { prisma } from './prisma'
-import { decodeWorkerCookie, WORKER_COOKIE } from './workerCookie'
+import { readWorkerCookieId, verifyWorkerCookie, WORKER_COOKIE } from './workerCookie'
 
 // Hybrid session that checks NextAuth first, then falls back to workerId cookie.
 // Returns the NextAuth-style shape (session.user.X) so all API routes work unchanged.
@@ -15,7 +15,8 @@ export async function getSession() {
 
   // Fall back to workerId cookie (PIN users)
   const cookieStore = await cookies()
-  const workerId = decodeWorkerCookie(cookieStore.get(WORKER_COOKIE)?.value)
+  const cookieValue = cookieStore.get(WORKER_COOKIE)?.value
+  const workerId = readWorkerCookieId(cookieValue)
 
   if (!workerId) {
     return null
@@ -24,6 +25,7 @@ export async function getSession() {
   const worker = await prisma.worker.findUnique({
     where: { id: workerId },
     select: {
+      pin: true,
       id: true,
       name: true,
       role: true,
@@ -31,7 +33,7 @@ export async function getSession() {
     },
   })
 
-  if (!worker) {
+  if (!worker || !cookieValue || !verifyWorkerCookie(cookieValue, worker.id, worker.pin)) {
     return null
   }
 
@@ -58,7 +60,7 @@ export async function requireSession() {
 
 export async function requireOwner() {
   const session = await requireSession()
-  if (session.user.role !== 'OWNER') {
+  if (session.user.role !== 'OWNER' || !session.user.organizationId) {
     throw new Error('Forbidden: Owner access required')
   }
   return session
@@ -66,7 +68,7 @@ export async function requireOwner() {
 
 export async function requireSupervisorOrOwner() {
   const session = await requireSession()
-  if (session.user.role !== 'SUPERVISOR' && session.user.role !== 'OWNER') {
+  if ((session.user.role !== 'SUPERVISOR' && session.user.role !== 'OWNER') || !session.user.organizationId) {
     throw new Error('Forbidden: Supervisor or Owner access required')
   }
   return session

@@ -1,6 +1,9 @@
+// Far above any real single entry, and well below the database's integer limit.
+export const MAX_STEP_QUANTITY = 10_000_000
+
 export function parseStepQuantity(value: unknown, stepType: string) {
   const quantity = Number(value)
-  if (!Number.isFinite(quantity) || quantity < 0 || (stepType !== 'ENTRY' && quantity === 0)) return null
+  if (!Number.isFinite(quantity) || quantity < 0 || quantity > MAX_STEP_QUANTITY || (stepType !== 'ENTRY' && quantity === 0)) return null
   if (stepType !== 'ENTRY' && !Number.isInteger(quantity)) return null
   return quantity
 }

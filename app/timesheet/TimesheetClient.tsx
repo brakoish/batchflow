@@ -382,8 +382,8 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
   return (
     <div className="space-y-4">
       <AddShift workers={workers} timezone={timezone} onAdded={() => { fetchActiveShifts(); if (viewMode === 'weekly') fetchWeeklySummary(); else fetchShifts() }} />
-      {activeError && <p role="alert">{activeError} <button onClick={fetchActiveShifts}>Retry active shifts</button></p>}
-      {correctionError && <p role="alert">{correctionError} <button onClick={fetchCorrections}>Retry requests</button></p>}
+      {activeError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{activeError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={fetchActiveShifts}>Retry active shifts</button></p>}
+      {correctionError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{correctionError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={fetchCorrections}>Retry requests</button></p>}
       {activeShifts.length > 0 && (
         <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
           <div className="flex items-center justify-between gap-3">

@@ -34,6 +34,7 @@ export default function MyDayClient({ session }: { session: Session }) {
   const [languageSaving, setLanguageSaving] = useState(false)
 
   const [dataError, setDataError] = useState('')
+  const [shiftLoaded, setShiftLoaded] = useState(false)
   const [now, setNow] = useState(Date.now())
   const [error, setError] = useState('')
   const [timezone, setTimezone] = useState('America/New_York')
@@ -59,7 +60,10 @@ export default function MyDayClient({ session }: { session: Session }) {
   }, [])
 
   const fetchData = async () => {
+    // Each section fails on its own so one bad response keeps the last good data on screen.
+    let failed = false
     try {
+      try {
       // Fetch today's activity
       const actRes = await fetch('/api/workers/activity', { cache: "no-store" })
       if (!actRes.ok) throw new Error('Activity unavailable')
@@ -75,19 +79,24 @@ export default function MyDayClient({ session }: { session: Session }) {
           }
         }
       }
+      } catch { failed = true }
 
+      let responseTimezone = timezone
+      try {
       // Fetch current shift
       const shiftRes = await fetch('/api/shifts', { cache: "no-store" })
       if (!shiftRes.ok) throw new Error('Shift status unavailable')
-      let responseTimezone = timezone
       if (shiftRes.ok) {
         const shiftData = await shiftRes.json()
         setActiveShift(shiftData.activeShift || null)
         responseTimezone = shiftData.timezone || 'America/New_York'
         setTimezone(responseTimezone)
         setTodayShifts((shiftData.todayShifts || []).filter((s: Shift) => s.endedAt).map((s: Shift) => ({ ...s, hours: (new Date(s.endedAt!).getTime() - new Date(s.startedAt).getTime()) / 3600000 })))
+        setShiftLoaded(true)
       }
+      } catch { failed = true }
 
+      try {
       // Fetch worker stats (this gives us week data)
       const statsRes = await fetch('/api/workers/stats', { cache: "no-store" })
       if (!statsRes.ok) throw new Error('Statistics unavailable')
@@ -113,9 +122,8 @@ export default function MyDayClient({ session }: { session: Session }) {
           )
         }
       }
-      setDataError('')
-    } catch (err) {
-      setDataError('My Day data is unavailable or out of date. Retry to load current shift and totals.')
+      } catch { failed = true }
+      setDataError(failed ? 'My Day data is unavailable or out of date. Retry to load current shift and totals.' : '')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -130,7 +138,7 @@ export default function MyDayClient({ session }: { session: Session }) {
     : 0
 
   const handleClockIn = async () => {
-    if (clockingIn || dataError) return
+    if (clockingIn || !shiftLoaded) return
     haptic('medium')
     setClockingIn(true)
     try {
@@ -169,7 +177,8 @@ export default function MyDayClient({ session }: { session: Session }) {
           {session.workerId && <label className="mt-4 block max-w-xs text-xs font-semibold uppercase tracking-wider text-muted-foreground">{translateUi('Preferred language', session.preferredLanguage)}<select value={session.preferredLanguage} disabled={languageSaving} onChange={(e) => changeLanguage(e.target.value)} className="mt-1 min-h-[46px] w-full rounded-xl border border-input bg-card px-3 text-base font-normal normal-case text-foreground"><option value="en">{translateUi('English', session.preferredLanguage)}</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label>}
         </div>
 
-        {dataError ? <div role="alert">{dataError} <button className="bf-btn bf-btn-secondary" onClick={fetchData}>Retry My Day</button></div> : loading ? (
+        {dataError ? <div role="alert" className="mb-6 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{dataError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={fetchData}>Retry My Day</button></div> : null}
+        {!shiftLoaded && !loading ? null : loading ? (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
           </div>

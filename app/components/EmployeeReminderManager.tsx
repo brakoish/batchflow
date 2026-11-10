@@ -55,7 +55,7 @@ export default function EmployeeReminderManager() {
   if (!current) return null
 
   return (
-    <div className="fixed inset-x-0 top-4 z-[70] px-4 pointer-events-none" role="status" aria-live="assertive">
+    <div data-dialog-exempt className="fixed inset-x-0 top-[calc(env(safe-area-inset-top)_+_1rem)] z-[70] px-4 pointer-events-none" role="status">
       <div className="pointer-events-auto mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-emerald-500/30 bg-card p-4 shadow-2xl">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-2xl">{current.emoji}</span>
         <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Reminder</p><p className="text-base font-semibold text-foreground">{current.message}</p></div>

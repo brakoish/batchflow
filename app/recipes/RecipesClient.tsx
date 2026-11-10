@@ -186,6 +186,8 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                           setEditId(isEditing ? null : recipe.id)
                           if (!isEditing) window.scrollTo({ top: 0, behavior: 'smooth' })
                         }}
+                        aria-label={`Edit ${recipe.name}`}
+                        aria-pressed={isEditing}
                         className={`bf-icon-btn ${
                           isEditing ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10' : ''
                         }`}
@@ -193,6 +195,7 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button onClick={() => handleDelete(recipe.id)} disabled={deleting === recipe.id}
+                        aria-label={`Delete ${recipe.name}`}
                         className="bf-icon-btn bf-icon-btn-danger">
                         <TrashIcon className="w-4 h-4" />
                       </button>

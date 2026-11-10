@@ -100,12 +100,19 @@
   animation: bf-announcement-scroll 18s linear infinite;
 }
 
+.bf-announcement-marquee:hover .bf-announcement-track,
+.bf-announcement-marquee:focus-within .bf-announcement-track,
+.bf-announcement-track:hover,
+.bf-announcement-track:focus-within {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bf-announcement-track {
     animation: none;
-    text-overflow: ellipsis;
+    min-width: 0;
     max-width: 100%;
-    overflow: hidden;
+    white-space: normal;
   }
   .bf-announcement-track > [aria-hidden='true'] {
     display: none;
@@ -433,12 +440,25 @@ a:focus-visible {
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  *,
+  html {
+    scroll-behavior: auto;
+  }
+  *:not(.animate-spin),
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .animate-spin {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Prevent iOS Safari from zooming the page when a field is focused. */
+@media (max-width: 639px) {
+  input, select, textarea {
+    font-size: 16px;
   }
 }
 

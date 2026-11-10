@@ -28,7 +28,7 @@ export default function AppShell({
       <div id="main-content" tabIndex={-1}>{children}</div>
       <BottomNav session={session} />
       {/* Bottom padding for mobile nav */}
-      <div className="h-16 sm:h-0" />
+      <div className="h-[calc(4rem_+_max(env(safe-area-inset-bottom,0px),1rem))] sm:h-0" />
     </div>
   )
 }

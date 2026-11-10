@@ -39,11 +39,11 @@ export async function POST(
         { status: 400 }
       )
     }
+    const body = await request.json()
     return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id: batchId, stepId } = await params
-    const body = await request.json()
     const requestedQuantity = body.quantity
-    const note = body.note
+    const note = body.note == null || body.note === '' ? body.note : String(body.note).slice(0, 500)
 
     const step = await prisma.batchStep.findUnique({
       where: { id: stepId },

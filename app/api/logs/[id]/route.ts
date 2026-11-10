@@ -31,9 +31,10 @@ export async function PATCH(
         { status: 400 }
       )
     }
+    const { quantity, note: rawNote } = await request.json()
+    const note = rawNote == null || rawNote === '' ? rawNote : String(rawNote).slice(0, 500)
     return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
-    const { quantity, note } = await request.json()
 
     const log = await prisma.progressLog.findUnique({
       where: { id },

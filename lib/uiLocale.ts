@@ -16,6 +16,7 @@ export const zh: Record<string, string> = {
   'Search batches...': '搜索批次…', 'No batches': '没有批次', 'No batches match': '没有匹配的批次', 'Try a different search term.': '请尝试其他搜索词。',
   'Production Line': '生产线', 'Batch Inventory': '批次库存', 'Produced': '已生产', 'Removed': '已移出', 'On hand': '现有库存', 'Recent activity': '最近活动',
   'Show recent logs': '显示最近记录', 'Hide recent logs': '隐藏最近记录', 'Note (optional)': '备注（可选）', 'Connection error': '连接错误',
+  'Work': '工作', 'Reports': '报表', 'Manage': '管理', 'Overview': '概览', 'History': '历史', 'Employee teams': '员工小组', 'Shift status unavailable': '无法获取班次状态',
 }
 
 export function translateUi(value: string, language = 'en') {

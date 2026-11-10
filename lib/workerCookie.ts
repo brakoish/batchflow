@@ -9,31 +9,41 @@ function secret() {
   return process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || ''
 }
 
-function sign(workerId: string, key: string) {
-  return createHmac('sha256', key).update(`worker:${workerId}`).digest('base64url')
+// The signature also covers the worker's current PIN, so changing a PIN
+// signs that worker out everywhere.
+function sign(workerId: string, pin: string, key: string) {
+  return createHmac('sha256', key).update(`worker:${workerId}:${pin}`).digest('base64url')
 }
 
-export function encodeWorkerCookie(workerId: string) {
+function signingKey() {
   const key = secret()
-  if (!key) {
-    console.error('NEXTAUTH_SECRET is not set; PIN session cookies are unsigned')
-    return workerId
+  if (!key && process.env.NODE_ENV === 'production') {
+    // Fail closed: without a secret a cookie could be forged.
+    throw new Error('NEXTAUTH_SECRET must be set to sign PIN sessions')
   }
-  return `${workerId}.${sign(workerId, key)}`
+  // Local development only.
+  return key || 'batchflow-local-development-only'
 }
 
-// Returns the worker id when the cookie is genuine, otherwise null.
-export function decodeWorkerCookie(value: string | undefined | null) {
+export function encodeWorkerCookie(workerId: string, pin: string) {
+  return `${workerId}.${sign(workerId, pin, signingKey())}`
+}
+
+// Reads the worker id out of the cookie without trusting it yet.
+export function readWorkerCookieId(value: string | undefined | null) {
   if (!value) return null
-  const key = secret()
-  if (!key) return value.includes('.') ? value.slice(0, value.indexOf('.')) : value
   const dot = value.lastIndexOf('.')
   if (dot <= 0) return null
-  const workerId = value.slice(0, dot)
+  return value.slice(0, dot)
+}
+
+// True only when the cookie was issued by this server for this worker and PIN.
+export function verifyWorkerCookie(value: string, workerId: string, pin: string) {
+  const dot = value.lastIndexOf('.')
+  if (dot <= 0 || value.slice(0, dot) !== workerId) return false
   const given = Buffer.from(value.slice(dot + 1))
-  const expected = Buffer.from(sign(workerId, key))
-  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null
-  return workerId
+  const expected = Buffer.from(sign(workerId, pin, signingKey()))
+  return given.length === expected.length && timingSafeEqual(given, expected)
 }
 
 export function workerCookieOptions() {

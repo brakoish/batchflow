@@ -109,24 +109,24 @@ export default function UpdateNotifier() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed left-1/2 -translate-x-1/2 z-[60] bottom-[5.5rem] sm:bottom-6 w-[min(92vw,420px)] pointer-events-auto"
+      className="fixed left-1/2 -translate-x-1/2 z-[60] bottom-[calc(4rem_+_max(env(safe-area-inset-bottom,0px),1rem))] sm:bottom-6 w-[min(92vw,420px)] pointer-events-auto"
     >
-      <div className="rounded-2xl shadow-lg bg-emerald-600 text-white px-4 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+      <div className="rounded-2xl shadow-lg bg-emerald-700 text-white px-4 py-3 flex items-center gap-3">
         <ArrowPathIcon className="w-5 h-5 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold leading-tight">New version ready</p>
-          <p className="text-xs text-white/80 leading-tight mt-0.5">Tap refresh to load the update.</p>
+          <p className="text-xs text-white leading-tight mt-0.5">Tap refresh to load the update.</p>
         </div>
         <button
           onClick={handleRefresh}
-          className="min-h-[40px] px-3 rounded-lg bg-white text-emerald-700 text-xs font-bold hover:bg-emerald-50 active:scale-[0.97] transition-all"
+          className="min-h-[44px] px-3 rounded-lg bg-white text-emerald-700 text-xs font-bold hover:bg-emerald-50 active:scale-[0.97] transition-all"
         >
           Refresh
         </button>
         <button
           onClick={() => { haptic('light'); setDismissed(true) }}
           aria-label="Dismiss"
-          className="min-h-[40px] min-w-[40px] p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+          className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-white hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
         >
           <XMarkIcon className="w-4 h-4" />
         </button>

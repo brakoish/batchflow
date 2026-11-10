@@ -47,8 +47,8 @@ export default function ConfirmModal({
               onClick={() => { haptic('medium'); onConfirm() }}
               className={`flex-1 py-3.5 min-h-[44px] rounded-xl font-semibold text-sm transition-all active:scale-[0.98] ${
                 confirmStyle === 'danger'
-                  ? 'bg-red-500 hover:bg-red-600 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-emerald-700 hover:bg-emerald-800 text-white'
               }`}
             >
               {translateUi(confirmLabel, language)}

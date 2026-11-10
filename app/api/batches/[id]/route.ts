@@ -87,9 +87,9 @@ export async function PATCH(
 ) {
   try {
     const session = await requireSupervisorOrOwner()
+    const body = await request.json()
     return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
-    const body = await request.json()
 
     const existingBatch = await prisma.batch.findFirst({
       where: { id, organizationId: session.user.organizationId },

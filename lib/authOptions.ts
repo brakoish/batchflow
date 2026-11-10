@@ -51,8 +51,11 @@ export const authOptions: NextAuthOptions = {
       if (url === baseUrl + '/api/auth/callback/email' || url === baseUrl + '/api/auth/callback/google') {
         return baseUrl + '/org/new'
       }
-      if (url.startsWith(baseUrl)) return url
-      if (url.startsWith('/')) return baseUrl + url
+      // Only follow callback links back to this site.
+      try {
+        if (new URL(url).origin === new URL(baseUrl).origin) return url
+      } catch {}
+      if (url.startsWith('/') && !url.startsWith('//')) return baseUrl + url
       return baseUrl
     },
   },

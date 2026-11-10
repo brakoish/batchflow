@@ -428,8 +428,8 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
           </div>
         )}
 
-        <p className="mt-6 text-[11px] text-muted-foreground text-center">
-          Tap the ✏ icon on any shift to request a time correction.
+        <p className="mt-6 text-xs text-muted-foreground text-center">
+          Tap the pencil button on any shift to request a time correction.
         </p>
 
         {/* Correction Request Modal */}
