@@ -13,7 +13,7 @@ function isolateTop() {
   let branch: HTMLElement = panel
   while (branch.parentElement) {
     for (const sibling of Array.from(branch.parentElement.children)) {
-      if (sibling !== branch && sibling instanceof HTMLElement && !['SCRIPT', 'STYLE'].includes(sibling.tagName)) {
+      if (sibling !== branch && sibling instanceof HTMLElement && !['SCRIPT', 'STYLE'].includes(sibling.tagName) && !sibling.hasAttribute('data-dialog-exempt')) {
         changed.push({ node: sibling, inert: sibling.inert }); sibling.inert = true
       }
     }

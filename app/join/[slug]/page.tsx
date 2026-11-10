@@ -126,7 +126,7 @@ export default function JoinOrgPage() {
                 ? 'bg-success scale-110'
                 : pin[i]
                 ? 'bg-foreground'
-                : 'bg-muted'
+                : 'bg-transparent ring-2 ring-inset ring-muted-foreground'
             }`}
           />
         ))}

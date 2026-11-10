@@ -152,14 +152,14 @@ export default function Header({ session, organizationName }: HeaderProps) {
             onShift ? (
               <button
                 disabled={clockBusy || checking} onClick={handleClockOut}
-                className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] border border-destructive/25 bg-destructive-subtle px-3 text-sm font-semibold text-destructive transition-all hover:bg-destructive hover:text-destructive-foreground active:scale-[0.975]"
+                className="hidden sm:inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[10px] border border-destructive/25 bg-destructive-subtle px-3 text-sm font-semibold text-destructive transition-all hover:bg-destructive hover:text-destructive-foreground active:scale-[0.975] disabled:opacity-50"
               >
                 <StopIcon className="w-4 h-4" /> {translateUi('Clock Out', session.preferredLanguage)}
               </button>
             ) : (
               <button
                 disabled={clockBusy || checking} onClick={handleClockIn}
-                className="hidden sm:inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 active:bg-emerald-800"
+                className="hidden sm:inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 active:bg-emerald-800 disabled:opacity-50"
               >
                 <PlayIcon className="w-4 h-4" /> {translateUi('Clock In', session.preferredLanguage)}
               </button>
@@ -170,7 +170,7 @@ export default function Header({ session, organizationName }: HeaderProps) {
           
           <button
             aria-label={translateUi('Sign Out', session.preferredLanguage)} onClick={handleLogout}
-            className="hidden sm:inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-[10px] text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.96]"
+            className="hidden sm:inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[10px] text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-[0.96]"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </button>

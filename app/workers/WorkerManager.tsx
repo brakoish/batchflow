@@ -222,6 +222,9 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
         <div className="flex gap-2">
           <label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">PIN</span><input
             type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
             value={pin}
             onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
             placeholder="PIN (4 digits)"
@@ -239,10 +242,10 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
         </div>
 
         <div>
-          <p className="text-xs text-muted-foreground block mb-1.5">Hourly wage (admin only)</p>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-            <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Hourly wage</span><input
+          <p className="text-xs text-muted-foreground block mb-1.5" aria-hidden="true">Hourly wage (admin only)</p>
+          <label className="block min-w-0 w-full"><span className="sr-only">Hourly wage (admin only)</span><span className="relative block">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden="true">$</span>
+            <input
               type="number"
               inputMode="decimal"
               min="0"
@@ -253,11 +256,10 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
               placeholder="0.00"
               className="w-full pl-7 pr-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm tabular-nums focus:outline-none focus:border-primary transition-colors"
               disabled={loading}
-            /></label>
-          </div>
+            /></span></label>
         </div>
 
-        <div><p className="text-xs text-muted-foreground block mb-1.5">Preferred language</p><label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Preferred language</span><select value={preferredLanguage} onChange={(e) => setPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label></div>
+        <div><p className="text-xs text-muted-foreground block mb-1.5" aria-hidden="true">Preferred language</p><label className="block min-w-0 w-full"><span className="sr-only">Preferred language</span><select value={preferredLanguage} onChange={(e) => setPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label></div>
         {teamPicker(teamIds, setTeamIds, newTeamName, setNewTeamName)}
 
         <div className="flex gap-2">
@@ -341,10 +343,10 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           </div>
 
           <div>
-            <p className="text-xs text-muted-foreground block mb-1.5">Hourly wage (admin only)</p>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-              <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Hourly wage</span><input
+            <p className="text-xs text-muted-foreground block mb-1.5" aria-hidden="true">Hourly wage (admin only)</p>
+            <label className="block min-w-0 w-full"><span className="sr-only">Hourly wage (admin only)</span><span className="relative block">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden="true">$</span>
+              <input
                 type="number"
                 inputMode="decimal"
                 min="0"
@@ -354,11 +356,10 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
                 onChange={(e) => setEditHourlyRate(e.target.value)}
                 placeholder="Not set"
                 className="w-full pl-7 pr-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm tabular-nums focus:outline-none focus:border-primary transition-colors"
-              /></label>
-            </div>
+              /></span></label>
           </div>
 
-          <div><p className="text-xs text-muted-foreground block mb-1.5">Preferred language</p><label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Preferred language</span><select value={editPreferredLanguage} onChange={(e) => setEditPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label></div>
+          <div><p className="text-xs text-muted-foreground block mb-1.5" aria-hidden="true">Preferred language</p><label className="block min-w-0 w-full"><span className="sr-only">Preferred language</span><select value={editPreferredLanguage} onChange={(e) => setEditPreferredLanguage(e.target.value)} className="w-full px-3 py-2.5 bg-background border border-border rounded-md text-foreground text-sm"><option value="en">English</option><option value="zh-CN">简体中文 (Simplified Chinese)</option></select></label></div>
           {teamPicker(editTeamIds, setEditTeamIds, editNewTeamName, setEditNewTeamName)}
 
           <div className="pt-3 border-t border-border">

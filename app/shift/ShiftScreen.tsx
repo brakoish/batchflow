@@ -25,14 +25,15 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
   const [elapsed, setElapsed] = useState('0h 00m')
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState<TodayStats | null>(null)
+  const [statsFailed, setStatsFailed] = useState(false)
   const [workerStats, setWorkerStats] = useState<WorkerStats | null>(null)
   const [showStats, setShowStats] = useState(false)
   const [timezone, setTimezone] = useState('America/New_York')
   const router = useRouter()
 
   useEffect(() => {
+    // `checking` starts true for the first load only; background polls keep the current status visible.
     const checkShift = async () => {
-      setChecking(true)
       try {
         const response = await fetch('/api/shifts', { cache: 'no-store' })
         if (!response.ok) throw new Error('Unable to check shift. Retry before clocking in.')
@@ -58,7 +59,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
           }
         }
       })
-      .catch(() => {})
+      .catch(() => setStatsFailed(true))
 
     // Fetch worker stats
     fetch('/api/workers/stats', { cache: 'no-store' })
@@ -127,7 +128,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      {clockError && <p role="alert">{clockError} <button onClick={() => window.dispatchEvent(new Event('shift-changed'))}>Retry shift status</button></p>}
+      {clockError && <p role="alert" className="mx-4 mt-4 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{clockError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={() => window.dispatchEvent(new Event('shift-changed'))}>Retry shift status</button></p>}
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         {/* Status Indicator */}
@@ -150,7 +151,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
         <div className="flex gap-6 mb-6">
           <div className="flex items-center gap-2 text-muted-foreground">
             <CubeIcon className="w-5 h-5" />
-            <span className="text-sm">{stats ? `${stats.batches} batches` : 'Activity unavailable'}</span>
+            <span className="text-sm">{stats ? `${stats.batches} batches` : statsFailed ? 'Activity unavailable' : '—'}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <ClockIcon className="w-5 h-5" />
@@ -162,6 +163,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
         {workerStats && (
           <button
             onClick={() => setShowStats(!showStats)}
+            aria-expanded={showStats}
             className="bf-btn bf-btn-ghost bf-btn-sm mb-4"
           >
             {showStats ? 'Hide' : 'Show'} My Stats

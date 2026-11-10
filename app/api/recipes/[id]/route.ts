@@ -277,6 +277,7 @@ export async function PUT(
 
     // Update/create/delete steps in place to preserve BatchStep foreign keys
     for (let i = 0; i < resolvedSteps.length; i++) {
+      let createdStepId: string | undefined
       const step = resolvedSteps[i]
       const unitRef = step.unitName
         ? recipe.units.find((u) => u.name === step.unitName)
@@ -297,7 +298,7 @@ export async function PUT(
         })
       } else {
         // Create new step
-        await prisma.recipeStep.create({
+        createdStepId = (await prisma.recipeStep.create({
           data: {
             recipeId: id,
             name: step.name,
@@ -307,14 +308,13 @@ export async function PUT(
             order: i + 1,
             unitId: unitRef?.id || null,
           },
-        })
+          select: { id: true },
+        })).id
       }
 
-      // Recreate materials for this step
-      const stepId = step.existingId || (await prisma.recipeStep.findFirst({
-        where: { recipeId: id, order: i + 1 },
-        select: { id: true },
-      }))?.id
+      // Recreate materials for this step (use the new step's own id, never a
+      // lookup by position that could match a step not yet renumbered)
+      const stepId = step.existingId || createdStepId
 
       if (stepId && step.materials && step.materials.length > 0) {
         await prisma.stepMaterial.createMany({

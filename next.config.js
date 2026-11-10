@@ -51,6 +51,16 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Basic hardening: no framing by other sites (protects the PIN pad),
+        // no MIME sniffing, and no full URLs leaked to other sites.
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+      {
         source: "/api/:path*",
         headers: [
           { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },

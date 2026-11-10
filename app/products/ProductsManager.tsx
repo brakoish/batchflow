@@ -150,7 +150,7 @@ export default function ProductsManager({ initialProducts, initialBrands }: { in
                 <div className="mt-2 space-y-2">
                   {displayedVariations.map((variation) => <div key={variation.id} className={`flex min-h-[44px] items-center gap-2 rounded-xl border px-3 py-2 ${variation.archivedAt ? 'border-dashed border-border bg-muted/30 text-muted-foreground' : 'border-border bg-muted/50 text-foreground'}`}>
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{variation.name}</span>
-                    <button type="button" onClick={() => toggleVariationArchive(product, variation)} disabled={busy === `variation-${variation.id}`} className="bf-icon-btn h-9 w-9" aria-label={variation.archivedAt ? `Restore ${variation.name}` : `Archive ${variation.name}`}>{variation.archivedAt ? <ArrowUturnLeftIcon className="h-4 w-4" /> : <ArchiveBoxIcon className="h-4 w-4" />}</button>
+                    <button type="button" onClick={() => toggleVariationArchive(product, variation)} disabled={busy === `variation-${variation.id}`} className="bf-icon-btn h-11 w-11" aria-label={variation.archivedAt ? `Restore ${variation.name}` : `Archive ${variation.name}`}>{variation.archivedAt ? <ArrowUturnLeftIcon className="h-4 w-4" /> : <ArchiveBoxIcon className="h-4 w-4" />}</button>
                   </div>)}
                   {displayedVariations.length === 0 && <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">No variations yet.</p>}
                 </div>

@@ -21,6 +21,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   DocumentDuplicateIcon,
+  ExclamationTriangleIcon,
   EyeSlashIcon,
   FlagIcon,
   PencilSquareIcon,
@@ -216,6 +217,11 @@ export default function BatchDetailClient({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastSaveTsRef = useRef<number>(0)
   const editModalOpenRef = useRef<boolean>(false)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Synchronous in-flight guards: state updates are async, so a fast double tap can slip past `loading`
+  const checkInFlightRef = useRef(false)
+  const logInFlightRef = useRef(false)
+  const removalInFlightRef = useRef(false)
 
   // Chat state
   const [messages, setMessages] = useState<BatchMessage[]>([])
@@ -350,8 +356,10 @@ export default function BatchDetailClient({
   const showToast = (msg: string, type: 'success' | 'warning' = 'success') => {
     setToast(msg)
     setToastType(type)
-    setTimeout(() => setToast(''), 3000)
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToast(''), type === 'warning' ? 6000 : 3000)
   }
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current) }, [])
 
   const handleStatusChange = async (status: string) => {
     if (status === 'COMPLETED' && !batch.completionReport) {
@@ -381,7 +389,7 @@ export default function BatchDetailClient({
     if (loading) return
     if (completionReport && Object.values(completionReport).some(value => typeof value === 'number' && (!Number.isFinite(value) || value < 0))) { setError('Enter finite, nonnegative report values'); return }
     setLoading(true)
-    const labels: Record<string, string> = { COMPLETED: 'complete', CANCELLED: 'cancel', ACTIVE: 'reopen' }
+    const doneMessages: Record<string, string> = { COMPLETED: 'Batch completed', CANCELLED: 'Batch cancelled', ACTIVE: 'Batch reopened' }
     setConfirmAction(null)
     setError('')
     try {
@@ -401,7 +409,7 @@ export default function BatchDetailClient({
       lastSaveTsRef.current = Date.now()
       emitBatchChanged(batch.id, 'status')
       const productionResult = status === 'COMPLETED' ? getProductionResult(batch) : null
-      showToast(productionResult ? `Completed at ${productionResult.pct}% · ${productionResult.label}` : `Batch ${labels[status]}d`)
+      showToast(productionResult ? `Completed at ${productionResult.pct}% · ${productionResult.label}` : doneMessages[status] || 'Batch updated')
     } catch (err) { 
       setError('Network error. Please check your connection.')
     } finally { setLoading(false) }
@@ -445,6 +453,7 @@ export default function BatchDetailClient({
   }
 
   const handleSaveRemoval = async () => {
+    if (removalInFlightRef.current) return
     const qty = parseInt(removalQuantity)
     const available = Math.max(0, getProducedBaseUnits(batch.steps) - getRemovedQuantity(batch.removals))
 
@@ -457,6 +466,7 @@ export default function BatchDetailClient({
       return
     }
 
+    removalInFlightRef.current = true
     setSavingRemoval(true)
     setError('')
     try {
@@ -488,6 +498,7 @@ export default function BatchDetailClient({
     } catch (err) {
       setError('Network error. Please check your connection.')
     } finally {
+      removalInFlightRef.current = false
       setSavingRemoval(false)
     }
   }
@@ -823,6 +834,8 @@ export default function BatchDetailClient({
   }
 
   const handleCheckComplete = async (step: BatchStep) => {
+    if (checkInFlightRef.current || loading) return
+    checkInFlightRef.current = true
     setLoading(true)
     setError('')
     try {
@@ -848,10 +861,10 @@ export default function BatchDetailClient({
       lastSaveTsRef.current = Date.now()
       emitBatchChanged(batch.id, 'check-complete')
       showToast(`${displayStepName(step)} complete`)
-    } catch (err) { 
+    } catch (err) {
       setError('Network error. Please check your connection.')
     }
-    finally { setLoading(false) }
+    finally { checkInFlightRef.current = false; setLoading(false) }
   }
 
 
@@ -950,13 +963,32 @@ export default function BatchDetailClient({
   const recordingDialogRef = useRef<HTMLDivElement>(null)
   const closeRecording = useCallback(() => setSelectedStep(null), [])
   useDialogFocus(recordingDialogRef, !!selectedStep, closeRecording, loading)
+  const addStepDialogRef = useRef<HTMLDivElement>(null)
+  const editStepDialogRef = useRef<HTMLDivElement>(null)
+  const duplicateDialogRef = useRef<HTMLDivElement>(null)
+  const closeAddStep = useCallback(() => setShowAddStepModal(false), [])
+  const closeEditStep = useCallback(() => setEditingStep(null), [])
+  const closeDuplicate = useCallback(() => setShowDuplicateModal(false), [])
+  useDialogFocus(addStepDialogRef, showAddStepModal, closeAddStep, savingStep)
+  useDialogFocus(editStepDialogRef, !!editingStep, closeEditStep, savingStep)
+  useDialogFocus(duplicateDialogRef, showDuplicateModal, closeDuplicate, duplicating)
+
+  // Errors from actions outside a modal (check-off, reorder, skip, status, delete) show in a page banner.
+  // Modal-scoped errors stay in their modal and are cleared when it closes so they don't leak onto the page.
+  const anyModalOpen = !!selectedStep || !!editingLog || showRemovalModal || showFinishReport || !!materialModal || showAddStepModal || !!editingStep || showDuplicateModal || !!confirmAction
+  const modalWasOpenRef = useRef(anyModalOpen)
+  useEffect(() => {
+    if (modalWasOpenRef.current && !anyModalOpen) setError('')
+    modalWasOpenRef.current = anyModalOpen
+  }, [anyModalOpen])
 
   const submitLog = async (stepBeingLogged: BatchStep, qty: number, noteBeingLogged?: string) => {
-    if (loading) return
+    if (loading || logInFlightRef.current) return
     if (!stepBeingLogged || !Number.isFinite(qty) || qty < 0 || (stepBeingLogged.type !== 'ENTRY' && qty === 0)) {
       setError('Enter a valid quantity'); return
     }
     haptic('medium')
+    logInFlightRef.current = true
     setLoading(true)
 
     setError('')
@@ -974,7 +1006,7 @@ export default function BatchDetailClient({
         // Rollback on server rejection
         haptic('heavy')
         const errMsg = (await res.json().catch(() => ({}))).error || 'Failed to log progress'
-        setError(`${errMsg}. Your draft is retained; review and retry.`)
+        setError(`${String(errMsg).replace(/\.\s*$/, '')}. Your draft is retained; review and retry.`)
         return
       }
 
@@ -995,6 +1027,7 @@ export default function BatchDetailClient({
       haptic('heavy')
       setError(translateUi('Connection error — save not confirmed. Your draft is retained. Check recent logs before retrying.', session.preferredLanguage))
     } finally {
+      logInFlightRef.current = false
       setLoading(false)
     }
   }
@@ -1146,18 +1179,21 @@ export default function BatchDetailClient({
 
 
       {/* Toast */}
-      {toast && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white text-sm font-medium shadow-lg ${
-            toastType === 'warning' ? 'bg-yellow-500' : 'bg-emerald-500'
+      <div role="status" aria-live="polite" className="fixed top-[calc(env(safe-area-inset-top)+4rem)] left-1/2 -translate-x-1/2 z-50">
+        {toast && (
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium shadow-lg ${
+            toastType === 'warning' ? 'bg-amber-400 text-amber-950' : 'bg-emerald-700 text-white'
           }`}>
-            <CheckCircleIcon className="w-4 h-4" />
+            {toastType === 'warning' ? <ExclamationTriangleIcon className="w-4 h-4 shrink-0" aria-hidden="true" /> : <CheckCircleIcon className="w-4 h-4 shrink-0" aria-hidden="true" />}
             {toast}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <main className="max-w-2xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 py-5 pb-36 sm:pb-5">
+        {error && !anyModalOpen && (
+          <div role="alert" className="mb-3 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{error}</div>
+        )}
 <DirectedTasks batchId={batch.id} />
         {pageLoading ? (
           <>
@@ -1227,8 +1263,8 @@ export default function BatchDetailClient({
               return (
                 <>
                   <span className="text-muted-foreground/30">·</span>
-                  <span className={`text-xs font-medium ${isOverdue ? 'text-red-700 dark:text-red-400' : 'text-foreground'}`}>
-                    {isOverdue ? '⚠️ OVERDUE' : `Due: ${new Date(batch.dueDate).toLocaleDateString()}`}
+                  <span className={`text-xs font-medium ${isOverdue ? 'inline-flex items-center gap-1 text-red-700 dark:text-red-400' : 'text-foreground'}`}>
+                    {isOverdue ? <><ExclamationTriangleIcon className="w-3 h-3" aria-hidden="true" />OVERDUE</> : `Due: ${new Date(batch.dueDate).toLocaleDateString()}`}
                   </span>
                 </>
               )
@@ -1243,7 +1279,7 @@ export default function BatchDetailClient({
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
                 batch.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
               }`}>
-                {batch.status}
+                {batch.status.charAt(0) + batch.status.slice(1).toLowerCase()}
               </span>
             )}
           </div>
@@ -1286,7 +1322,7 @@ export default function BatchDetailClient({
                   type="button"
                   onClick={() => station.step.type === 'CHECK' ? handleCheckComplete(station.step as BatchStep) : openLogForStep(station.step as BatchStep)}
                   disabled={loading || (station.step.type === 'CHECK' && !canCompleteCheckStep(station.step as BatchStep)) || (station.step.type === 'COUNT' && !canLogCountStep(station.step as BatchStep)) || (station.step.type === 'ENTRY' && !canRecordEntryStep(station.step as BatchStep))}
-                  className="min-h-[56px] rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="min-h-[56px] rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
@@ -1424,7 +1460,7 @@ export default function BatchDetailClient({
                   <p className="text-sm font-bold tabular-nums text-foreground">{productionResult.target.toLocaleString()}</p>
                 </div>
                 <div className="rounded-lg bg-card/70 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Difference</p>
+                  <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">Difference</p>
                   <p className={`text-sm font-bold tabular-nums ${
                     productionResult.difference < 0
                       ? 'text-amber-700 dark:text-amber-300'
@@ -1828,7 +1864,8 @@ export default function BatchDetailClient({
                                   return next
                                 })
                               }}
-                              className="bf-btn bf-btn-ghost bf-btn-sm h-auto min-h-[32px] px-2 py-1 text-xs"
+                              aria-expanded={isExpanded}
+                              className="bf-btn bf-btn-ghost bf-btn-sm px-2 py-1 text-xs"
                             >
                               {isExpanded ? 'Hide activity' : isWeighInStep(step) ? translateUi(`Show ${step.progressLogs.length} weigh-in${step.progressLogs.length === 1 ? '' : 's'}`, session.preferredLanguage) : `Show ${step.progressLogs.length} recent log${step.progressLogs.length === 1 ? '' : 's'}`}
                             </button>
@@ -1859,6 +1896,7 @@ export default function BatchDetailClient({
           <button
             type="button"
             onClick={() => { haptic('light'); setChatOpen(!chatOpen) }}
+            aria-expanded={chatOpen}
             className="group flex w-full min-h-[52px] items-center justify-between rounded-lg border border-border bg-card px-4 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40"
           >
             <span className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -1928,13 +1966,14 @@ export default function BatchDetailClient({
               <button
                 type="submit"
                 disabled={!newMessage.trim() || sendingMessage}
+                aria-label="Send message"
                 className={`bf-btn min-h-[44px] min-w-[44px] rounded-lg px-0 ${
                   newMessage.trim() && !sendingMessage
                     ? 'bf-btn-primary'
                     : 'bg-muted cursor-not-allowed'
                 }`}
               >
-                <svg className="w-5 h-5 text-white dark:text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg aria-hidden="true" className={`w-5 h-5 ${newMessage.trim() && !sendingMessage ? 'text-white dark:text-slate-950' : 'text-muted-foreground'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
                 </svg>
               </button>
@@ -1947,7 +1986,7 @@ export default function BatchDetailClient({
       </main>
 
       {primaryStation && !selectedStep && (
-        <div className="fixed left-0 right-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-30 px-4 pb-3 sm:hidden pointer-events-none">
+        <div className="fixed left-0 right-0 bottom-[calc(4rem+max(env(safe-area-inset-bottom,0px),1rem))] z-30 px-4 pb-3 sm:hidden pointer-events-none">
           <div className="max-w-2xl mx-auto rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl p-3 pointer-events-auto">
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
@@ -1997,7 +2036,7 @@ export default function BatchDetailClient({
       {showAddStepModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            role="dialog" aria-modal="true" aria-label="Batch settings"
+            ref={addStepDialogRef} role="dialog" aria-modal="true" aria-label="Add step" aria-busy={savingStep}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2009,14 +2048,16 @@ export default function BatchDetailClient({
                 </div>
                 <button
                   onClick={() => setShowAddStepModal(false)}
+                  aria-label="Close"
                   className="bf-icon-btn"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
 
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Step name</label>
+              <label htmlFor="add-step-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Step name</label>
               <input
+                id="add-step-name"
                 type="text"
                 value={newStepName}
                 onChange={(e) => setNewStepName(e.target.value)}
@@ -2029,6 +2070,7 @@ export default function BatchDetailClient({
                 <button
                   type="button"
                   onClick={() => setNewStepType('COUNT')}
+                  aria-pressed={newStepType === 'COUNT'}
                   className={`bf-select-btn ${
                     newStepType === 'COUNT'
                       ? 'bf-select-btn-active'
@@ -2040,6 +2082,7 @@ export default function BatchDetailClient({
                 <button
                   type="button"
                   onClick={() => setNewStepType('CHECK')}
+                  aria-pressed={newStepType === 'CHECK'}
                   className={`bf-select-btn ${
                     newStepType === 'CHECK'
                       ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
@@ -2048,7 +2091,7 @@ export default function BatchDetailClient({
                 >
                   Done / not done
                 </button>
-                <button type="button" onClick={() => setNewStepType('ENTRY')} className={`bf-select-btn ${newStepType === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}>
+                <button type="button" onClick={() => setNewStepType('ENTRY')} aria-pressed={newStepType === 'ENTRY'} className={`bf-select-btn ${newStepType === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}>
                   Entry
                 </button>
               </div>
@@ -2056,8 +2099,9 @@ export default function BatchDetailClient({
               {newStepType === 'COUNT' && (
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Target</label>
+                    <label htmlFor="add-step-target" className="block text-xs font-medium text-muted-foreground mb-1.5">Target</label>
                     <input
+                      id="add-step-target"
                       type="number"
                       inputMode="numeric"
                       min="1"
@@ -2068,8 +2112,9 @@ export default function BatchDetailClient({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Unit</label>
+                    <label htmlFor="add-step-unit" className="block text-xs font-medium text-muted-foreground mb-1.5">Unit</label>
                     <input
+                      id="add-step-unit"
                       type="text"
                       value={newStepUnit}
                       onChange={(e) => setNewStepUnit(e.target.value)}
@@ -2100,7 +2145,7 @@ export default function BatchDetailClient({
       {editingStep && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            role="dialog" aria-modal="true" aria-label="Batch settings"
+            ref={editStepDialogRef} role="dialog" aria-modal="true" aria-label="Edit step" aria-busy={savingStep}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2112,14 +2157,16 @@ export default function BatchDetailClient({
                 </div>
                 <button
                   onClick={() => setEditingStep(null)}
+                  aria-label="Close"
                   className="bf-icon-btn"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
 
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Step name</label>
+              <label htmlFor="edit-step-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Step name</label>
               <input
+                id="edit-step-name"
                 type="text"
                 value={editStepName}
                 onChange={(e) => setEditStepName(e.target.value)}
@@ -2131,6 +2178,7 @@ export default function BatchDetailClient({
                 <button
                   type="button"
                   onClick={() => setEditStepType('COUNT')}
+                  aria-pressed={editStepType === 'COUNT'}
                   className={`bf-select-btn ${
                     editStepType === 'COUNT'
                       ? 'bf-select-btn-active'
@@ -2142,6 +2190,7 @@ export default function BatchDetailClient({
                 <button
                   type="button"
                   onClick={() => setEditStepType('CHECK')}
+                  aria-pressed={editStepType === 'CHECK'}
                   className={`bf-select-btn ${
                     editStepType === 'CHECK'
                       ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
@@ -2150,7 +2199,7 @@ export default function BatchDetailClient({
                 >
                   Done / not done
                 </button>
-                <button type="button" onClick={() => setEditStepType('ENTRY')} className={`bf-select-btn ${editStepType === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}>
+                <button type="button" onClick={() => setEditStepType('ENTRY')} aria-pressed={editStepType === 'ENTRY'} className={`bf-select-btn ${editStepType === 'ENTRY' ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}>
                   Entry
                 </button>
               </div>
@@ -2158,8 +2207,9 @@ export default function BatchDetailClient({
               {editStepType === 'COUNT' && (
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Target</label>
+                    <label htmlFor="edit-step-target" className="block text-xs font-medium text-muted-foreground mb-1.5">Target</label>
                     <input
+                      id="edit-step-target"
                       type="number"
                       inputMode="numeric"
                       min="1"
@@ -2170,8 +2220,9 @@ export default function BatchDetailClient({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Unit</label>
+                    <label htmlFor="edit-step-unit" className="block text-xs font-medium text-muted-foreground mb-1.5">Unit</label>
                     <input
+                      id="edit-step-unit"
                       type="text"
                       value={editStepUnit}
                       onChange={(e) => setEditStepUnit(e.target.value)}
@@ -2310,6 +2361,7 @@ export default function BatchDetailClient({
                             key={key}
                             disabled={loading}
                             type="button"
+                            aria-label={key === 'back' ? 'Back, delete last digit' : undefined}
                             onClick={() => {
                               haptic('light')
                               if (key === 'clear') setQuantity('')
@@ -2592,7 +2644,7 @@ export default function BatchDetailClient({
       {showDuplicateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
-            role="dialog" aria-modal="true" aria-label="Batch settings"
+            ref={duplicateDialogRef} role="dialog" aria-modal="true" aria-label="Duplicate batch" aria-busy={duplicating}
             className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2605,6 +2657,7 @@ export default function BatchDetailClient({
                 </div>
                 <button
                   onClick={() => setShowDuplicateModal(false)}
+                  aria-label="Close"
                   className="bf-icon-btn"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2616,8 +2669,9 @@ export default function BatchDetailClient({
               {/* Form */}
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-foreground font-semibold uppercase tracking-wider block mb-1">Batch Name</label>
+                  <label className="text-xs text-foreground font-semibold uppercase tracking-wider block mb-1" htmlFor="duplicate-name">Batch Name</label>
                   <input
+                    id="duplicate-name"
                     type="text"
                     value={duplicateName}
                     onChange={(e) => setDuplicateName(e.target.value)}
@@ -2654,8 +2708,9 @@ export default function BatchDetailClient({
                 </div>
 
                 <div>
-                  <label className="text-xs text-foreground font-semibold uppercase tracking-wider block mb-1">Target Quantity</label>
+                  <label className="text-xs text-foreground font-semibold uppercase tracking-wider block mb-1" htmlFor="duplicate-target">Target Quantity</label>
                   <input
+                    id="duplicate-target"
                     type="number"
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -2719,8 +2774,9 @@ export default function BatchDetailClient({
                 </div>
 
                 <div>
-                  <label className="text-xs text-foreground font-semibold uppercase tracking-wider block mb-1">Strain (Optional)</label>
+                  <label className="text-xs text-foreground font-semibold uppercase tracking-wider block mb-1" htmlFor="duplicate-strain">Strain (Optional)</label>
                   <input
+                    id="duplicate-strain"
                     type="text"
                     value={duplicateStrain}
                     onChange={(e) => setDuplicateStrain(e.target.value)}

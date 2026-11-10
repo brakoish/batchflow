@@ -19,6 +19,7 @@ export const zh: Record<string, string> = {
   'Recorded': '已记录', 'total': '合计', 'Add more': '继续添加', 'Add': '添加', 'Change history': '修改记录', 'Hide change history': '隐藏修改记录',
   'Loading…': '正在加载…', 'No changes recorded yet': '尚无修改记录', 'Could not load the change history': '无法加载修改记录', 'Someone': '某人',
   'added': '添加了', 'removed': '删除了', 'changed': '修改了', 'changed the note': '修改了备注',
+  'Work': '工作', 'Reports': '报表', 'Manage': '管理', 'Overview': '概览', 'History': '历史', 'Employee teams': '员工小组', 'Shift status unavailable': '无法获取班次状态',
 }
 
 export function translateUi(value: string, language = 'en') {

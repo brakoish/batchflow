@@ -8,8 +8,8 @@ import { authErrorResponse } from '@/lib/apiErrors'
 export async function POST(request: NextRequest) {
   try {
     const session = await requireSupervisorOrOwner()
-    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const body = await request.json()
+    return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const recipeId = String(body.recipeId || '')
     const productId = body.productId ? String(body.productId) : null
     const countedQuantity = Number(body.countedQuantity)

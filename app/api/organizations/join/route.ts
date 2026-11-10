@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     clearAttempts(rateLimitKey)
 
     const cookieStore = await cookies()
-    cookieStore.set(WORKER_COOKIE, encodeWorkerCookie(worker.id), workerCookieOptions())
+    cookieStore.set(WORKER_COOKIE, encodeWorkerCookie(worker.id, pin), workerCookieOptions())
 
     return NextResponse.json({
       worker: {

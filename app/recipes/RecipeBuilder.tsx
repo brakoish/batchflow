@@ -307,14 +307,14 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
             <div className="space-y-2">
               {products.map((product, index) => (
                 <div key={index} className="rounded-xl border border-border bg-muted/20 p-2">
-                  <div className="flex gap-2"><label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Product name ${index + 1}`} </span><input type="text" value={product.name} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, name: event.target.value } : value))} placeholder="Finished item name" maxLength={120} disabled={loading} className="min-h-[46px] flex-1 rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
+                  <div className="flex gap-2"><label className="block min-w-0 flex-1"><span className="block basis-full text-xs font-medium text-muted-foreground">Product name<span className="sr-only"> {index + 1}</span></span><input type="text" value={product.name} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, name: event.target.value } : value))} placeholder="Finished item name" maxLength={120} disabled={loading} className="min-h-[46px] flex-1 rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
                   <button type="button" onClick={() => setProducts(current => current.filter((_, itemIndex) => itemIndex !== index))} className="bf-icon-btn bf-icon-btn-danger" aria-label="Remove product">
                     <XMarkIcon className="h-5 w-5" />
                   </button></div>
-                  <label className="block min-w-0 mt-2 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Brand ${index + 1}`} </span><input type="text" value={product.brand} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, brand: event.target.value } : value))} list="batchflow-brand-options" placeholder="Brand — e.g., Terp Selection" maxLength={100} disabled={loading} className="mt-2 min-h-[46px] w-full rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
+                  <label className="block min-w-0 mt-2 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Brand<span className="sr-only"> {index + 1}</span></span><input type="text" value={product.brand} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, brand: event.target.value } : value))} list="batchflow-brand-options" placeholder="Brand — e.g., Terp Selection" maxLength={100} disabled={loading} className="mt-2 min-h-[46px] w-full rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <label className="block min-w-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Material per item (g, optional) ${index + 1}`} </span><input type="number" inputMode="decimal" min="0.01" step="0.01" value={product.materialWeightGrams} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, materialWeightGrams: event.target.value } : value))} placeholder="Material per item (g)" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
-                    <label className="block min-w-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Variations (comma separated) ${index + 1}`} </span><input type="text" value={product.variations} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, variations: event.target.value } : value))} placeholder="Variations — Blue Dream, LCG" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
+                    <label className="block min-w-0"><span className="block basis-full text-xs font-medium text-muted-foreground">Material per item (g, optional)<span className="sr-only"> {index + 1}</span></span><input type="number" inputMode="decimal" min="0.01" step="0.01" value={product.materialWeightGrams} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, materialWeightGrams: event.target.value } : value))} placeholder="Material per item (g)" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
+                    <label className="block min-w-0"><span className="block basis-full text-xs font-medium text-muted-foreground">Variations (comma separated)<span className="sr-only"> {index + 1}</span></span><input type="text" value={product.variations} onChange={(event) => setProducts(current => current.map((value, itemIndex) => itemIndex === index ? { ...value, variations: event.target.value } : value))} placeholder="Variations — Blue Dream, LCG" disabled={loading} className="min-h-[46px] rounded-xl border-2 border-border bg-muted/50 px-4 text-base text-foreground placeholder:text-muted-foreground/40 focus:border-emerald-500 focus:outline-none" /></label>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">Variations share this workflow. Separate names with commas.</p>
                 </div>
@@ -403,7 +403,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                       {u.direction === 'bigger' ? (
                         <>
                           <span className="text-sm text-muted-foreground shrink-0">1</span>
-                          <label className="block min-w-0 flex-1 min-w-[6rem]"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Unit name ${i + 1}`} </span><input
+                          <label className="block min-w-0 flex-1 min-w-[6rem]"><span className="block basis-full text-xs font-medium text-muted-foreground">Unit name<span className="sr-only"> {i + 1}</span></span><input
                             type="text"
                             value={u.name}
                             onChange={(e) => updateUnit(i, 'name', e.target.value)}
@@ -412,7 +412,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                             className="flex-1 min-w-[6rem] px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
                           /></label>
                           <span className="text-sm text-muted-foreground shrink-0">=</span>
-                          <label className="block min-w-0 w-20 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Relation quantity ${i + 1}`} </span><input
+                          <label className="block min-w-0 w-20 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">Relation quantity<span className="sr-only"> {i + 1}</span></span><input
                             type="number"
                             inputMode="decimal"
                             step="any"
@@ -422,7 +422,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                             disabled={loading}
                             className="w-20 shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base font-semibold tabular-nums text-center focus:outline-none focus:border-emerald-500 transition-all"
                           /></label>
-                          <label className="block min-w-0 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Related unit ${i + 1}`} </span><select
+                          <label className="block min-w-0 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">Related unit<span className="sr-only"> {i + 1}</span></span><select
                             value={u.basedOn || ''}
                             onChange={(e) => updateUnit(i, 'basedOn', e.target.value)}
                             disabled={loading || rhsOptions.length <= 1}
@@ -435,7 +435,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                         </>
                       ) : (
                         <>
-                          <label className="block min-w-0 w-20 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Relation quantity ${i + 1}`} </span><input
+                          <label className="block min-w-0 w-20 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">Relation quantity<span className="sr-only"> {i + 1}</span></span><input
                             type="number"
                             inputMode="decimal"
                             step="any"
@@ -445,7 +445,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                             disabled={loading}
                             className="w-20 shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base font-semibold tabular-nums text-center focus:outline-none focus:border-emerald-500 transition-all"
                           /></label>
-                          <label className="block min-w-0 flex-1 min-w-[6rem]"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Unit name ${i + 1}`} </span><input
+                          <label className="block min-w-0 flex-1 min-w-[6rem]"><span className="block basis-full text-xs font-medium text-muted-foreground">Unit name<span className="sr-only"> {i + 1}</span></span><input
                             type="text"
                             value={u.name}
                             onChange={(e) => updateUnit(i, 'name', e.target.value)}
@@ -454,7 +454,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                             className="flex-1 min-w-[6rem] px-3 py-2.5 min-h-[44px] rounded-lg bg-card border-2 border-border text-foreground text-base placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
                           /></label>
                           <span className="text-sm text-muted-foreground shrink-0">= 1</span>
-                          <label className="block min-w-0 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Related unit ${i + 1}`} </span><select
+                          <label className="block min-w-0 shrink-0"><span className="block basis-full text-xs font-medium text-muted-foreground">Related unit<span className="sr-only"> {i + 1}</span></span><select
                             value={u.basedOn || ''}
                             onChange={(e) => updateUnit(i, 'basedOn', e.target.value)}
                             disabled={loading || rhsOptions.length <= 1}
@@ -481,7 +481,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                       <button
                         onClick={() => removeUnit(i)}
                         aria-label="Remove"
-                        className="bf-icon-btn bf-icon-btn-danger min-h-[36px] min-w-[36px]"
+                        className="bf-icon-btn bf-icon-btn-danger min-h-[44px] min-w-[44px]"
                       >
                         <XMarkIcon className="w-4 h-4" />
                       </button>
@@ -557,7 +557,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                 {expandedStep === i && <div id={`recipe-step-${i}`} className="border-t border-border/70 p-4">
                 {/* Step name */}
                 <div className="mb-3">
-                  <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Step name ${i + 1}`} </span><input type="text" value={step.name} onChange={(e) => updateStep(i, 'name', e.target.value)}
+                  <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Step name<span className="sr-only"> {i + 1}</span></span><input type="text" value={step.name} onChange={(e) => updateStep(i, 'name', e.target.value)}
                     placeholder={i === 0 ? 'e.g., Weigh & Prep Materials' : i === 1 ? 'e.g., Fill Bags' : 'Step name'}
                     disabled={loading}
                     className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" /></label>
@@ -647,7 +647,7 @@ export default function RecipeBuilder({ editRecipe, availableProducts, onDone }:
                 )}
 
                 {/* Notes */}
-                <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">{`Instructions (optional) ${i + 1}`} </span><input type="text" value={step.notes} onChange={(e) => updateStep(i, 'notes', e.target.value)}
+                <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Instructions (optional)<span className="sr-only"> {i + 1}</span></span><input type="text" value={step.notes} onChange={(e) => updateStep(i, 'notes', e.target.value)}
                   placeholder="Instructions or notes — e.g., Use 3.5g per jar, keep lids tight" disabled={loading}
                   className="w-full px-4 py-3 min-h-[48px] rounded-xl bg-card border-2 border-border text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all" /></label>
                 </div>}

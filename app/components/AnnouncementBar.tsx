@@ -47,10 +47,10 @@ export default function AnnouncementBar() {
   if (!announcement) return null
 
   return (
-    <div className="bg-amber-400 text-amber-950 border-b border-amber-500/60" role="status" aria-live="polite">
-      <div className="max-w-5xl mx-auto h-9 px-3 flex items-center gap-2 overflow-hidden">
+    <div className="bf-announcement-marquee bg-amber-400 text-amber-950 border-b border-amber-500/60" role="status" aria-live="polite">
+      <div className="max-w-5xl mx-auto h-9 px-3 flex items-center gap-2 overflow-hidden motion-reduce:h-auto motion-reduce:min-h-9 motion-reduce:py-1.5">
         <MegaphoneIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <div ref={viewportRef} className="min-w-0 flex-1 overflow-hidden whitespace-nowrap">
+        <div ref={viewportRef} className="min-w-0 flex-1 overflow-hidden whitespace-nowrap motion-reduce:whitespace-normal">
           <div className={overflowing ? 'bf-announcement-track' : ''}>
             <span ref={textRef} className="inline-block text-sm font-semibold">
               {announcement.message}

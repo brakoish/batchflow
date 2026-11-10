@@ -26,9 +26,9 @@ export async function POST(
 ) {
   try {
     const session = await requireSupervisorOrOwner()
+    const body = await request.json()
     return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
-    const body = await request.json()
 
     const name = String(body.name || '').trim()
     const type = body.type === 'CHECK' ? 'CHECK' : body.type === 'ENTRY' ? 'ENTRY' : 'COUNT'

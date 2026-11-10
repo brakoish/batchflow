@@ -3,6 +3,27 @@ import { prisma } from '@/lib/prisma';
 import { requireSession } from '@/lib/auth';
 import { authErrorResponse } from '@/lib/apiErrors'
 
+// Only real browser push services, so the server never posts to an
+// arbitrary address it was handed.
+const PUSH_HOSTS = [
+  /^fcm\.googleapis\.com$/,
+  /^updates\.push\.services\.mozilla\.com$/,
+  /^web\.push\.apple\.com$/,
+  /\.push\.apple\.com$/,
+  /\.notify\.windows\.com$/,
+  /^android\.googleapis\.com$/,
+]
+
+function isPushServiceEndpoint(endpoint: unknown) {
+  if (typeof endpoint !== 'string' || endpoint.length > 2048) return false
+  try {
+    const url = new URL(endpoint)
+    return url.protocol === 'https:' && PUSH_HOSTS.some(host => host.test(url.hostname))
+  } catch {
+    return false
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await requireSession();
@@ -13,7 +34,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { endpoint, keys } = body;
 
-    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    if (!isPushServiceEndpoint(endpoint) || typeof keys?.p256dh !== 'string' || typeof keys?.auth !== 'string') {
       return NextResponse.json({ error: 'Invalid subscription data' }, { status: 400 });
     }
 

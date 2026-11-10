@@ -322,7 +322,7 @@ export default function ManageBatchClient({ initialBatch, workers, teams, sessio
           </div>
         </div>
 
-        {toast && <div role="status" className="fixed left-1/2 top-4 z-[70] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">{toast}</div>}
+        {toast && <div role="status" className="fixed left-1/2 top-[calc(env(safe-area-inset-top)_+_1rem)] z-[70] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">{toast}</div>}
         {error && <div role="alert" className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>}
         {!duplicate && batch.status !== 'ACTIVE' && <div className="mb-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-sm text-muted-foreground">This {batch.status.toLowerCase()} batch is closed. Owners and supervisors can correct its setup or duplicate it; its recorded production workflow stays locked.</div>}
 

@@ -100,7 +100,7 @@ export default function BottomNav({ session }: Props) {
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
-                  active ? 'text-emerald-500' : 'text-muted-foreground'
+                  active ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'
                 }`}
               >
                 <Icon className="w-6 h-6" />
@@ -114,7 +114,7 @@ export default function BottomNav({ session }: Props) {
             aria-haspopup="dialog"
             aria-expanded={moreOpen}
             className={`relative flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
-              moreOpen ? 'text-emerald-500' : 'text-muted-foreground'
+              moreOpen ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'
             }`}
           >
             <span className="relative inline-flex">
