@@ -968,6 +968,11 @@ export default function BatchDetailClient({
   // Errors from actions outside a modal (check-off, reorder, skip, status, delete) show in a page banner.
   // Modal-scoped errors stay in their modal and are cleared when it closes so they don't leak onto the page.
   const anyModalOpen = !!selectedStep || !!editingLog || showRemovalModal || showFinishReport || !!materialModal || showAddStepModal || !!editingStep || showDuplicateModal || !!confirmAction
+  useEffect(() => {
+    if (!error || anyModalOpen) return
+    const timer = setTimeout(() => setError(''), 8000)
+    return () => clearTimeout(timer)
+  }, [error, anyModalOpen])
   const modalWasOpenRef = useRef(anyModalOpen)
   useEffect(() => {
     if (modalWasOpenRef.current && !anyModalOpen) setError('')
@@ -1170,7 +1175,7 @@ export default function BatchDetailClient({
 
 
       {/* Toast */}
-      <div role="status" aria-live="polite" className="fixed top-[calc(env(safe-area-inset-top)+4rem)] left-1/2 -translate-x-1/2 z-50">
+      <div role="status" aria-live="polite" data-dialog-exempt className="fixed top-[calc(env(safe-area-inset-top)+4rem)] left-1/2 -translate-x-1/2 z-50">
         {toast && (
           <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium shadow-lg ${
             toastType === 'warning' ? 'bg-amber-400 text-amber-950' : 'bg-emerald-700 text-white'
@@ -1183,7 +1188,12 @@ export default function BatchDetailClient({
 
       <main className="max-w-2xl lg:max-w-[1440px] mx-auto px-4 lg:px-8 py-5 pb-36 sm:pb-5">
         {error && !anyModalOpen && (
-          <div role="alert" className="mb-3 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{error}</div>
+          <div role="alert" className="sticky top-[calc(env(safe-area-inset-top)+4rem)] z-30 mb-3 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive shadow-sm">
+            <span className="flex-1">{error}</span>
+            <button type="button" onClick={() => setError('')} className="-m-2 min-h-[44px] min-w-[44px] shrink-0 rounded-lg p-2 text-destructive" aria-label="Dismiss message">
+              <XMarkIcon className="mx-auto h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
         )}
 <DirectedTasks batchId={batch.id} />
         {pageLoading ? (
@@ -1270,7 +1280,7 @@ export default function BatchDetailClient({
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
                 batch.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
               }`}>
-                {batch.status.charAt(0) + batch.status.slice(1).toLowerCase()}
+                {batch.status}
               </span>
             )}
           </div>
@@ -1313,7 +1323,7 @@ export default function BatchDetailClient({
                   type="button"
                   onClick={() => station.step.type === 'CHECK' ? handleCheckComplete(station.step as BatchStep) : openLogForStep(station.step as BatchStep)}
                   disabled={loading || (station.step.type === 'CHECK' && !canCompleteCheckStep(station.step as BatchStep)) || (station.step.type === 'COUNT' && !canLogCountStep(station.step as BatchStep)) || (station.step.type === 'ENTRY' && !canRecordEntryStep(station.step as BatchStep))}
-                  className="min-h-[56px] rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-[56px] rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-muted/25 active:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
@@ -1451,7 +1461,7 @@ export default function BatchDetailClient({
                   <p className="text-sm font-bold tabular-nums text-foreground">{productionResult.target.toLocaleString()}</p>
                 </div>
                 <div className="rounded-lg bg-card/70 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">Difference</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Difference</p>
                   <p className={`text-sm font-bold tabular-nums ${
                     productionResult.difference < 0
                       ? 'text-amber-700 dark:text-amber-300'
@@ -1824,7 +1834,7 @@ export default function BatchDetailClient({
                                     <span className="text-muted-foreground font-medium">{log.worker.name}</span>
                                     <span className="text-emerald-700 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
                                     {log.note && <span className="text-muted-foreground truncate max-w-[120px]">{log.note}</span>}
-                                    <span className="text-muted-foreground/30">{formatLogTimestamp(log.createdAt)}</span>
+                                    <span className="text-muted-foreground">{formatLogTimestamp(log.createdAt)}</span>
                                     {log.editedAt && <span className="text-muted-foreground italic">(edited)</span>}
                                   </button>
                                 </div>
@@ -1844,9 +1854,9 @@ export default function BatchDetailClient({
                                 })
                               }}
                               aria-expanded={isExpanded}
-                              className="bf-btn bf-btn-ghost bf-btn-sm px-2 py-1 text-xs"
+                              className="bf-btn bf-btn-ghost bf-btn-sm h-auto min-h-[32px] px-2 py-1 text-xs"
                             >
-                              {isExpanded ? 'Hide recent logs' :`Show ${step.progressLogs.length} recent log${step.progressLogs.length === 1 ? '' : 's'}`}
+                              {isExpanded ? translateUi('Hide recent logs', session.preferredLanguage) : translateUi(`Show ${step.progressLogs.length} recent log${step.progressLogs.length === 1 ? '' : 's'}`, session.preferredLanguage)}
                             </button>
                           </div>
                         </>

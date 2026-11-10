@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
 import { authErrorResponse } from '@/lib/apiErrors'
-import { fromDateTimeLocalString } from '@/lib/timezone'
+import { startOfLocalDay } from '@/lib/timezone'
 
 export async function GET(request: Request) {
   try {
@@ -38,17 +38,28 @@ export async function GET(request: Request) {
       // timezone ("To" includes the full day). Full timestamps pass through.
       const timezone = organization?.timezone || 'America/New_York'
       const isDay = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value)
-      const dayStart = (day: string) => fromDateTimeLocalString(`${day}T00:00`, timezone)
       const nextDay = (day: string) => {
         const date = new Date(`${day}T00:00:00Z`)
         date.setUTCDate(date.getUTCDate() + 1)
         return date.toISOString().slice(0, 10)
       }
+      const parseBound = (value: string, useNextDay: boolean) => {
+        if (!isDay(value)) {
+          const date = new Date(value)
+          return Number.isNaN(date.getTime()) ? null : date
+        }
+        const check = new Date(`${value}T00:00:00Z`)
+        if (Number.isNaN(check.getTime()) || check.toISOString().slice(0, 10) !== value) return null
+        return startOfLocalDay(useNextDay ? nextDay(value) : value, timezone)
+      }
+      const from = dateFrom ? parseBound(dateFrom, false) : undefined
+      const to = dateTo ? parseBound(dateTo, true) : undefined
+      if (from === null || to === null) return NextResponse.json({ error: 'Enter a valid date' }, { status: 400 })
       where.startedAt = {}
-      if (dateFrom) where.startedAt.gte = isDay(dateFrom) ? dayStart(dateFrom) : new Date(dateFrom)
-      if (dateTo) {
-        if (isDay(dateTo)) where.startedAt.lt = dayStart(nextDay(dateTo))
-        else where.startedAt.lte = new Date(dateTo)
+      if (from) where.startedAt.gte = from
+      if (to) {
+        if (isDay(dateTo!)) where.startedAt.lt = to
+        else where.startedAt.lte = to
       }
     }
 

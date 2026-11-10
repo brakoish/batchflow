@@ -457,7 +457,9 @@ a:focus-visible {
 
 /* Prevent iOS Safari from zooming the page when a field is focused. */
 @media (max-width: 639px) {
-  input, select, textarea {
+  input:not([class*="text-lg"]):not([class*="text-xl"]):not([class*="text-2xl"]):not([class*="text-3xl"]):not([class*="text-4xl"]),
+  select,
+  textarea {
     font-size: 16px;
   }
 }

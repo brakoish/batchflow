@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
-import { checkRateLimit, clearAttempts, loginRateLimitKey, recordFailedAttempt } from '@/lib/loginRateLimit'
-import { encodeWorkerCookie, WORKER_COOKIE, workerCookieOptions } from '@/lib/workerCookie'
+import { checkLoginRateLimit, recordFailedLogin } from '@/lib/loginRateLimit'
+import { encodeWorkerCookie, WORKER_COOKIE, workerCookieOptions, clearAccountSessionCookies } from '@/lib/workerCookie'
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,8 +23,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const rateLimitKey = loginRateLimitKey(request, slug)
-    const { allowed, retryAfter } = checkRateLimit(rateLimitKey)
+    const { allowed, retryAfter } = checkLoginRateLimit(request, slug)
     if (!allowed) {
       return NextResponse.json(
         { error: `Too many failed attempts. Try again in ${retryAfter} seconds.` },
@@ -60,18 +59,17 @@ export async function POST(request: NextRequest) {
     })
 
     if (!worker) {
-      recordFailedAttempt(rateLimitKey)
+      recordFailedLogin(request, slug)
       return NextResponse.json(
         { error: 'Invalid PIN' },
         { status: 401 }
       )
     }
 
-    // Success — clear failed attempts
-    clearAttempts(rateLimitKey)
 
     const cookieStore = await cookies()
     cookieStore.set(WORKER_COOKIE, encodeWorkerCookie(worker.id, pin), workerCookieOptions())
+    clearAccountSessionCookies(cookieStore)
 
     return NextResponse.json({
       worker: {

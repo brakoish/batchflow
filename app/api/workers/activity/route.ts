@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
-import { fromDateTimeLocalString, localDateKey } from '@/lib/timezone'
+import { localDateKey, startOfLocalDay } from '@/lib/timezone'
 import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function GET() {
@@ -16,7 +16,7 @@ export async function GET() {
       select: { timezone: true },
     })
     const timezone = organization?.timezone || 'America/New_York'
-    const startOfDay = fromDateTimeLocalString(`${localDateKey(new Date(), timezone)}T00:00`, timezone)
+    const startOfDay = startOfLocalDay(localDateKey(new Date(), timezone), timezone) ?? new Date(new Date().setUTCHours(0, 0, 0, 0))
 
     const workers = await prisma.worker.findMany({
       where: { role: 'WORKER', organizationId },
