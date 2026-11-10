@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { haptic } from '@/lib/haptic'
 import ConfirmModal from '@/app/components/ConfirmModal'
@@ -45,6 +45,8 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
   const [editTeamIds, setEditTeamIds] = useState<string[]>([])
   const [editNewTeamName, setEditNewTeamName] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
+  const editFormRef = useRef<HTMLFieldSetElement>(null)
+  const editNameRef = useRef<HTMLInputElement>(null)
   const [revealedPins, setRevealedPins] = useState<Set<string>>(new Set())
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const router = useRouter()
@@ -152,6 +154,14 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
     } catch { setError('Connection error') }
     finally { setLoading(false) }
   }
+
+  // The edit form opens above the employee list, which is often off-screen
+  // on a phone. Bring it into view and put the cursor in the name field.
+  useEffect(() => {
+    if (!showEditModal || !editingWorker) return
+    editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    editNameRef.current?.focus({ preventScroll: true })
+  }, [showEditModal, editingWorker?.id])
 
   const openEditModal = (worker: Worker) => {
     setEditingWorker(worker)
@@ -291,7 +301,7 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
 
       {/* Edit Worker Modal */}
       {showEditModal && editingWorker && (
-        <fieldset disabled={loading} aria-busy={loading} className="min-w-0 bg-card border border-border rounded-lg p-4 space-y-4">
+        <fieldset ref={editFormRef} disabled={loading} aria-busy={loading} className="min-w-0 scroll-mt-20 bg-card border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-foreground">Edit Employee</h3>
             <button
@@ -303,6 +313,7 @@ export default function WorkerManager({ workers, initialTeams }: { workers: Work
           </div>
           
           <label className="block min-w-0 w-full"><span className="block basis-full text-xs font-medium text-muted-foreground">Employee name</span><input
+            ref={editNameRef}
             type="text"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
