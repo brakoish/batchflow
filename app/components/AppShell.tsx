@@ -24,7 +24,7 @@ export default function AppShell({
       <div className="sticky top-0 z-40">
         <AnnouncementBar />
         <Header session={session} organizationName={organizationName} />
-        <div className="px-4 py-2 bg-background flex justify-end">{['OWNER','SUPERVISOR'].includes(session.role) ? <Link href="/tasks" className="text-sm font-semibold px-3 py-2 rounded-xl bg-card border border-border">Plan work</Link> : <DirectedTasks badge />}</div>
+        <div className="px-4 py-2 bg-background flex justify-end">{['OWNER','SUPERVISOR'].includes(session.role) ? <Link href="/tasks" className="text-sm font-semibold px-3 py-2 rounded-xl bg-card border border-border">Plan work<DirectedTasks noticeOnly /></Link> : <DirectedTasks badge />}</div>
       </div>
       <div id="main-content" tabIndex={-1}>{children}</div>
       <BottomNav session={session} />

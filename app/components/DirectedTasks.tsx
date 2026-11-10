@@ -17,14 +17,15 @@ export function DirectTaskFlag({batchId}:{batchId:string}) {
  return active?<span className="inline-block rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-1 text-xs font-bold">★ Assigned to you</span>:null
 }
 const empty={title:'',instructions:'',startDate:'',endDate:'',position:0,batchId:'',stepId:'',workerIds:[] as string[]}
-export default function DirectedTasks({manage=false,batchId,badge=false}:{manage?:boolean;batchId?:string;badge?:boolean}){
+export default function DirectedTasks({manage=false,batchId,badge=false,noticeOnly=false}:{manage?:boolean;batchId?:string;badge?:boolean;noticeOnly?:boolean}){
 const [data,setData]=useState<Data|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[editing,setEditing]=useState<Task|null>(null),[form,setForm]=useState(empty),[open,setOpen]=useState(false)
 const load=useCallback(async()=>{try{setData(await fetchTasks());setError('')}catch(e){setError((e as Error).message)}},[])
 useEffect(()=>{load();const id=setInterval(load,30000);window.addEventListener('tasks-changed',load);return()=>{clearInterval(id);window.removeEventListener('tasks-changed',load)}},[load])
 const save=async(body:object,method='PATCH')=>{if(busy)return;setBusy(true);setError('');try{const r=await fetch('/api/directed-tasks',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Save failed');pending=null;await load();window.dispatchEvent(new Event('tasks-changed'));return true}catch(e){setError((e as Error).message);return false}finally{setBusy(false)}}
-if(!data)return badge?null:<p role="status" className="p-4 text-sm">{error||'Loading priorities…'}</p>
+if(!data)return badge||noticeOnly?null:<p role="status" className="p-4 text-sm">{error||'Loading priorities…'}</p>
 const mine=data.tasks.filter(t=>t.assignments.some(a=>a.workerId===data.workerId&&!a.removedAt))
 const unread=mine.filter(t=>t.assignments.some(a=>a.workerId===data.workerId&&!a.removedAt&&a.seenRevision<t.contentRevision)).length
+if(noticeOnly)return unread>0?<span className="ml-1 rounded-full bg-amber-500 text-black px-2" aria-label={`${unread} unread assignments`}>{unread}</span>:null
 if(badge)return <Link href={data.manager?'/tasks':'/workers/me'} className="text-sm font-semibold px-3 py-2 rounded-xl bg-card border border-border">{data.manager?'Plan work':'My priorities'}{unread>0&&<span className="ml-1 rounded-full bg-amber-500 text-black px-2" aria-label={`${unread} unread assignments`}>{unread}</span>}</Link>
 const tasks=(manage?data.tasks:mine).filter(t=>!batchId||t.batchId===batchId)
 // Only a successful, empty response can hide the personal panel.

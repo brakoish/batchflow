@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 const component = readFileSync('app/components/DirectedTasks.tsx', 'utf8')
 const shell = readFileSync('app/components/AppShell.tsx', 'utf8')
 test('personal panel hides only after successful empty fetch, never on error or loading', () => {
- assert.match(component, /if\(!data\)return badge\?null:<p role="status"/)
+ assert.match(component, /if\(!data\)return badge\|\|noticeOnly\?null:<p role="status"/)
  assert.match(component, /setData\(await fetchTasks\(\)\);setError\(''\)/)
  assert.match(component, /if\(!manage&&!tasks.length&&!error\)return null/)
  assert.ok(component.indexOf('if(!data)') < component.indexOf('if(!manage&&!tasks.length&&!error)'))
@@ -19,7 +19,7 @@ test('some tasks, manager empty state and unread notices retain existing semanti
 })
 test('owner and supervisor planning navigation is permanent and independent of task fetch', () => {
  assert.match(shell, /\['OWNER','SUPERVISOR'\].includes\(session.role\) \? <Link href="\/tasks"/)
- assert.match(shell, />Plan work<\/Link> : <DirectedTasks badge \/>/)
+ assert.match(shell, />Plan work<DirectedTasks noticeOnly \/><\/Link> : <DirectedTasks badge \/>/)
  const page = readFileSync('app/tasks/page.tsx','utf8')
  assert.match(page, /if \(!\['OWNER','SUPERVISOR'\].includes\(session.role\)\) redirect\('\/workers\/me'\)/)
 })
