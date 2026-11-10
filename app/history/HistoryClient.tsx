@@ -136,7 +136,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               filter === f
                 ? f === 'CANCELLED' ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                  : f === 'COMPLETED' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                  : f === 'COMPLETED' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
                   : 'bg-muted text-foreground border border-input'
                 : 'text-foreground hover:text-muted-foreground'
             }`}
@@ -162,12 +162,12 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
               <Link
                 key={batch.id}
                 href={`/batches/${batch.id}`}
-                className="block rounded-xl border border bg-card p-4 hover:border-input hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
+                className="block rounded-xl border bg-card p-4 hover:border-input hover:translate-y-[-1px] active:scale-[0.99] transition-all duration-150"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     {batch.status === 'COMPLETED' ? (
-                      <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <CheckCircleIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
                     ) : (
                       <XCircleIcon className="w-4 h-4 text-red-400 shrink-0" />
                     )}
@@ -176,7 +176,7 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                       <p className="text-xs text-foreground mt-0.5">{batch.product?.name || batch.recipe.name} · {batch.targetQuantity ? `${batch.targetQuantity} ${batch.baseUnit}` : <span className="text-blue-500">Open batch</span>}</p>
                     </div>
                   </div>
-                  <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0 ml-2">{date}</span>
+                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 ml-2">{date}</span>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -205,8 +205,8 @@ export default function HistoryClient({ initialBatches }: { initialBatches: Batc
                       <p className="text-muted-foreground">Diff</p>
                       <p className={`font-semibold tabular-nums ${
                         productionResult.difference < 0
-                          ? 'text-amber-600 dark:text-amber-400'
-                          : 'text-emerald-600 dark:text-emerald-400'
+                          ? 'text-amber-700 dark:text-amber-400'
+                          : 'text-emerald-700 dark:text-emerald-400'
                       }`}>
                         {productionResult.difference > 0 ? '+' : ''}{productionResult.difference.toLocaleString()}
                       </p>

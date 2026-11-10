@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function GET() {
   try {
@@ -16,8 +17,11 @@ export async function GET() {
       { brands },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } },
     )
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('brands failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -34,7 +38,10 @@ export async function POST(request: Request) {
       ? await prisma.brand.update({ where: { id: existing.id }, data: { archivedAt: null } })
       : await prisma.brand.create({ data: { name, organizationId: session.user.organizationId } })
     return NextResponse.json({ brand }, { status: existing ? 200 : 201 })
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('brands failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

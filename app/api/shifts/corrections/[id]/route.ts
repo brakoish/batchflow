@@ -25,6 +25,9 @@ export async function PATCH(
   })
 
   if (!correctionReq) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (session.user.role !== 'OWNER' && correctionReq.workerId === session.user.workerId) {
+    return NextResponse.json({ error: 'Another supervisor or an owner needs to review your own correction.' }, { status: 403 })
+  }
   const updated = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${correctionReq.workerId}))`
     const current = await tx.shiftCorrectionRequest.findUniqueOrThrow({ where: { id: params.id } })

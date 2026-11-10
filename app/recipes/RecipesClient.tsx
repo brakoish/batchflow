@@ -117,7 +117,7 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
 
       {error && (
         <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
-          <p className="text-sm font-medium text-red-500 dark:text-red-400">{error}</p>
+          <p className="text-sm font-medium text-red-700 dark:text-red-400">{error}</p>
         </div>
       )}
 
@@ -151,7 +151,7 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-semibold text-foreground">{recipe.name}</h3>
                         {isEditing && (
-                          <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                             Editing ↑
                           </span>
                         )}
@@ -187,7 +187,7 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                           if (!isEditing) window.scrollTo({ top: 0, behavior: 'smooth' })
                         }}
                         className={`bf-icon-btn ${
-                          isEditing ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : ''
+                          isEditing ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10' : ''
                         }`}
                       >
                         <PencilIcon className="w-4 h-4" />
@@ -206,7 +206,7 @@ export default function RecipesClient({ initialRecipes, availableProducts }: { i
                         <span className="text-muted-foreground/50 tabular-nums w-4">{i + 1}.</span>
                         <span className="text-foreground/80">{step.name}</span>
                         <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full border ${
-                          step.type === 'CHECK' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : step.type === 'ENTRY' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          step.type === 'CHECK' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : step.type === 'ENTRY' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
                         }`}>
                           {step.type === 'CHECK' ? <><CheckCircleIcon className="w-2.5 h-2.5" />Check</> : step.type === 'ENTRY' ? <><PencilSquareIcon className="w-2.5 h-2.5" />Enter {step.entryUnit || 'g'}</> : <><HashtagIcon className="w-2.5 h-2.5" />{step.unit?.name || recipe.baseUnit}</>}
                         </span>

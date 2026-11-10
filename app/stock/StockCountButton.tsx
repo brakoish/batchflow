@@ -60,7 +60,7 @@ export default function StockCountButton({ recipeId, productId, productName, bas
             <input id={`${fieldId}-quantity`} disabled={saving} autoFocus type="number" inputMode="numeric" min="0" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} className="mt-1 min-h-[52px] w-full rounded-xl border border-input bg-muted px-3 text-xl font-bold text-foreground" />
             <label htmlFor={`${fieldId}-note`} className="mt-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Note (optional)</label>
             <input id={`${fieldId}-note`} disabled={saving} value={note} onChange={(event) => setNote(event.target.value.slice(0, 300))} placeholder="Physical count, old stock cleanup…" className="mt-1 min-h-[48px] w-full rounded-xl border border-input bg-muted px-3 text-base text-foreground" />
-            {error && <p role="alert" className="mt-3 text-sm font-medium text-red-500">{error}</p>}
+            {error && <p role="alert" className="mt-3 text-sm font-medium text-destructive">{error}</p>}
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button type="button" disabled={saving} onClick={() => save()} className="bf-btn bf-btn-primary">{saving ? 'Saving…' : 'Save Count'}</button>
               <button type="button" disabled={saving} onClick={() => setOpen(false)} className="bf-btn bf-btn-secondary">Cancel</button>

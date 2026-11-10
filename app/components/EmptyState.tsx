@@ -28,7 +28,7 @@ export default function EmptyState({
     <div className="rounded-xl border border-dashed border-border bg-card/50 py-12 px-6 text-center">
       <Icon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      {description && <p className="text-xs text-muted-foreground/70 mt-1">{description}</p>}
+      {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
       {actionLabel && actionHref && (
         <Link
           href={actionHref}

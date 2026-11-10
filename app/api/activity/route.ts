@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function GET() {
   try {
@@ -22,6 +23,7 @@ export async function GET() {
         orderBy: {
           createdAt: 'desc',
         },
+        take: 50, // only the newest 50 of each are ever shown
         include: {
           worker: {
             select: {
@@ -58,6 +60,7 @@ export async function GET() {
         orderBy: {
           createdAt: 'desc',
         },
+        take: 50, // only the newest 50 of each are ever shown
         include: {
           worker: {
             select: {
@@ -110,10 +113,12 @@ export async function GET() {
 
     return NextResponse.json({ activities: allActivities })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Get activity error:', error)
     return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
+      { error: 'Something went wrong. Please try again.' },
+      { status: 500 }
     )
   }
 }

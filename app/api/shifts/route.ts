@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
 import { localDateKey, fromDateTimeLocalString } from '@/lib/timezone'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 // GET current shift for logged-in worker
 export async function GET() {
@@ -33,7 +34,10 @@ export async function GET() {
       timezone: worker?.organization?.timezone || 'America/New_York'
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('shifts failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -63,6 +67,8 @@ export async function POST() {
     return NextResponse.json({ shift })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -92,6 +98,8 @@ export async function PATCH() {
     return NextResponse.json({ shift })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

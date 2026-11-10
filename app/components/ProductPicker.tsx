@@ -109,7 +109,7 @@ export default function ProductPicker({ products, value, baseUnit, onChange, dis
                     onMouseEnter={() => setActiveIndex(options.findIndex(option => option.id === product.id))}
                     aria-selected={product.id === value}
                     onClick={() => choose(product)}
-                    className={`flex min-h-[48px] w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left ${options[activeIndex]?.id === product.id ? 'ring-2 ring-inset ring-foreground ' : ''} ${product.id === value ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-foreground hover:bg-muted'}`}
+                    className={`flex min-h-[48px] w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left ${options[activeIndex]?.id === product.id ? 'ring-2 ring-inset ring-foreground ' : ''} ${product.id === value ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'text-foreground hover:bg-muted'}`}
                   >
                     <span className="min-w-0"><span className="block truncate text-sm font-medium">{product.name}</span>{product.unitsPerCase && <span className="block text-[11px] text-muted-foreground">{product.unitsPerCase} {baseUnit.toLowerCase()} per case</span>}</span>
                     {product.id === value && <span aria-hidden="true" className="shrink-0">✓</span>}

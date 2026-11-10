@@ -6,6 +6,7 @@ import { isRecordedStepComplete } from '@/lib/stepRecording'
 import { requireSession, requireOwner, requireSupervisorOrOwner } from '@/lib/auth'
 import { getProducedBaseUnits } from '@/lib/inventory'
 import { convertMaterialQuantity } from '@/lib/materialUnits'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function GET(
   request: NextRequest,
@@ -70,10 +71,12 @@ export async function GET(
 
     return NextResponse.json({ batch: (await summarizeBatchAssignments([batch], session.user.organizationId))[0] })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Get batch error:', error)
     return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
+      { error: 'Something went wrong. Please try again.' },
+      { status: 500 }
     )
   }
 }
@@ -223,6 +226,9 @@ export async function PATCH(
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
     if (priority !== undefined) updateData.priority = priority
+    if (dueDate && !Number.isFinite(new Date(dueDate).getTime())) {
+      return NextResponse.json({ error: 'Invalid due date' }, { status: 400 })
+    }
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null
     if (metrcBatchId !== undefined) updateData.metrcBatchId = metrcBatchId || null
     if (lotNumber !== undefined) updateData.lotNumber = lotNumber || null
@@ -387,6 +393,8 @@ export async function PATCH(
     return NextResponse.json({ batch })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Update batch error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -439,6 +447,8 @@ export async function DELETE(
     return NextResponse.json({ success: true })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     if (error instanceof Error && error.message === 'BATCH_HAS_RECORDED_WORK') {
       return NextResponse.json(
         { error: 'This batch has recorded activity and cannot be deleted. Cancel it to preserve the history.' },

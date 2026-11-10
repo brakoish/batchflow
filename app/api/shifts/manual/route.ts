@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireOwner } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { parseMissedShift } from '@/lib/missedShift'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function POST(request: Request) {
   let session
@@ -24,5 +25,5 @@ export async function POST(request: Request) {
     })
     if (!shift) return NextResponse.json({ error: 'This interval overlaps an existing shift' }, { status: 409 })
     return NextResponse.json({ shift }, { status: 201 })
-  } catch { return NextResponse.json({ error: 'Unable to add shift. Please try again.' }, { status: 500 }) }
+  } catch (error) { return authErrorResponse(error) ?? NextResponse.json({ error: 'Unable to add shift. Please try again.' }, { status: 500 }) }
 }

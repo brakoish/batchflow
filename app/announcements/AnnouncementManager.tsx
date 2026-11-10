@@ -63,7 +63,7 @@ export default function AnnouncementManager({ initialAnnouncement }: { initialAn
     <div aria-busy={saving} className="space-y-5">
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="flex items-start gap-3 mb-4">
-          <div className="rounded-xl bg-amber-400/20 p-2 text-amber-600 dark:text-amber-400">
+          <div className="rounded-xl bg-amber-400/20 p-2 text-amber-700 dark:text-amber-400">
             <MegaphoneIcon className="h-5 w-5" />
           </div>
           <div>
@@ -103,7 +103,7 @@ export default function AnnouncementManager({ initialAnnouncement }: { initialAn
         </label>
 
         {feedback && (
-          <p className={`mt-3 text-sm ${feedback.kind === 'error' ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`} role={feedback.kind === 'error' ? 'alert' : 'status'}>
+          <p className={`mt-3 text-sm ${feedback.kind === 'error' ? 'text-destructive' : 'text-emerald-700 dark:text-emerald-400'}`} role={feedback.kind === 'error' ? 'alert' : 'status'}>
             {feedback.message}
           </p>
         )}

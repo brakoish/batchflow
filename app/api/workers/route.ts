@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 function generatePin(): string {
   return Math.floor(1000 + Math.random() * 9000).toString()
@@ -29,10 +30,12 @@ export async function GET() {
 
     return NextResponse.json({ workers })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Get workers error:', error)
     return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
+      { error: 'Something went wrong. Please try again.' },
+      { status: 500 }
     )
   }
 }
@@ -124,6 +127,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ worker })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Create worker error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

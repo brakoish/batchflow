@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
 import { getRecordedStepTotal, isRecordedStepComplete, parseStepQuantity } from '@/lib/stepRecording'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const SKIPPED_PREFIX = '[Skipped] '
 
@@ -24,6 +25,12 @@ export async function PATCH(
 ) {
   try {
     const session = await requireSession()
+    if (!session.user.workerId) {
+      return NextResponse.json(
+        { error: 'Your sign-in is not linked to a worker profile, so logs cannot be changed. Sign in with your PIN.' },
+        { status: 400 }
+      )
+    }
     return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
     const { quantity, note } = await request.json()
@@ -137,6 +144,8 @@ export async function PATCH(
     return NextResponse.json({ log: updatedLog, step: updatedStep })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Edit log error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -148,6 +157,12 @@ export async function DELETE(
 ) {
   try {
     const session = await requireSession()
+    if (!session.user.workerId) {
+      return NextResponse.json(
+        { error: 'Your sign-in is not linked to a worker profile, so logs cannot be changed. Sign in with your PIN.' },
+        { status: 400 }
+      )
+    }
     return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id } = await params
 
@@ -233,6 +248,8 @@ export async function DELETE(
     return NextResponse.json({ success: true, newTotal })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Delete log error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

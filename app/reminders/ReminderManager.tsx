@@ -110,7 +110,7 @@ export default function ReminderManager({ initialReminders, workers }: { initial
             <option value="15">Every 15 minutes</option><option value="30">Every 30 minutes</option><option value="60">Every hour</option><option value="120">Every 2 hours</option><option value="240">Every 4 hours</option>
           </select></label>
         </div>
-        {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex gap-2">
           <button type="button" onClick={saveReminder} disabled={saving || !message.trim()} className="bf-btn bf-btn-primary min-h-[48px] flex-1">{saving ? 'Saving…' : editing ? 'Save Changes' : 'Create Reminder'}</button>
           {editing && <button type="button" onClick={() => { setEditing(null); setMessage(''); setEmoji('🧼'); setIntervalMinutes('60') }} className="bf-btn bf-btn-secondary">Cancel</button>}
@@ -134,7 +134,7 @@ export default function ReminderManager({ initialReminders, workers }: { initial
               })}
               {workers.length === 0 && <p className="py-2 text-sm text-muted-foreground">Add employees before assigning reminders.</p>}
             </div>
-            <button type="button" onClick={() => setDeleteId(reminder.id)} className="bf-btn bf-btn-ghost bf-btn-sm mt-3 text-red-500">Delete reminder</button>
+            <button type="button" onClick={() => setDeleteId(reminder.id)} className="bf-btn bf-btn-ghost bf-btn-sm mt-3 text-destructive">Delete reminder</button>
           </div>
         ))}
       </section>

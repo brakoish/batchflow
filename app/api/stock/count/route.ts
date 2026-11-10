@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
 import { getProducedBaseUnits, getRemovedQuantity } from '@/lib/inventory'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,6 +78,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ adjustment, onHand: countedQuantity }, { status: 201 })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

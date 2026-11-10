@@ -279,7 +279,7 @@ export default function RetailIdScanner() {
         {state === 'error' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
             <div className="w-full rounded-3xl bg-white p-5 text-center text-slate-950 shadow-2xl">
-              <XCircleIcon className="mx-auto h-10 w-10 text-red-500" />
+              <XCircleIcon className="mx-auto h-10 w-10 text-destructive" />
               <h2 className="mt-3 text-lg font-bold">Couldn’t scan</h2>
               <p className="mt-2 text-sm text-slate-600">{error}</p>
               <button
@@ -297,7 +297,7 @@ export default function RetailIdScanner() {
       <div aria-live="polite" className="mt-3">
         {scanError ? (
           <div className="flex items-start gap-3 rounded-2xl border border-red-500/25 bg-red-500/10 p-4">
-            <XCircleIcon className="mt-0.5 h-6 w-6 shrink-0 text-red-500" />
+            <XCircleIcon className="mt-0.5 h-6 w-6 shrink-0 text-destructive" />
             <div>
               <p className="font-bold">Couldn’t read that QR</p>
               <p className="mt-1 text-sm text-muted-foreground">{scanError}</p>
@@ -308,7 +308,7 @@ export default function RetailIdScanner() {
           </div>
         ) : result ? (
           <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
-            <CheckCircleIcon className="mt-0.5 h-7 w-7 shrink-0 text-emerald-600" />
+            <CheckCircleIcon className="mt-0.5 h-7 w-7 shrink-0 text-emerald-700 dark:text-emerald-400" />
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
                 Scanned — ready for next

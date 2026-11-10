@@ -560,8 +560,8 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
             <span className="text-foreground font-semibold tabular-nums">{shifts.length}</span>
             <span className="text-muted-foreground"> shifts</span>
             <span className="text-muted-foreground"> · Estimated gross pay: </span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{formatMoney(totalPay)}</span>
-            {missingWages > 0 && <span className="text-amber-600 dark:text-amber-400"> · {missingWages} wage{missingWages === 1 ? '' : 's'} not set</span>}
+            <span className="text-emerald-700 dark:text-emerald-400 font-semibold tabular-nums">{formatMoney(totalPay)}</span>
+            {missingWages > 0 && <span className="text-amber-700 dark:text-amber-400"> · {missingWages} wage{missingWages === 1 ? '' : 's'} not set</span>}
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">Uses current hourly wages and completed shifts. Overtime, taxes, and deductions are not included.</p>
         </div>
@@ -731,7 +731,7 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
                           <p className="text-lg font-semibold tabular-nums text-foreground">
                             {formatDuration(worker.totalHours)}
                           </p>
-                          <p className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                          <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                             {worker.estimatedPay === null ? 'Wage not set' : formatMoney(worker.estimatedPay)}
                           </p>
                           {worker.hourlyRate !== null && (
@@ -784,14 +784,14 @@ export default function TimesheetClient({ workers, teams }: { workers: Worker[];
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      <p className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
                         {formatDuration(weeklyTotalHours)}
                       </p>
-                      <p className="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      <p className="text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
                         {formatMoney(weeklyEstimatedPay)} estimated
                       </p>
                       {weeklyMissingWages > 0 && (
-                        <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                        <p className="text-[11px] text-amber-700 dark:text-amber-400">
                           {weeklyMissingWages} wage{weeklyMissingWages === 1 ? '' : 's'} not set
                         </p>
                       )}

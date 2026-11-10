@@ -139,7 +139,7 @@ export default async function StockPage() {
                           <p className="mt-1 text-xs text-muted-foreground">{product.adjusted ? 'Physical count corrected' : `${product.batches.length} batch${product.batches.length === 1 ? '' : 'es'} holding stock`}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{product.onHand.toLocaleString()}</p>
+                          <p className="text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{product.onHand.toLocaleString()}</p>
                           <p className="text-xs text-muted-foreground">{product.baseUnit} on hand</p>
                         </div>
                       </div>

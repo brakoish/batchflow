@@ -399,11 +399,11 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
                             {s.endedAt ? (
                               formatTimeInTz(s.endedAt, timezone)
                             ) : (
-                              <span className="text-emerald-600 dark:text-emerald-400 font-medium">In progress</span>
+                              <span className="text-emerald-700 dark:text-emerald-400 font-medium">In progress</span>
                             )}
                           </p>
                           {s.hasPendingCorrection && (
-                            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">Correction pending review</p>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5 font-medium">Correction pending review</p>
                           )}
                         </div>
                         <p className="text-sm font-semibold text-foreground tabular-nums shrink-0">
@@ -428,7 +428,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
           </div>
         )}
 
-        <p className="mt-6 text-[11px] text-muted-foreground/70 text-center">
+        <p className="mt-6 text-[11px] text-muted-foreground text-center">
           Tap the ✏ icon on any shift to request a time correction.
         </p>
 
@@ -486,7 +486,7 @@ export default function MyTimesheetClient({ session, organizationName }: { sessi
 
               {corrMsg && (
                 <p role="status" className={`text-sm font-medium ${
-                  corrMsg.startsWith('✓') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
+                  corrMsg.startsWith('✓') ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'
                 }`}>{corrMsg}</p>
               )}
 

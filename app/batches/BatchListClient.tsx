@@ -231,7 +231,7 @@ export default function BatchListClient({
                 <Link href="/batches/new" className="bf-btn bf-btn-primary">New Batch</Link>
               </div>
             ) : onShift && (
-              <div className="mt-1 flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+              <div className="mt-1 flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 shrink-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 On shift
               </div>
@@ -280,7 +280,7 @@ export default function BatchListClient({
               aria-pressed={priorityFilter} onClick={() => { haptic('light'); setPriorityFilter(!priorityFilter) }}
               className={`bf-select-btn shrink-0 ${
                 priorityFilter
-                  ? 'bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400'
+                  ? 'bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400'
                   : ''
               }`}
             >
@@ -382,7 +382,7 @@ export default function BatchListClient({
                           : `${step.completedQuantity.toLocaleString()} ${step.unitLabel || ''}`
                     return <div key={step.id}>
                       <div className="flex items-start justify-between gap-3 text-sm">
-                        <span className={`min-w-0 break-words font-semibold ${done ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{displayProductionStepName(step)}</span>
+                        <span className={`min-w-0 break-words font-semibold ${done ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground'}`}>{displayProductionStepName(step)}</span>
                         <span className="shrink-0 tabular-nums text-muted-foreground">{value}</span>
                       </div>
                     </div>
@@ -417,18 +417,18 @@ export default function BatchListClient({
                           {(priority === 'URGENT' || priority === 'HIGH') && (
                             <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
                               priority === 'URGENT'
-                                ? 'bg-red-500/10 text-red-500 dark:text-red-400'
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                ? 'bg-red-500/10 text-red-700 dark:text-red-400'
+                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
                             }`}>
                               {priority}
                             </span>
                           )}
                         </div>
                         <p className="mt-1 break-words text-sm text-muted-foreground">{heading.subtitle}</p>
-                        <p className={`mt-1 truncate text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</p>
+                        <p className={`mt-1 truncate text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-700 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</p>
                       </div>
                       {dueLabel && (
-                        <span className={`shrink-0 text-xs font-semibold ${dueLabel.includes('overdue') ? 'text-red-500' : 'text-muted-foreground'}`}>
+                        <span className={`shrink-0 text-xs font-semibold ${dueLabel.includes('overdue') ? 'text-destructive' : 'text-muted-foreground'}`}>
                           {dueLabel}
                         </span>
                       )}
@@ -437,7 +437,7 @@ export default function BatchListClient({
                     {stepOverview}
 
                     <div className="mt-3 flex min-h-[44px] items-center justify-between border-t border-border/60 pt-3">
-                      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Open Batch</span>
+                      <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Open Batch</span>
                       <ChevronRightIcon className="h-5 w-5 text-muted-foreground" />
                     </div>
                   </Link>
@@ -466,9 +466,9 @@ export default function BatchListClient({
                         const isSoon = batch.status === 'ACTIVE' && daysLeft >= 0 && daysLeft <= 2
                         return (
                           <p className={`text-xs font-medium ${
-                            isOverdue ? 'text-red-500 dark:text-red-400' :
-                            isSoon ? 'text-amber-500 dark:text-amber-400' :
-                            'text-muted-foreground/60'
+                            isOverdue ? 'text-red-700 dark:text-red-400' :
+                            isSoon ? 'text-amber-700 dark:text-amber-400' :
+                            'text-muted-foreground'
                           }`}>
                             {isOverdue ? `⚠️ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${Math.abs(daysLeft)}d overdue)` :
                              isSoon ? `⏰ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `${daysLeft}d`})` :
@@ -483,8 +483,8 @@ export default function BatchListClient({
                   </div>
 
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    {priority !== 'NORMAL' && <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${priority === 'URGENT' ? 'bg-red-500/10 text-red-500' : priority === 'HIGH' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground'}`}>{priority}</span>}
-                    <span className={`text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</span>
+                    {priority !== 'NORMAL' && <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${priority === 'URGENT' ? 'bg-red-500/10 text-destructive' : priority === 'HIGH' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>{priority}</span>}
+                    <span className={`text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-700 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</span>
                   </div>
 
                   {/* Inline notes preview (mobile-friendly — no hover needed) */}

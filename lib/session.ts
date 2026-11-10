@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth/next'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from './authOptions'
+import { decodeWorkerCookie, WORKER_COOKIE } from './workerCookie'
 
 export type Session = {
   id: string
@@ -36,7 +37,7 @@ export async function getSession() {
   
   // Fall back to workerId cookie (PIN users)
   const cookieStore = await cookies()
-  const workerId = cookieStore.get('workerId')?.value
+  const workerId = decodeWorkerCookie(cookieStore.get(WORKER_COOKIE)?.value)
   
   if (!workerId) {
     return null

@@ -2,19 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth'
 import { formatDateInTz, formatTimeInTz, fromDateTimeLocalString } from '@/lib/timezone'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export const dynamic = 'force-dynamic'
 
 function formatDuration(hours: number): string {
   if (hours <= 0) return '0m'
-  const h = Math.floor(hours)
-  const m = Math.round((hours - h) * 60)
+  // Round total minutes first so 7.9997h reads "8h 0m", never "7h 60m".
+  const totalMinutes = Math.round(hours * 60)
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
   if (h === 0) return `${m}m`
   return `${h}h ${m}m`
 }
 
 function csvEscape(value: string | number): string {
-  return '"' + String(value).replace(/"/g, '""') + '"'
+  // Text that starts like a formula (= + - @) is prefixed with ' so a
+  // spreadsheet shows it as text instead of running it.
+  const text = typeof value === 'string' && /^[=+\-@\t\r]/.test(value) ? `'${value}` : String(value)
+  return '"' + text.replace(/"/g, '""') + '"'
 }
 
 function xmlEscape(value: string | number): string {
@@ -342,6 +348,8 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Timesheet export error:', error)
     if (error instanceof Error && error.message.includes('Owner access required')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

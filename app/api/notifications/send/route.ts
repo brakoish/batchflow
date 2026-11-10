@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import webpush from 'web-push';
 import { requireSession } from '@/lib/auth';
+import { authErrorResponse } from '@/lib/apiErrors'
 
 // Force dynamic so Next.js doesn't evaluate VAPID config at build time.
 export const dynamic = 'force-dynamic';
@@ -93,6 +94,8 @@ export async function POST(request: NextRequest) {
       failed: failureCount,
     });
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Error sending notifications:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

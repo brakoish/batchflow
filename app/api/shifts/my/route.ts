@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
 import { fromDateTimeLocalString } from '@/lib/timezone'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 // Worker-safe timesheet feed. Scoped to the current session's worker id,
 // so PIN-authenticated workers can see their own shifts without needing
@@ -67,6 +68,9 @@ export async function GET(request: Request) {
       timezone: organization?.timezone || 'America/New_York',
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('shifts/my failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

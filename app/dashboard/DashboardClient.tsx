@@ -59,8 +59,8 @@ function activityBadge(type: ActivityLog['type'], workerName: string) {
 }
 
 function activityTone(type: ActivityLog['type']) {
-  if (type === 'log') return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-  if (type === 'delete' || type === 'step_skip') return 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+  if (type === 'log') return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+  if (type === 'delete' || type === 'step_skip') return 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
   if (type === 'step_add' || type === 'step_restore') return 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
   return 'bg-muted text-muted-foreground'
 }
@@ -91,7 +91,7 @@ function priorityRank(priority: BatchPriority = 'NORMAL') {
 function PriorityBadge({ priority }: { priority?: BatchPriority }) {
   if (priority === 'URGENT') {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-500 dark:text-red-400">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-400">
         <FlagIcon className="h-3 w-3" />
         URGENT
       </span>
@@ -99,7 +99,7 @@ function PriorityBadge({ priority }: { priority?: BatchPriority }) {
   }
   if (priority === 'HIGH') {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
         <FlagIcon className="h-3 w-3" />
         HIGH
       </span>
@@ -377,7 +377,7 @@ export default function DashboardClient({
                           <PriorityBadge priority={batch.priority} />
                         </div>
                         <p className={`text-xs font-medium truncate ${
-                          ready ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                          ready ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'
                         }`}>
                           {activeStations[0]
                             ? getStationSummary(activeStations[0])
@@ -386,7 +386,7 @@ export default function DashboardClient({
                       </div>
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                         ready
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                           : 'bg-muted text-muted-foreground'
                       }`}>
                         {ready ? 'Ready' : 'Waiting'}
@@ -580,13 +580,13 @@ export default function DashboardClient({
                           {batch.notes && batch.notes.trim() && (
                             <span
                               aria-label="Has notes"
-                              className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium shrink-0"
+                              className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium shrink-0"
                             >
                               📝
                             </span>
                           )}
                           {batch.dueDate && batch.status === 'ACTIVE' && new Date(batch.dueDate) < new Date() && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 font-semibold shrink-0">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 font-semibold shrink-0">
                               OVERDUE
                             </span>
                           )}
@@ -606,9 +606,9 @@ export default function DashboardClient({
                           const isSoon = batch.status === 'ACTIVE' && daysLeft >= 0 && daysLeft <= 2
                           return (
                             <p className={`text-[10px] font-medium ${
-                              isOverdue ? 'text-red-500 dark:text-red-400' :
-                              isSoon ? 'text-amber-500 dark:text-amber-400' :
-                              'text-muted-foreground/60'
+                              isOverdue ? 'text-red-700 dark:text-red-400' :
+                              isSoon ? 'text-amber-700 dark:text-amber-400' :
+                              'text-muted-foreground'
                             }`}>
                               {isOverdue ? `⚠️ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${Math.abs(daysLeft)}d overdue)` :
                                isSoon ? `⏰ Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `${daysLeft}d`})` :
@@ -622,7 +622,7 @@ export default function DashboardClient({
                           </div>
                         )}
                         {lastMovement && (
-                          <div className="mt-2 inline-flex max-w-full items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          <div className="mt-2 inline-flex max-w-full items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
                             <span className="truncate">
                               Recorded: {lastMovement.worker.name.split(' ')[0]} +{lastMovement.quantity} · {formatShortRelativeTime(lastMovement.createdAt)}
                             </span>
@@ -632,7 +632,7 @@ export default function DashboardClient({
                       <div className="flex items-start gap-2 ml-4 shrink-0">
                         <div className="text-right">
                           <span className="text-lg font-bold tabular-nums text-foreground">{batch.targetQuantity ?? <span className="text-sm text-blue-500 font-semibold">Open</span>}</span>
-                          <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">target</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">target</p>
                         </div>
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/batches/${batch.id}/manage`) }}
@@ -700,13 +700,13 @@ export default function DashboardClient({
                               )}
                             </div>
                             <span className={`text-sm w-28 truncate shrink-0 ${
-                              isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground/80'
+                              isCompleted ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground/80'
                             }`}>
                               {step.name}
                             </span>
                             <div className="flex-1">
                               {isCheck || isEntry ? (
-                                <span className={`text-xs ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                                <span className={`text-xs ${isCompleted ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                                   {isEntry ? (isCompleted ? 'Recorded' : `Enter ${step.unitLabel}`) : isCompleted ? 'Done' : 'Pending'}
                                 </span>
                               ) : (
@@ -722,7 +722,7 @@ export default function DashboardClient({
                             </div>
                             {!isCheck && !isEntry && (
                               <span className={`text-xs tabular-nums shrink-0 ${
-                                isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                                isCompleted ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'
                               }`}>
                                 {step.completedQuantity}{step.targetQuantity ? `/${step.targetQuantity}` : ' produced'}
                               </span>
@@ -754,7 +754,7 @@ export default function DashboardClient({
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Activity</h2>
             <div className="rounded-xl border border-border bg-card divide-y divide-border/50">
               {activity.length === 0 ? (
-                <p className="text-xs text-muted-foreground/60 text-center py-8">No activity yet</p>
+                <p className="text-xs text-muted-foreground text-center py-8">No activity yet</p>
               ) : (
                 activity.slice(0, 20).map((item) => {
                   const isLog = item.type === 'log'
@@ -776,13 +776,13 @@ export default function DashboardClient({
                             {isLog && (
                               <>
                                 {' '}logged{' '}
-                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">+{item.quantity}</span>
+                                <span className="text-emerald-700 dark:text-emerald-400 font-semibold tabular-nums">+{item.quantity}</span>
                               </>
                             )}
                             {isEdit && (
                               <>
                                 {' '}edited {stepName}:{' '}
-                                <span className="text-muted-foreground/70 tabular-nums">{item.oldQuantity}</span>
+                                <span className="text-muted-foreground tabular-nums">{item.oldQuantity}</span>
                                 {' → '}
                                 <span className="text-blue-600 dark:text-blue-400 font-semibold tabular-nums">{item.newQuantity}</span>
                               </>
@@ -790,7 +790,7 @@ export default function DashboardClient({
                             {isDelete && (
                               <>
                                 {' '}deleted{' '}
-                                <span className="text-red-500 dark:text-red-400 font-semibold tabular-nums">+{item.oldQuantity}</span>
+                                <span className="text-red-700 dark:text-red-400 font-semibold tabular-nums">+{item.oldQuantity}</span>
                                 {' '}from {stepName}
                               </>
                             )}
@@ -805,7 +805,7 @@ export default function DashboardClient({
                                 {' '}edited step <span className="font-semibold text-blue-600 dark:text-blue-400">{stepName}</span>
                                 {item.oldQuantity !== item.newQuantity ? (
                                   <>
-                                    {' '}target <span className="text-muted-foreground/70 tabular-nums">{item.oldQuantity || 'open'}</span>
+                                    {' '}target <span className="text-muted-foreground tabular-nums">{item.oldQuantity || 'open'}</span>
                                     {' → '}
                                     <span className="text-blue-600 dark:text-blue-400 font-semibold tabular-nums">{item.newQuantity || 'open'}</span>
                                   </>
@@ -814,7 +814,7 @@ export default function DashboardClient({
                             )}
                             {item.type === 'step_skip' && (
                               <>
-                                {' '}skipped step <span className="font-semibold text-amber-600 dark:text-amber-400">{stepName}</span>
+                                {' '}skipped step <span className="font-semibold text-amber-700 dark:text-amber-400">{stepName}</span>
                               </>
                             )}
                             {item.type === 'step_restore' && (
@@ -828,7 +828,7 @@ export default function DashboardClient({
                               </>
                             )}
                           </p>
-                          <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
+                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
                             {item.batchStep.batch.name} · {timeAgo(item.createdAt)}
                           </p>
                         </div>
@@ -849,7 +849,7 @@ export default function DashboardClient({
                     <div key={w.id} className="px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${w.onShift ? 'bg-emerald-500/10' : 'bg-muted'}`}>
-                          <span className={`text-[10px] font-bold ${w.onShift ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>{w.name.charAt(0)}</span>
+                          <span className={`text-[10px] font-bold ${w.onShift ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>{w.name.charAt(0)}</span>
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
@@ -857,15 +857,15 @@ export default function DashboardClient({
                             {w.onShift && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                           </div>
                           {w.batches.length > 0 && (
-                            <p className="text-[10px] text-muted-foreground/60 truncate max-w-[150px]">{w.batches.join(', ')}</p>
+                            <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{w.batches.join(', ')}</p>
                           )}
                         </div>
                       </div>
                       <div className="text-right">
                         {w.todayLogs > 0 ? (
                           <>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{w.todayUnits} units</p>
-                            <p className="text-[10px] text-muted-foreground/60 tabular-nums">{w.todayLogs} logs · {w.lastActivity ? timeAgo(w.lastActivity) : 'no activity'}</p>
+                            <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold tabular-nums">{w.todayUnits} units</p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">{w.todayLogs} logs · {w.lastActivity ? timeAgo(w.lastActivity) : 'no activity'}</p>
                           </>
                         ) : (
                           <p className="text-[10px] text-muted-foreground/40">No activity</p>

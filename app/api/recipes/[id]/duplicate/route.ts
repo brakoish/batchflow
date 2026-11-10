@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const BATCH_OVERRIDE_RECIPE_NAME = '__batchflow_batch_overrides'
 
@@ -104,6 +105,8 @@ export async function POST(
 
     return NextResponse.json({ recipe: duplicate }, { status: 201 })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Duplicate recipe error:', error)
     return NextResponse.json({ error: 'Failed to duplicate recipe' }, { status: 500 })
   }

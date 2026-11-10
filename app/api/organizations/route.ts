@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 function slugify(text: string): string {
   return text
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ organization })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Create organization error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -82,6 +85,8 @@ export async function GET() {
 
     return NextResponse.json({ organization })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Get organization error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

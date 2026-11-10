@@ -1,76 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
+import { checkRateLimit, clearAttempts, loginRateLimitKey, recordFailedAttempt } from '@/lib/loginRateLimit'
+import { encodeWorkerCookie, WORKER_COOKIE, workerCookieOptions } from '@/lib/workerCookie'
 
+// Invite-link sign-in. Works exactly like the organization PIN sign-in:
+// the PIN is checked only inside this organization, guesses are rate limited,
+// and the session is the same signed cookie.
 export async function POST(request: NextRequest) {
   try {
     const { slug, pin } = await request.json()
 
-    if (!slug || !pin || pin.length !== 4) {
+    if (typeof slug !== 'string' || !slug || typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
-    // Find organization
+    const rateLimitKey = loginRateLimitKey(request, slug)
+    const { allowed, retryAfter } = checkRateLimit(rateLimitKey)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Too many failed attempts. Try again in ${retryAfter} seconds.` },
+        { status: 429 }
+      )
+    }
+
     const organization = await prisma.organization.findUnique({
       where: { slug },
+      select: { id: true },
     })
 
     if (!organization) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    // Find worker by PIN
-    const worker = await prisma.worker.findUnique({
-      where: { pin },
-      select: {
-        id: true,
-        name: true,
-        role: true,
-        organizationId: true,
-      },
+    const worker = await prisma.worker.findFirst({
+      where: { pin, organizationId: organization.id },
+      select: { id: true, name: true, role: true },
     })
 
     if (!worker) {
+      recordFailedAttempt(rateLimitKey)
       return NextResponse.json({ error: 'Invalid PIN' }, { status: 401 })
     }
 
-    // Check if worker belongs to this organization
-    if (worker.organizationId !== organization.id) {
-      return NextResponse.json(
-        { error: 'This PIN belongs to a worker in a different organization' },
-        { status: 403 }
-      )
-    }
+    clearAttempts(rateLimitKey)
 
-    // Create or get User linked to this worker
-    let user = await prisma.user.findUnique({
-      where: { workerId: worker.id },
-    })
-
-    if (!user) {
-      // Create user with workerPin for authentication
-      user = await prisma.user.create({
-        data: {
-          name: worker.name,
-          role: worker.role,
-          organizationId: worker.organizationId,
-          workerId: worker.id,
-          workerPin: pin,
-        },
-      })
-    }
-
-    // Create a session for this user
-    const sessionToken = `pin-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`
-    await prisma.session.create({
-      data: {
-        sessionToken,
-        userId: user.id,
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-    })
+    const cookieStore = await cookies()
+    cookieStore.set(WORKER_COOKIE, encodeWorkerCookie(worker.id), workerCookieOptions())
 
     return NextResponse.json({
-      sessionToken,
       worker: {
         id: worker.id,
         name: worker.name,

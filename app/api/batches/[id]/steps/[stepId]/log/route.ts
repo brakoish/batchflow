@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
 import { getRecordedStepTotal, isRecordedStepComplete, parseStepQuantity } from '@/lib/stepRecording'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const SKIPPED_PREFIX = '[Skipped] '
 
@@ -32,6 +33,12 @@ export async function POST(
 ) {
   try {
     const session = await requireSession()
+    if (!session.user.workerId) {
+      return NextResponse.json(
+        { error: 'Your sign-in is not linked to a worker profile, so progress cannot be recorded. Sign in with your PIN.' },
+        { status: 400 }
+      )
+    }
     return await withOperationalLock(session.user.organizationId, async (prisma) => {
     const { id: batchId, stepId } = await params
     const body = await request.json()
@@ -187,6 +194,8 @@ export async function POST(
     })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Log progress error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

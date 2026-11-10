@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireSupervisorOrOwner } from '@/lib/auth'
 import { convertMaterialQuantity, MATERIAL_WEIGHT_UNITS } from '@/lib/materialUnits'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 export async function GET() {
   try {
@@ -36,7 +37,10 @@ export async function GET() {
 
     return NextResponse.json({ batches: await summarizeBatchAssignments(batches, session.user.organizationId) })
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authError = authErrorResponse(error)
+    if (authError) return authError
+    console.error('batches failed:', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -70,6 +74,16 @@ export async function POST(request: NextRequest) {
 
     if (!recipeId || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (targetQuantity != null && (!Number.isInteger(targetQuantity) || targetQuantity <= 0)) {
+      return NextResponse.json({ error: 'Target quantity must be a whole number greater than 0' }, { status: 400 })
+    }
+    if (dueDate && !Number.isFinite(new Date(dueDate).getTime())) {
+      return NextResponse.json({ error: 'Invalid due date' }, { status: 400 })
+    }
+    if (startDate && !Number.isFinite(new Date(startDate).getTime())) {
+      return NextResponse.json({ error: 'Invalid start date' }, { status: 400 })
     }
 
     // Validate priority if provided
@@ -284,6 +298,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ batch })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Create batch error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

@@ -2,6 +2,7 @@ import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupervisorOrOwner } from '@/lib/auth'
+import { authErrorResponse } from '@/lib/apiErrors'
 
 const SKIPPED_PREFIX = '[Skipped] '
 
@@ -227,6 +228,8 @@ export async function PATCH(
     return NextResponse.json({ step: updatedStep })
     })
   } catch (error) {
+    const authError = authErrorResponse(error)
+    if (authError) return authError
     console.error('Update batch step error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

@@ -1177,7 +1177,7 @@ export default function BatchDetailClient({
               const priority = batch.priority || 'NORMAL'
               if (priority === 'URGENT') {
                 return (
-                  <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20">
+                  <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20">
                     <FlagIcon className="w-3 h-3" />
                     Urgent
                   </span>
@@ -1185,7 +1185,7 @@ export default function BatchDetailClient({
               }
               if (priority === 'HIGH') {
                 return (
-                  <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                     <FlagIcon className="w-3 h-3" />
                     High
                   </span>
@@ -1218,7 +1218,7 @@ export default function BatchDetailClient({
               return (
                 <>
                   <span className="text-muted-foreground/30">·</span>
-                  <span className={`text-xs font-medium ${isOverdue ? 'text-red-500 dark:text-red-400' : 'text-foreground'}`}>
+                  <span className={`text-xs font-medium ${isOverdue ? 'text-red-700 dark:text-red-400' : 'text-foreground'}`}>
                     {isOverdue ? '⚠️ OVERDUE' : `Due: ${new Date(batch.dueDate).toLocaleDateString()}`}
                   </span>
                 </>
@@ -1226,13 +1226,13 @@ export default function BatchDetailClient({
             })()}
             <span className="text-muted-foreground/30">·</span>
             {isOpenEnded ? (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{stepsCompleted}/{totalSteps} steps</span>
+              <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">{stepsCompleted}/{totalSteps} steps</span>
             ) : (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{productionResult?.pct ?? overallPct}%</span>
+              <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">{productionResult?.pct ?? overallPct}%</span>
             )}
             {batch.status !== 'ACTIVE' && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                batch.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/20'
+                batch.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
               }`}>
                 {batch.status}
               </span>
@@ -1283,7 +1283,7 @@ export default function BatchDetailClient({
                     <span className="text-sm font-semibold text-foreground truncate">{displayStepName(station.step as BatchStep)}</span>
                     <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-semibold tabular-nums ${
                       station.step.type === 'COUNT' || station.step.type === 'ENTRY'
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                         : 'bg-muted text-muted-foreground'
                     }`}>
                       {station.step.type === 'ENTRY'
@@ -1367,13 +1367,13 @@ export default function BatchDetailClient({
                 <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-xs uppercase text-muted-foreground">Issued</p><p className="font-bold tabular-nums">{formatMaterialQuantity(materialResult.issued + materialResult.additions)} {batch.materialUnit}</p></div>
                 <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-xs uppercase text-muted-foreground">Expected used</p><p className="font-bold tabular-nums">{materialResult.expectedUsed == null ? '—' : formatMaterialQuantity(materialResult.expectedUsed)} {batch.materialUnit}</p></div>
                 <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-xs uppercase text-muted-foreground">Returned + waste</p><p className="font-bold tabular-nums">{formatMaterialQuantity(materialResult.returned + materialResult.waste)} {batch.materialUnit}</p></div>
-                <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-xs uppercase text-muted-foreground">Unexplained</p><p className={`font-bold tabular-nums ${materialResult.unexplained != null && materialResult.unexplained > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{materialResult.unexplained == null ? '—' : formatMaterialQuantity(materialResult.unexplained)} {batch.materialUnit}</p></div>
+                <div className="rounded-lg bg-card/70 px-3 py-2"><p className="text-xs uppercase text-muted-foreground">Unexplained</p><p className={`font-bold tabular-nums ${materialResult.unexplained != null && materialResult.unexplained > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{materialResult.unexplained == null ? '—' : formatMaterialQuantity(materialResult.unexplained)} {batch.materialUnit}</p></div>
               </div>
               {!batch.materialReconciledAt && (
                 <button type="button" onClick={() => { setMaterialModal('reconcile'); setMaterialReturned(''); setMaterialWaste(''); setMaterialNote(''); setError('') }} className="bf-btn bf-btn-primary mt-3 w-full">Reconcile material</button>
               )}
               {batch.materialReconciledAt && materialResult.variancePct != null && (
-                <p className={`mt-2 text-xs font-medium ${Math.abs(materialResult.variancePct) > 2 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatMaterialQuantity(materialResult.variancePct)}% unexplained variance</p>
+                <p className={`mt-2 text-xs font-medium ${Math.abs(materialResult.variancePct) > 2 ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{formatMaterialQuantity(materialResult.variancePct)}% unexplained variance</p>
               )}
             </div>
           )}
@@ -1447,7 +1447,7 @@ export default function BatchDetailClient({
           {/* Batch notes */}
           {batch.notes && (
             <div className="mt-3 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">Batch Notes</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">Batch Notes</p>
               <p className="text-sm text-foreground whitespace-pre-wrap break-words">{batch.notes}</p>
             </div>
           )}
@@ -1608,9 +1608,9 @@ export default function BatchDetailClient({
                         : 'bg-blue-500/15'
                     }`}>
                       {isSkipped ? (
-                        <XMarkIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <XMarkIcon className="w-4 h-4 text-amber-700 dark:text-amber-400" />
                       ) : isCompleted ? (
-                        <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <CheckCircleIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                       ) : (
                         <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{step.order}</span>
                       )}
@@ -1618,23 +1618,23 @@ export default function BatchDetailClient({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <p className={`text-sm font-medium truncate ${
-                          isSkipped ? 'text-amber-600 dark:text-amber-400' : isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground'
+                          isSkipped ? 'text-amber-700 dark:text-amber-400' : isCompleted ? 'text-emerald-700 dark:text-emerald-300' : 'text-foreground'
                         }`}>
                           {displayStepName(step)}
                         </p>
                         {isSkipped && (
-                          <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                          <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
                             Skipped
                           </span>
                         )}
                         {isCurrent && (
-                          <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                          <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
                             Active
                           </span>
                         )}
                       </div>
                       {step.recipeStep?.notes && (
-                        <p className={`mt-1 break-words ${isCurrent ? 'text-xs text-foreground/80' : 'text-xs text-muted-foreground/70'}`}>{step.recipeStep.notes}</p>
+                        <p className={`mt-1 break-words ${isCurrent ? 'text-xs text-foreground/80' : 'text-xs text-muted-foreground'}`}>{step.recipeStep.notes}</p>
                       )}
                       {step.type === 'COUNT' && (
                         <p className="text-xs text-foreground tabular-nums mt-0.5">
@@ -1645,7 +1645,7 @@ export default function BatchDetailClient({
                         <p className="text-xs text-foreground tabular-nums mt-0.5">Recorded {step.progressLogs[0].quantity.toLocaleString()} {step.unitLabel}{formatWeightConversion(step.progressLogs[0].quantity, step.unitLabel) ? ` · ${formatWeightConversion(step.progressLogs[0].quantity, step.unitLabel)}` : ''}</p>
                       )}
                       {!isSkipped && stationState?.latestLog && (
-                        <p className="text-xs text-muted-foreground/70 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           Last: {stationState.latestLog.worker.name} +{stationState.latestLog.quantity} · {formatShortRelativeTime(stationState.latestLog.createdAt)}
                         </p>
                       )}
@@ -1786,8 +1786,8 @@ export default function BatchDetailClient({
                                     className={`flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 py-1 text-left transition-all ${canEdit ? 'text-foreground hover:bg-muted active:scale-[0.98]' : 'cursor-default text-muted-foreground'}`}
                                   >
                                     <span className="text-muted-foreground font-medium">{log.worker.name}</span>
-                                    <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
-                                    {log.note && <span className="text-muted-foreground/70 truncate max-w-[120px]">{log.note}</span>}
+                                    <span className="text-emerald-700 dark:text-emerald-400 tabular-nums">+{log.quantity}</span>
+                                    {log.note && <span className="text-muted-foreground truncate max-w-[120px]">{log.note}</span>}
                                     <span className="text-muted-foreground/30">{formatLogTimestamp(log.createdAt)}</span>
                                     {log.editedAt && <span className="text-muted-foreground italic">(edited)</span>}
                                   </button>
@@ -1848,7 +1848,7 @@ export default function BatchDetailClient({
               className="space-y-3 max-h-[300px] overflow-y-auto mb-4"
             >
               {messages.length === 0 ? (
-                <p className="text-xs text-muted-foreground/70 text-center py-4">No messages yet</p>
+                <p className="text-xs text-muted-foreground text-center py-4">No messages yet</p>
               ) : (
                 messages.map((msg) => {
                   const isCurrentUser = msg.worker.id === (session.workerId || session.id)
@@ -1921,7 +1921,7 @@ export default function BatchDetailClient({
           <div className="max-w-2xl mx-auto rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl p-3 pointer-events-auto">
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Active Station</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Active Station</p>
                 <p className="text-sm font-semibold text-foreground truncate">{displayStepName(primaryStation)}</p>
                 {(primaryStation.type === 'COUNT' || primaryStation.type === 'ENTRY') && (
                   <p className="text-xs text-muted-foreground tabular-nums">
@@ -1968,7 +1968,7 @@ export default function BatchDetailClient({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
             role="dialog" aria-modal="true" aria-label="Batch settings"
-            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2052,7 +2052,7 @@ export default function BatchDetailClient({
               )}
               {newStepType === 'ENTRY' && <MeasurementUnitPicker className="mt-4" value={newStepUnit} onChange={setNewStepUnit} />}
 
-              {error && <p role="alert" className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
+              {error && <p role="alert" className="text-red-700 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
 
               <button
                 onClick={handleAddStep}
@@ -2071,7 +2071,7 @@ export default function BatchDetailClient({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
             role="dialog" aria-modal="true" aria-label="Batch settings"
-            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2169,7 +2169,7 @@ export default function BatchDetailClient({
                 </div>
               )}
 
-              {error && <p role="alert" className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
+              {error && <p role="alert" className="text-red-700 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
 
               <button
                 onClick={handleSaveStepEdit}
@@ -2188,7 +2188,7 @@ export default function BatchDetailClient({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
             ref={recordingDialogRef} role="dialog" aria-modal="true" aria-label={translateUi('Log Progress', session.preferredLanguage)}
-            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2319,7 +2319,7 @@ export default function BatchDetailClient({
                 )
               })()}
 
-              {error && <p role="alert" className="text-red-500 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
+              {error && <p role="alert" className="text-red-700 dark:text-red-400 text-xs mt-3 text-center">{error}</p>}
 
               {/* Submit */}
               <button
@@ -2345,7 +2345,7 @@ export default function BatchDetailClient({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
             ref={editLogDialogRef} role="dialog" aria-modal="true" aria-label="Edit log entry" aria-busy={loading}
-            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2389,7 +2389,7 @@ export default function BatchDetailClient({
                   />
                 </div>
 
-                {error && <p role="alert" className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
+                {error && <p role="alert" className="text-red-700 dark:text-red-400 text-xs text-center">{error}</p>}
 
                 <button
                   onClick={handleSaveEdit}
@@ -2429,7 +2429,7 @@ export default function BatchDetailClient({
                 </>
               )}
               <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wider">Note (optional)</label><input value={materialNote} onChange={event => setMaterialNote(event.target.value)} maxLength={500} className="w-full rounded-xl border border-input bg-muted/50 px-3 py-2.5" placeholder="Package tag, spill reason, etc." /></div>
-              {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
+              {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
               <button type="button" onClick={saveMaterial} disabled={savingMaterial} className="bf-btn bf-btn-success w-full">{savingMaterial ? 'Saving…' : materialModal === 'addition' ? 'Record additional material' : 'Close material balance'}</button>
             </div>
           </div>
@@ -2441,7 +2441,7 @@ export default function BatchDetailClient({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
             ref={removalDialogRef} role="dialog" aria-modal="true" aria-label="Remove quantity" aria-busy={savingRemoval}
-            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2521,7 +2521,7 @@ export default function BatchDetailClient({
                   />
                 </div>
 
-                {error && <p role="alert" className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
+                {error && <p role="alert" className="text-red-700 dark:text-red-400 text-xs text-center">{error}</p>}
 
                 <button
                   onClick={handleSaveRemoval}
@@ -2550,7 +2550,7 @@ export default function BatchDetailClient({
               <label className="col-span-2 text-xs font-semibold text-muted-foreground">Missing labels<input disabled={loading} type="number" inputMode="numeric" min="0" step="1" value={finishMissingLabels} onChange={event => setFinishMissingLabels(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-xl border border-input bg-background px-3 text-base text-foreground" /></label>
               <label className="col-span-2 text-xs font-semibold text-muted-foreground">Issues / notes<textarea disabled={loading} value={finishIssues} onChange={event => setFinishIssues(event.target.value.slice(0, 2000))} placeholder="Leave blank if there were no issues" className="mt-1 min-h-[88px] w-full rounded-xl border border-input bg-background p-3 text-base text-foreground" /></label>
             </div>
-            {error && <p role="alert" className="mt-3 text-center text-xs text-red-500">{error}</p>}
+            {error && <p role="alert" className="mt-3 text-center text-xs text-destructive">{error}</p>}
             <button type="button" disabled={loading || Number(finishShake) < 0 || Number(finishWaste) < 0 || !Number.isInteger(Number(finishMissingLabels)) || Number(finishMissingLabels) < 0} onClick={() => performStatusChange('COMPLETED', { shakeGrams: Number(finishShake || 0), wasteGrams: Number(finishWaste || 0), missingLabels: Number(finishMissingLabels || 0), issues: finishIssues })} className="bf-btn bf-btn-success bf-btn-lg mt-4 w-full">Finish & create report</button>
           </div>
         </div>
@@ -2561,7 +2561,7 @@ export default function BatchDetailClient({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
           <div
             role="dialog" aria-modal="true" aria-label="Batch settings"
-            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border border rounded-t-2xl sm:rounded-2xl safe-bottom"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card border rounded-t-2xl sm:rounded-2xl safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -2666,7 +2666,7 @@ export default function BatchDetailClient({
                       onClick={() => { haptic('light'); setDuplicatePriority('HIGH') }}
                       className={`bf-select-btn bf-btn-sm px-2 ${
                         duplicatePriority === 'HIGH'
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-2 border-amber-500'
+                          ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-2 border-amber-500'
                           : ''
                       }`}
                     >
@@ -2677,7 +2677,7 @@ export default function BatchDetailClient({
                       onClick={() => { haptic('light'); setDuplicatePriority('URGENT') }}
                       className={`bf-select-btn bf-btn-sm px-2 ${
                         duplicatePriority === 'URGENT'
-                          ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-2 border-red-500'
+                          ? 'bg-red-500/10 text-red-700 dark:text-red-400 border-2 border-red-500'
                           : ''
                       }`}
                     >
@@ -2701,7 +2701,7 @@ export default function BatchDetailClient({
                   This copies the current step order, skipped steps, custom names, units, and worker assignments. Progress logs start at zero.
                 </div>
 
-                {error && <p role="alert" className="text-red-500 dark:text-red-400 text-xs text-center">{error}</p>}
+                {error && <p role="alert" className="text-red-700 dark:text-red-400 text-xs text-center">{error}</p>}
 
                 <button
                   onClick={handleDuplicateBatch}

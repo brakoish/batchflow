@@ -406,7 +406,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                   {calculatedTarget > 0 ? calculatedTarget.toLocaleString() : '0'} {selected.baseUnit}
                 </p>
                 {targetMode !== 'base' && targetInputNumber > 0 && calculatedTarget <= 0 && (
-                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
                     Amount is less than one finished {selected.baseUnit}.
                   </p>
                 )}
@@ -534,7 +534,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                           isSelected
                             ? 'bg-emerald-600 text-white'
                             : isToday
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
+                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold'
                             : isPast
                             ? 'text-muted-foreground cursor-default'
                             : 'text-foreground hover:bg-muted'
@@ -552,7 +552,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
               {/* Selected date display */}
               {selectedDueDate && (
                 <div className="mt-3 pt-3 border-t border-border flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-4 h-4 text-emerald-700 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span className="text-sm font-medium text-foreground">
@@ -570,7 +570,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assign team</label>
                 <button
                   onClick={() => { haptic('light'); setSelectedWorkers(selectedWorkers.length === workers.length ? [] : workers.map(w => w.id)) }}
-                  className="text-xs text-emerald-600 dark:text-emerald-400 font-medium"
+                  className="text-xs text-emerald-700 dark:text-emerald-400 font-medium"
                 >
                   {selectedWorkers.length === workers.length ? 'Clear' : 'All'}
                 </button>
@@ -659,7 +659,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           {/* Error */}
           {error && (
             <div role="alert" className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
-              <p className="text-red-500 dark:text-red-400 text-sm text-center">{error}</p>
+              <p className="text-red-700 dark:text-red-400 text-sm text-center">{error}</p>
             </div>
           )}
 
@@ -672,9 +672,9 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
                 priority === 'URGENT'
-                  ? 'bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20'
+                  ? 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20'
                   : priority === 'HIGH'
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
                   : 'bg-muted text-muted-foreground'
               }`}>
                 {priority}
@@ -730,7 +730,7 @@ export default function BatchCreator({ recipes, workers, teams }: { recipes: Rec
           style={{ bottom: 'calc(4rem + max(env(safe-area-inset-bottom, 0px), 1rem))' }}
         >
           <div className="mx-auto max-w-lg">
-            {error && <p className="mb-2 truncate text-center text-xs font-medium text-red-500">{error}</p>}
+            {error && <p className="mb-2 truncate text-center text-xs font-medium text-destructive">{error}</p>}
             <button
               type="button"
               onClick={handleSubmit}

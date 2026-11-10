@@ -188,7 +188,7 @@ export default function LandingPage() {
             <p className="text-sm text-muted-foreground">
               No organization found for &quot;{query}&quot;
             </p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Check with your manager for the correct name
             </p>
           </div>
@@ -196,7 +196,7 @@ export default function LandingPage() {
 
         {/* Direct slug hint */}
         {!focused && !query && (
-          <p className="text-xs text-muted-foreground/60 text-center mt-3">
+          <p className="text-xs text-muted-foreground text-center mt-3">
             Or go directly to <span className="font-mono">batchflow.app/o/your-org</span>
           </p>
         )}
