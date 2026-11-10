@@ -34,6 +34,7 @@ export default function MyDayClient({ session }: { session: Session }) {
   const [languageSaving, setLanguageSaving] = useState(false)
 
   const [dataError, setDataError] = useState('')
+  const [shiftFailed, setShiftFailed] = useState(false)
   const [shiftLoaded, setShiftLoaded] = useState(false)
   const [now, setNow] = useState(Date.now())
   const [error, setError] = useState('')
@@ -64,43 +65,33 @@ export default function MyDayClient({ session }: { session: Session }) {
     let failed = false
     try {
       try {
-      // Fetch today's activity
-      const actRes = await fetch('/api/workers/activity', { cache: "no-store" })
-      if (!actRes.ok) throw new Error('Activity unavailable')
-      if (actRes.ok) {
+        // Fetch today's activity
+        const actRes = await fetch('/api/workers/activity', { cache: "no-store" })
+        if (!actRes.ok) throw new Error('Activity unavailable')
         const actData = await actRes.json()
-        if (actData.workers) {
-          const me = actData.workers.find((w: any) => w.id === (session.workerId || session.id))
-          if (me) {
-            setTodayUnits(me.todayUnits || 0)
-            // Extract batch activities from progress logs
-            const batchMap = new Map<string, number>()
-            // We'll need to fetch full activity details separately
-          }
-        }
-      }
+        const me = actData.workers?.find((w: any) => w.id === (session.workerId || session.id))
+        if (me) setTodayUnits(me.todayUnits || 0)
       } catch { failed = true }
 
       let responseTimezone = timezone
       try {
-      // Fetch current shift
-      const shiftRes = await fetch('/api/shifts', { cache: "no-store" })
-      if (!shiftRes.ok) throw new Error('Shift status unavailable')
-      if (shiftRes.ok) {
+        // Fetch current shift
+        const shiftRes = await fetch('/api/shifts', { cache: "no-store" })
+        if (!shiftRes.ok) throw new Error('Shift status unavailable')
         const shiftData = await shiftRes.json()
         setActiveShift(shiftData.activeShift || null)
         responseTimezone = shiftData.timezone || 'America/New_York'
         setTimezone(responseTimezone)
         setTodayShifts((shiftData.todayShifts || []).filter((s: Shift) => s.endedAt).map((s: Shift) => ({ ...s, hours: (new Date(s.endedAt!).getTime() - new Date(s.startedAt).getTime()) / 3600000 })))
         setShiftLoaded(true)
-      }
-      } catch { failed = true }
+        setShiftFailed(false)
+      } catch { failed = true; setShiftFailed(true) }
 
       try {
       // Fetch worker stats (this gives us week data)
       const statsRes = await fetch('/api/workers/stats', { cache: "no-store" })
       if (!statsRes.ok) throw new Error('Statistics unavailable')
-      if (statsRes.ok) {
+      {
         const statsData = await statsRes.json()
         setWeekStats(statsData.stats || null)
 
@@ -138,7 +129,7 @@ export default function MyDayClient({ session }: { session: Session }) {
     : 0
 
   const handleClockIn = async () => {
-    if (clockingIn || !shiftLoaded) return
+    if (clockingIn || !shiftLoaded || shiftFailed) return
     haptic('medium')
     setClockingIn(true)
     try {
@@ -178,7 +169,7 @@ export default function MyDayClient({ session }: { session: Session }) {
         </div>
 
         {dataError ? <div role="alert" className="mb-6 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{dataError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={fetchData}>Retry My Day</button></div> : null}
-        {!shiftLoaded && !loading ? null : loading ? (
+        {loading ? (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
           </div>
@@ -210,7 +201,7 @@ export default function MyDayClient({ session }: { session: Session }) {
                   </p>
                   <button
                     onClick={handleClockIn}
-                    disabled={clockingIn}
+                    disabled={clockingIn || !shiftLoaded || shiftFailed}
                     className="bf-btn bf-btn-success bf-btn-lg bf-btn-full"
                   >
                     {clockingIn ? translateUi('Starting...', session.preferredLanguage) : translateUi('Clock In', session.preferredLanguage)}

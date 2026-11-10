@@ -54,9 +54,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
       .then(d => {
         if (d.workers) {
           const me = d.workers.find((w: any) => w.id === worker.id)
-          if (me) {
-            setStats({ batches: me.batches?.length || 0, units: me.todayUnits || 0 })
-          }
+          setStats({ batches: me?.batches?.length || 0, units: me?.todayUnits || 0 })
         }
       })
       .catch(() => setStatsFailed(true))
@@ -128,7 +126,7 @@ export default function ShiftScreen({ worker, language = 'en' }: { language?: st
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      {clockError && <p role="alert" className="mx-4 mt-4 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{clockError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={() => window.dispatchEvent(new Event('shift-changed'))}>Retry shift status</button></p>}
+      {clockError && <p role="alert" className="mx-4 mt-4 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{clockError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={() => { setChecking(true); window.dispatchEvent(new Event('shift-changed')) }}>Retry shift status</button></p>}
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         {/* Status Indicator */}

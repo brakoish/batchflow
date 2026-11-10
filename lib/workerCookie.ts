@@ -56,3 +56,19 @@ export function workerCookieOptions() {
     expires: new Date(Date.now() + WORKER_COOKIE_MAX_AGE * 1000), // iOS PWA needs explicit expires
   }
 }
+
+// A PIN sign-in replaces any Google or email session on this device, so work
+// is recorded as the person who just entered their PIN.
+type CookieWriter = { set: (name: string, value: string, options: Record<string, unknown>) => unknown }
+export function clearAccountSessionCookies(cookieStore: CookieWriter) {
+  for (const name of ['next-auth.session-token', '__Secure-next-auth.session-token']) {
+    cookieStore.set(name, '', {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      secure: name.startsWith('__Secure-') || process.env.NODE_ENV === 'production',
+      maxAge: 0,
+      expires: new Date(0),
+    })
+  }
+}

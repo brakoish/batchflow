@@ -111,3 +111,15 @@ export function fromDateTimeLocalString(dateTimeLocal: string, timezone: string)
 export function localDateKey(date: string | Date, timezone: string): string {
   return toDateTimeLocalString(date, timezone).slice(0, 10)
 }
+
+// Start of a calendar day (YYYY-MM-DD) in a timezone. Where clocks skip
+// midnight, the day starts at 01:00. Returns null for an impossible date.
+export function startOfLocalDay(day: string, timezone: string): Date | null {
+  for (const time of ['00:00', '01:00']) {
+    try {
+      const date = fromDateTimeLocalString(`${day}T${time}`, timezone)
+      if (!Number.isNaN(date.getTime())) return date
+    } catch {}
+  }
+  return null
+}

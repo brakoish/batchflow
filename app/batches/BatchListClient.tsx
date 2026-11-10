@@ -182,7 +182,7 @@ export default function BatchListClient({
           </div>
         )}
         
-        {shiftError && !fetchError && <p role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{shiftError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={() => fetchData(true)}>Retry shift status</button></p>}
+        {shiftError && <p role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive-subtle p-3 text-sm text-destructive">{shiftError} <button className="bf-btn bf-btn-secondary bf-btn-sm" onClick={() => fetchData(true)}>Retry shift status</button></p>}
         {/* Clock-in nudge banner */}
         {shiftChecked && !onShift && !nudgeDismissed && (session.role === 'WORKER' || session.role === 'SUPERVISOR') && (
           <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
@@ -422,7 +422,7 @@ export default function BatchListClient({
                                 ? 'bg-red-500/10 text-red-700 dark:text-red-400'
                                 : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
                             }`}>
-                              {priority === 'URGENT' ? 'Urgent' : 'High'}
+                              {priority}
                             </span>
                           )}
                         </div>
@@ -487,7 +487,7 @@ export default function BatchListClient({
                   </div>
 
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    {priority !== 'NORMAL' && <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${priority === 'URGENT' ? 'bg-red-500/10 text-destructive' : priority === 'HIGH' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>{priority.charAt(0) + priority.slice(1).toLowerCase()}</span>}
+                    {priority !== 'NORMAL' && <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${priority === 'URGENT' ? 'bg-red-500/10 text-destructive' : priority === 'HIGH' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>{priority}</span>}
                     <span className={`text-xs ${assignedNames.length ? 'text-muted-foreground' : 'font-semibold text-amber-700 dark:text-amber-400'}`}>{batch.leadWorker ? `Lead: ${batch.leadWorker.name.split(' ')[0]} · ` : ''}{assignedNames.length ? teamLabel : 'Needs team'}</span>
                   </div>
 
