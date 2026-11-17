@@ -2,7 +2,7 @@ import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/auth'
-import { getRecordedStepTotal, isRecordedStepComplete, parseStepQuantity } from '@/lib/stepRecording'
+import { getRecordedStepTotal, isRecordedStepComplete, isWeighInStep, parseStepQuantity } from '@/lib/stepRecording'
 
 const SKIPPED_PREFIX = '[Skipped] '
 
@@ -93,9 +93,18 @@ export async function POST(
       )
     }
 
-    if (step.type === 'ENTRY' && isRecordedStepComplete(step)) {
+    // A weight step keeps collecting weigh-ins as more material is opened.
+    // Any other entry is still recorded once.
+    const addingWeighIn = step.type === 'ENTRY' && isRecordedStepComplete(step) && isWeighInStep(step)
+    if (step.type === 'ENTRY' && isRecordedStepComplete(step) && !addingWeighIn) {
       return NextResponse.json(
         { error: 'This entry has already been recorded' },
+        { status: 400 }
+      )
+    }
+    if (addingWeighIn && quantity === 0) {
+      return NextResponse.json(
+        { error: 'Enter the weight you are adding' },
         { status: 400 }
       )
     }

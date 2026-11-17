@@ -2,7 +2,7 @@ import { summarizeBatchAssignments } from '@/lib/batchAssignmentSummary'
 import { withOperationalLock } from '@/lib/operationalLock'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { isRecordedStepComplete } from '@/lib/stepRecording'
+import { getEntryValue, isRecordedStepComplete } from '@/lib/stepRecording'
 import { requireSession, requireOwner, requireSupervisorOrOwner } from '@/lib/auth'
 import { getProducedBaseUnits } from '@/lib/inventory'
 import { convertMaterialQuantity } from '@/lib/materialUnits'
@@ -138,8 +138,9 @@ export async function PATCH(
       const inputStep = existingBatch.steps.find(step => step.type === 'ENTRY' && !/(waste|shake)/i.test(step.name) && step.progressLogs.length > 0)
       const wasteStep = [...existingBatch.steps].reverse().find(step => step.type === 'ENTRY' && /waste/i.test(step.name) && step.progressLogs.length > 0)
       const entryGrams = (step: typeof inputStep) => {
-        if (!step?.progressLogs[0]) return null
-        return convertMaterialQuantity(step.progressLogs[0].quantity, step.unitLabel, 'g')
+        const value = step ? getEntryValue(step) : null
+        if (value == null || !step) return null
+        return convertMaterialQuantity(value, step.unitLabel, 'g')
       }
       const wasteFromStep = entryGrams(wasteStep)
       const wasteGrams = parseNonNegative(reportInput.wasteGrams, wasteFromStep ?? 0)

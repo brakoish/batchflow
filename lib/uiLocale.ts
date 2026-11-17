@@ -16,6 +16,9 @@ export const zh: Record<string, string> = {
   'Search batches...': '搜索批次…', 'No batches': '没有批次', 'No batches match': '没有匹配的批次', 'Try a different search term.': '请尝试其他搜索词。',
   'Production Line': '生产线', 'Batch Inventory': '批次库存', 'Produced': '已生产', 'Removed': '已移出', 'On hand': '现有库存', 'Recent activity': '最近活动',
   'Show recent logs': '显示最近记录', 'Hide recent logs': '隐藏最近记录', 'Note (optional)': '备注（可选）', 'Connection error': '连接错误',
+  'Recorded': '已记录', 'total': '合计', 'Add more': '继续添加', 'Add': '添加', 'Change history': '修改记录', 'Hide change history': '隐藏修改记录',
+  'Loading…': '正在加载…', 'No changes recorded yet': '尚无修改记录', 'Could not load the change history': '无法加载修改记录', 'Someone': '某人',
+  'added': '添加了', 'removed': '删除了', 'changed': '修改了', 'changed the note': '修改了备注',
 }
 
 export function translateUi(value: string, language = 'en') {
@@ -29,5 +32,10 @@ export function translateUi(value: string, language = 'en') {
   if (/^\d+ units$/.test(value)) return value.replace(' units', ' 个')
   if (value.startsWith('Record measurement in ')) return value.replace('Record measurement in ', '记录测量值，单位：')
   if (/^(Recorded|Logged) /.test(value)) return value.replace(/^(Recorded|Logged) /, '已记录 ')
+  if (/^Added /.test(value)) return value.replace(/^Added /, '已添加 ')
+  if (/^\d+ weigh-ins?$/.test(value)) return value.replace(/^(\d+) weigh-ins?$/, '共 $1 次称重')
+  if (/^Show \d+ weigh-ins?$/.test(value)) return value.replace(/^Show (\d+) weigh-ins?$/, '显示 $1 次称重')
+  if (value.startsWith("Weigh what you're opening now, in ")) return value.replace("Weigh what you're opening now, in ", '只称现在要打开的材料，单位：')
+  if (/^Add the weight you just opened · .+ so far$/.test(value)) return value.replace(/^Add the weight you just opened · (.+) so far$/, '添加刚打开的材料重量 · 目前已有 $1')
   return value
 }

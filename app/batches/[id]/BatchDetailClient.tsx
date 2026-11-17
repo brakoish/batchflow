@@ -11,6 +11,7 @@ import AppShell from '@/app/components/AppShell'
 import { useDialogFocus } from '@/app/components/useDialogFocus'
 import ConfirmModal from '@/app/components/ConfirmModal'
 import MeasurementUnitPicker from '@/app/components/MeasurementUnitPicker'
+import WeighInHistory from './WeighInHistory'
 import {
   CheckCircleIcon,
   CheckIcon,
@@ -32,6 +33,7 @@ import type { Session } from '@/lib/session'
 import { getProducedBaseUnits, getRemovedQuantity } from '@/lib/inventory'
 import { formatMaterialQuantity, getMaterialReconciliation } from '@/lib/materialReconciliation'
 import { formatWeightConversion } from '@/lib/materialUnits'
+import { getEntryValue, isWeighInStep } from '@/lib/stepRecording'
 import {
   formatShortRelativeTime,
   getActiveStations,
@@ -354,7 +356,7 @@ export default function BatchDetailClient({
   const handleStatusChange = async (status: string) => {
     if (status === 'COMPLETED' && !batch.completionReport) {
       const wasteStep = [...batch.steps].reverse().find(step => step.type === 'ENTRY' && /waste/i.test(step.name))
-      setFinishWaste(String(wasteStep?.progressLogs[0]?.quantity ?? 0))
+      setFinishWaste(String(wasteStep ? getEntryValue(wasteStep) ?? 0 : 0))
       setShowFinishReport(true)
       return
     }
@@ -801,8 +803,8 @@ export default function BatchDetailClient({
           if (s.id === stepId) {
             return {
               ...s,
-              completedQuantity: s.type === 'ENTRY' ? 0 : Math.max(0, s.completedQuantity - qty),
-              status: s.type === 'ENTRY' ? 'IN_PROGRESS' : s.status,
+              completedQuantity: s.type === 'ENTRY' ? (s.progressLogs.some(l => l.id !== logId) ? 1 : 0) : Math.max(0, s.completedQuantity - qty),
+              status: s.type === 'ENTRY' ? (s.progressLogs.some(l => l.id !== logId) ? 'COMPLETED' : 'IN_PROGRESS') : s.status,
               progressLogs: s.progressLogs.filter(l => l.id !== logId),
             }
           }
@@ -930,6 +932,12 @@ export default function BatchDetailClient({
     canWorkOnBatch && batch.status === 'ACTIVE' && !isSkippedStep(step) && step.type === 'ENTRY' && step.status !== 'COMPLETED'
   )
 
+  // Weight steps keep taking weigh-ins after the first one, so staff weigh
+  // only the material they open and add more as they go.
+  const canAddWeighIn = (step: BatchStep) => (
+    canWorkOnBatch && batch.status === 'ACTIVE' && !isSkippedStep(step) && isWeighInStep(step) && step.status === 'COMPLETED' && step.progressLogs.length > 0
+  )
+
   const editLogDialogRef = useRef<HTMLDivElement>(null)
   const removalDialogRef = useRef<HTMLDivElement>(null)
   const finishDialogRef = useRef<HTMLDivElement>(null)
@@ -972,7 +980,8 @@ export default function BatchDetailClient({
 
       const data = await res.json()
       setSelectedStep(null); setQuantity(''); setNote(''); setShowNoteInput(false)
-      showToast(translateUi(stepBeingLogged.type === 'ENTRY' ? `Recorded ${qty} ${stepBeingLogged.unitLabel}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`, session.preferredLanguage))
+      const addedWeighIn = isWeighInStep(stepBeingLogged) && stepBeingLogged.progressLogs.length > 0
+      showToast(translateUi(stepBeingLogged.type === 'ENTRY' ? `${addedWeighIn ? 'Added' : 'Recorded'} ${qty} ${stepBeingLogged.unitLabel}` : `Logged ${qty} ${stepBeingLogged.unitLabel}`, session.preferredLanguage))
       const refreshed = await fetch(`/api/batches/${batch.id}`, { cache: 'no-store' }).catch(() => null)
       if (refreshed?.ok) { const latest = await refreshed.json().catch(() => null); if (latest?.batch) setBatch(latest.batch) }
       lastSaveTsRef.current = Date.now()
@@ -1556,7 +1565,7 @@ export default function BatchDetailClient({
                           {step.type === 'CHECK'
                             ? 'Worker taps Done'
                             : step.type === 'ENTRY'
-                            ? `Worker enters one measured value in ${step.unitLabel}`
+                            ? isWeighInStep(step) ? `Worker weighs material as it is opened, in ${step.unitLabel}` : `Worker enters one measured value in ${step.unitLabel}`
                             : step.targetQuantity
                             ? `Worker logs ${step.completedQuantity.toLocaleString()} / ${step.targetQuantity.toLocaleString()} ${step.unitLabel}`
                             : `Worker logs ${step.unitLabel} as they go`}
@@ -1641,9 +1650,16 @@ export default function BatchDetailClient({
                           {step.completedQuantity}{step.targetQuantity ? ` / ${step.targetQuantity}` : ''} {step.unitLabel}{!step.targetQuantity && step.completedQuantity > 0 ? ' produced' : ''}
                         </p>
                       )}
-                      {step.type === 'ENTRY' && step.progressLogs[0] && (
-                        <p className="text-xs text-foreground tabular-nums mt-0.5">Recorded {step.progressLogs[0].quantity.toLocaleString()} {step.unitLabel}{formatWeightConversion(step.progressLogs[0].quantity, step.unitLabel) ? ` · ${formatWeightConversion(step.progressLogs[0].quantity, step.unitLabel)}` : ''}</p>
-                      )}
+                      {step.type === 'ENTRY' && step.progressLogs[0] && (() => {
+                        const entryValue = getEntryValue(step) ?? 0
+                        const weighIns = isWeighInStep(step) ? step.progressLogs.length : 1
+                        const conversion = formatWeightConversion(entryValue, step.unitLabel)
+                        return (
+                          <p className="text-xs text-foreground tabular-nums mt-0.5">
+                            {translateUi('Recorded', session.preferredLanguage)} {entryValue.toLocaleString()} {step.unitLabel}{weighIns > 1 ? ` ${translateUi('total', session.preferredLanguage)}` : ''}{conversion ? ` · ${conversion}` : ''}{weighIns > 1 ? ` · ${translateUi(`${weighIns} weigh-ins`, session.preferredLanguage)}` : ''}
+                          </p>
+                        )
+                      })()}
                       {!isSkipped && stationState?.latestLog && (
                         <p className="text-xs text-muted-foreground/70 mt-0.5">
                           Last: {stationState.latestLog.worker.name} +{stationState.latestLog.quantity} · {formatShortRelativeTime(stationState.latestLog.createdAt)}
@@ -1678,6 +1694,11 @@ export default function BatchDetailClient({
                   {!isCompleted && !isSkipped && step.type === 'ENTRY' && canRecordEntryStep(step) && (
                     <button onClick={() => openLogForStep(step)} className="bf-btn bf-btn-success min-w-[92px] shrink-0">
                       <PencilSquareIcon className="w-4 h-4" />{translateUi('Enter', session.preferredLanguage)}
+                    </button>
+                  )}
+                  {!isSkipped && canAddWeighIn(step) && (
+                    <button onClick={() => openLogForStep(step)} className="bf-btn bf-btn-secondary min-w-[92px] shrink-0">
+                      <PlusIcon className="w-4 h-4" />{translateUi('Add more', session.preferredLanguage)}
                     </button>
                   )}
                 </div>
@@ -1809,9 +1830,18 @@ export default function BatchDetailClient({
                               }}
                               className="bf-btn bf-btn-ghost bf-btn-sm h-auto min-h-[32px] px-2 py-1 text-xs"
                             >
-                              {isExpanded ? 'Hide activity' : `Show ${step.progressLogs.length} recent log${step.progressLogs.length === 1 ? '' : 's'}`}
+                              {isExpanded ? 'Hide activity' : isWeighInStep(step) ? translateUi(`Show ${step.progressLogs.length} weigh-in${step.progressLogs.length === 1 ? '' : 's'}`, session.preferredLanguage) : `Show ${step.progressLogs.length} recent log${step.progressLogs.length === 1 ? '' : 's'}`}
                             </button>
                           </div>
+                          {isExpanded && isWeighInStep(step) && (
+                            <WeighInHistory
+                              batchId={batch.id}
+                              stepId={step.id}
+                              unitLabel={step.unitLabel}
+                              language={session.preferredLanguage}
+                              formatTimestamp={formatLogTimestamp}
+                            />
+                          )}
                         </>
                       )
                     })()}
@@ -2197,7 +2227,9 @@ export default function BatchDetailClient({
                 <div>
                   <p className="text-sm font-semibold text-foreground">{displayStepName(selectedStep)}</p>
                   <p className="text-xs text-foreground tabular-nums mt-0.5">
-                    {selectedStep.type === 'ENTRY' ? translateUi(`Record measurement in ${selectedStep.unitLabel}`, session.preferredLanguage) : <>{selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}</>}
+                    {selectedStep.type === 'ENTRY' ? (isWeighInStep(selectedStep) && selectedStep.progressLogs.length > 0
+                      ? translateUi(`Add the weight you just opened · ${(getEntryValue(selectedStep) ?? 0).toLocaleString()} ${selectedStep.unitLabel} so far`, session.preferredLanguage)
+                      : translateUi(isWeighInStep(selectedStep) ? `Weigh what you're opening now, in ${selectedStep.unitLabel}` : `Record measurement in ${selectedStep.unitLabel}`, session.preferredLanguage)) : <>{selectedStep.completedQuantity}{selectedStep.targetQuantity ? ` / ${selectedStep.targetQuantity}` : ''} {selectedStep.unitLabel}{!selectedStep.targetQuantity ? ' produced' : ''}</>}
                   </p>
                 </div>
                 <button
@@ -2332,7 +2364,7 @@ export default function BatchDetailClient({
                   : quantity !== '' && Number(quantity) >= 0
                     ? (getSafeRemaining(selectedStep) !== null && Number(quantity) > getSafeRemaining(selectedStep)!
                       ? `Max ${getSafeRemaining(selectedStep)!.toLocaleString()} ${selectedStep.unitLabel}`
-                      : `${translateUi(selectedStep.type === 'ENTRY' ? 'Record' : 'Log', session.preferredLanguage)} ${Number(quantity).toLocaleString()} ${selectedStep.unitLabel}`)
+                      : `${translateUi(selectedStep.type === 'ENTRY' ? (isWeighInStep(selectedStep) && selectedStep.progressLogs.length > 0 ? 'Add' : 'Record') : 'Log', session.preferredLanguage)} ${Number(quantity).toLocaleString()} ${selectedStep.unitLabel}`)
                     : translateUi('Enter amount', session.preferredLanguage)}
               </button>
             </div>

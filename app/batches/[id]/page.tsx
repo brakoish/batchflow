@@ -69,6 +69,20 @@ export default async function BatchDetailPage({
     redirect('/batches')
   }
 
+  // Entry steps keep every weigh-in so the running total and each entry's
+  // edit button match what the batch page shows after a refresh.
+  const entryStepIds = batch.steps.filter(step => step.type === 'ENTRY').map(step => step.id)
+  if (entryStepIds.length > 0) {
+    const entryLogs = await prisma.progressLog.findMany({
+      where: { batchStepId: { in: entryStepIds } },
+      include: { worker: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+    for (const step of batch.steps) {
+      if (step.type === 'ENTRY') step.progressLogs = entryLogs.filter(log => log.batchStepId === step.id)
+    }
+  }
+
   const orgTimezone = organization?.timezone || 'America/New_York'
 
   return (

@@ -179,8 +179,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
-    const aggregate = await prisma.progressLog.aggregate({ where: { batchStepId: log.batchStepId }, _sum: { quantity: true } })
-    const proposedTotal = log.batchStep.type === 'ENTRY' ? 0 : (aggregate._sum.quantity || 0) + (-log.quantity)
+    const aggregate = await prisma.progressLog.aggregate({ where: { batchStepId: log.batchStepId }, _sum: { quantity: true }, _count: { _all: true } })
+    const proposedTotal = log.batchStep.type === 'ENTRY' ? (aggregate._count._all > 1 ? 1 : 0) : (aggregate._sum.quantity || 0) + (-log.quantity)
     if (log.batchStep.type !== 'ENTRY' && log.batchStep.targetQuantity != null && proposedTotal > log.batchStep.targetQuantity) {
       return NextResponse.json({ error: 'Correction exceeds the station target' }, { status: 400 })
     }
